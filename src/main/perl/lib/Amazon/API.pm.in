@@ -1,0 +1,118 @@
+package Amazon::API;
+
+use parent qw/Class::Accessor/;
+
+use AWS::Signature4;
+use HTTP::Request;
+use LWP::UserAgent;
+use Data::Dumper;
+use JSON qw/to_json/;
+use Scalar::Util qw/reftype/;
+
+__PACKAGE__->follow_best_practice;
+__PACKAGE__->mk_accessors(qw/action api credentials region signer target url user_agent version debug/);
+
+
+sub new {
+  my $class = shift;
+  my $self = $class->SUPER::new(@_);
+
+  unless ($self->get_user_agent) {
+    $self->set_user_agent(new LWP::UserAgent);
+  }
+
+  $self->set_signer(AWS::Signature4->new(-access_key => $self->get_credentials->get_aws_access_key_id,
+					 -secret_key => $self->get_credentials->get_aws_secret_access_key)
+		   );
+  
+    
+  $self;
+}
+
+sub invoke_api {
+  my $self = shift;
+  my ($action, $options, $content_type) = @_;
+
+  $self->set_action($action);
+
+  unless ( $content_type ) {
+    if ( ref($options) && reftype($options) eq 'HASH' ) {
+      $content_type = 'application/x-amz-json-1.1';
+      $content = to_json($options | {});
+    }
+    elsif ( ref($options) && reftype($options) eq 'ARRAY') {
+      $content_type = 'application/x-www-form-url-encoded';
+      $content = join('&', @{$options});
+    }
+    else {
+      $content_type = 'application/x-www-form-url-encoded';
+      $content = $options;
+    }
+  }
+
+  my $rsp = $self->submit(content => $content, content_type => $content_type);
+  
+  if ( $self->get_debug ) {
+    print STDERR Dumper [$rsp];
+  }
+    
+  # probably want to decode content when there is an error, but this
+  # will do for now
+  unless ($rsp->is_success) {
+    die $rsp->content;
+  }
+    
+  return $rsp->content;
+}
+
+sub submit {
+  my $self = shift;
+
+  my %options = @_;
+
+  $options{content_type} = $options{content_type} || 'application/x-amz-json-1.1';
+
+  my $request = HTTP::Request->new('POST', $self->get_url);
+
+  my $url = $self->get_url;
+  
+  my $content = $options{content};
+  
+  # some APIs want the version in the target, some don't. Sparse
+  # documentation on X-Amz-Target. DDB & KMS seems to be able to use
+  # this in lieu of query variables Action & Version, although there
+  # is a lot of inconsisitency in the APIs.  DDB uses
+  # DynamoDB_YYYYMMDD.Action while KMS will not take the version
+  # that way and prefers TrentService.Action (with no version).
+  # There is no explanation in any of the documentations as to what
+  # "TrentService" might actually mean.
+  if ( $self->get_api ) {
+    if ( $self->get_version) {
+      $self->set_target(sprintf("%s_%s.%s", $self->get_api, $self->get_version, $self->get_action));
+    }
+    else {
+      $self->set_target(sprintf("%s.%s", $self->get_api, $self->get_action));
+    }
+    $request->header('X-Amz-Target', $self->get_target());
+  }
+  else {
+    $content = sprintf("%sAction=%s&Version=%s", $options{content} ? $options{content} . '&' : '', $self->get_action(), $self->get_version());
+  }
+
+  $request->content_type($content);
+  $request->content($content);
+  $request->header('X-Amz-Security-Token', $self->get_credentials->{token})
+    if $self->get_credentials->{token};
+		 
+  # sign the request
+  $self->get_signer->sign($request);
+
+  # make the request, return response object
+  if ( $self->get_debug ) {
+    print STDERR Dumper([$request]);
+  }
+
+  $self->get_user_agent->request($request);
+}
+
+1;
