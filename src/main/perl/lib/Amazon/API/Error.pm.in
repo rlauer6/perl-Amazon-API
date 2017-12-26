@@ -1,0 +1,56 @@
+package Amazon::API::Error;
+
+use parent qw/Class::Accessor/;
+
+use JSON qw/to_json/;
+use Scalar::Util qw/reftype/;
+use XML::Simple;
+
+__PACKAGE__->follow_best_practice;
+__PACKAGE__->mk_accessors(qw/error api message_raw response/);
+
+=pod
+
+=head1 NAME
+
+C<Amazon::API::Error>
+
+An example response:
+
+<?xml version="1.0" encoding="UTF-8"?>
+  <Response><Errors><Error><Code>UnauthorizedOperation</Code><Message>You are not authorized to perform this operation.</Message></Error></Errors><RequestID>599b0f86-4668-4adb-b493-552d6039fcd1</RequestID></Response>
+
+=cut
+
+sub new {
+  my $class = shift;
+  my $self = $class->SUPER::new(@_);
+  
+  if ( $self->get_message_raw ) {
+    # might not be XML?
+    my $message = eval {
+      XMLin($self->get_message_raw);
+    };
+    
+    $self->set_response($message);
+  }
+  
+  $self;
+}
+
+sub get_aws_api {
+  my $self = shift;
+  my $api;
+  
+  {
+    local $@;
+    
+    $api = eval {
+      $self->get_api->get_api || ref($self->get_api);
+    };
+  }
+  
+  return $api;
+}
+
+1;

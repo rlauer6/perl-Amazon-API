@@ -2,16 +2,17 @@ package Amazon::API;
 
 use parent qw/Class::Accessor/;
 
+use Amazon::API::Error;
 use AWS::Signature4;
-use HTTP::Request;
-use LWP::UserAgent;
 use Data::Dumper;
+use HTTP::Request;
 use JSON qw/to_json/;
+use LWP::UserAgent;
 use Scalar::Util qw/reftype/;
+use XML::Simple;
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(qw/action api credentials region signer target url user_agent version debug/);
-
 
 sub new {
   my $class = shift;
@@ -59,7 +60,11 @@ sub invoke_api {
   # probably want to decode content when there is an error, but this
   # will do for now
   unless ($rsp->is_success) {
-    die $rsp->content;
+    die new Amazon::API::Error({error       => $rsp->code,
+				message_raw => $rsp->content,
+				api         => $self
+			       });
+    
   }
     
   return $rsp->content;
