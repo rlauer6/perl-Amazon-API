@@ -1,13 +1,11 @@
 **/Makefile
-**/Makefile.in
 configure
 config.log
 config.status
+autom4te.cache/requests
 *.tar.gz
 *.rpm
 *.spec
-aclocal.m4
-autom4te.cache/*
 tags
 TAGS
 .make.state
