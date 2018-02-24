@@ -6,7 +6,6 @@ This is the README file for the `perl-Amazon-API` project...
 
 Base class for Amazon APIs.  See `perldoc Amazon::API`
 
-```
 # Installation
 
 ```
