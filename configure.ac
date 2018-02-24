@@ -1,4 +1,4 @@
-AC_INIT([perl-Amazon-API], [1.0.0], [rlauer6@comcast.net], [perl-Amazon-API])
+AC_INIT([perl-Amazon-API], [1.1.0], [rlauer6@comcast.net], [perl-Amazon-API])
 
 __poor_mans_expand_file_name () {
     _tmp_name=$1
@@ -121,7 +121,7 @@ dnl ads_PERL_MODULE([CJ::Log], [REQUIRED], [1.3])
 
 dnl example macro that enables allows you to enable/disable some feature
 dnl --enable-some-thingy, --disable-some-thingy : see the autotools/ax_am_conditional_example.m4 macro
-AX_SOME_THINGY
+dnl AX_SOME_THINGY
 
 AX_DISTCHECK_HACK
 AX_DEPS_CHECK
@@ -148,7 +148,6 @@ printf "           Configuration files: %s\n" "`__poor_mans_expand_file_name sys
 printf "                  Manual pages: %s\n" "`__poor_mans_expand_file_name mandir`"
 printf "\n"
 printf "                   perl5libdir: %s\n" "`__poor_mans_expand_file_name perl5libdir`"
-printf "            Enable some thingy: %s\n" "`__poor_mans_expand_file_name SOME_THINGY_ENABLED`"
 printf "\n"
 printf "                          perl: %s\n" "`__poor_mans_expand_file_name PERL`"
 printf "                          bash: %s\n" "`__poor_mans_expand_file_name BASHRUN`"

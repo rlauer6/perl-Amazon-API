@@ -12,10 +12,8 @@ perl5libdir = @perl5libdir@
 ax_perl5_extra_includes_opt = @ax_perl5_extra_includes_opt@
 
 # this is where we will install these perl modules
-amazondir = @datadir@/perl5/Amazon
-amazon_apidir = @datadir@/perl5/Amazon/API
-
-logdir = @localstatedir@/log
+amazondir = @perl5libdir@/perl5/Amazon
+amazon_apidir = $(amazondir)/API
 
 PERLMODULES = \
     Amazon/API.pm.in

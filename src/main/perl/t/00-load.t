@@ -2,4 +2,4 @@
 
 use Test::More tests => 1;
 
-use_ok('Amzon::API');
+use_ok('Amazon::API');
