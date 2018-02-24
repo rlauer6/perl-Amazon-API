@@ -238,7 +238,7 @@ sub invoke_api {
   
   unless ( $content_type ) {
     if ( ref($parameters) && reftype($parameters) eq 'HASH' ) {
-      $content_type = 'application/x-amz-json-1.1';
+      $content_type =  $self->get_content_type;
       $content = to_json($parameters || {});
     }
     elsif ( ref($parameters) && reftype($parameters) eq 'ARRAY') {
