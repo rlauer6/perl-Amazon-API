@@ -2,12 +2,72 @@ package Amazon::API;
 
 # Generic interface to Amazon APIs
 
+=pod
+
+=head1 NAME
+
+C<Amazon::API>
+
+=head1 SYNOPSIS
+
+ package Amazon::CloudWatchEvents;
+
+ use parent qw/Amazon::API/;
+
+ @API_METHODS = qw/
+		  DeleteRule
+		  DescribeEventBus
+		  DescribeRule
+		  DisableRule
+		  EnableRule
+		  ListRuleNamesByTarget
+		  ListRules
+		  ListTargetsByRule
+		  PutEvents
+		  PutPermission
+		  PutRule
+		  PutTargets
+		  RemovePermission
+		  RemoveTargets
+		  TestEventPattern/;
+
+ sub new {
+   my $class = shift;
+   my $options = shift || {};
+ 
+   $class->SUPER::new({
+ 		      %$options,
+ 		      service_url_base => 'events',
+ 		      version          => undef,
+ 		      api              => 'AWSEvents',
+ 		      api_methods      => \@API_METHODS,
+ 		      content_type     => 'application/x-amz-json-1.1'
+ 		     });
+ }
+
+ 1;
+
+=head1 DESCRIPTION
+
+Class to use for constructing AWS API interfaces.  Typically used as
+the parent class, but can be used directly.  See
+C<Amazon::CloudWatchEvents> for an example or sub-classing.  See
+L</IMPLEMENTATION NOTES> for using C<Amazon::API> directly to call AWS services.
+
+=head1 ERRORS
+
+Errors encountered are returned as an C<Amazon::API::Error> exception object.  See L<Amazon::API::Error>/
+
+=cut
+
 use strict;
 use warnings;
 
 use parent qw/Class::Accessor/;
 
 use Amazon::API::Error;
+use Amazon::Credentials;
+
 use AWS::Signature4;
 use Data::Dumper;
 use HTTP::Request;
@@ -17,30 +77,16 @@ use Scalar::Util qw/reftype/;
 use XML::Simple;
 
 __PACKAGE__->follow_best_practice;
-__PACKAGE__->mk_accessors(qw/action api credentials region signer target url user_agent version debug last_action/);
-
+__PACKAGE__->mk_accessors(qw/action api api_methods version content_type
+			     credentials
+			     region url service_url_base 
+			     signer target user_agent debug last_action
+			     aws_access_key_id aws_secret_access_key token
+			    /);
 
 =pod
-
-=head1 NAME
-
-C<Amazon::API>
-
-=head1 SYNOPSIS
-
- use parent qw/Amazon::API/;
-
-=head1 DESCRIPTION
-
-Parent class to use for constructing AWS API interfaces.  See
-C<Amazon::EC2> for an example.
 
 =head1 METHODS
-
-=cut
-
-
-=pod
 
 =head2 new
 
@@ -60,16 +106,25 @@ Your own user agent object or by default C<LWP::UserAgent>.
 
 =item api
 
+The name of the AWS service.  Example: AWSEvents
+
 =item url
+
+The service url.  Example: https://events.us-east-1.amazonaws.com
 
 =item debug
 
-0/1 - will dump request/response if you set to true.
+0/1 - will dump request/response if set to true.
 
 =item action
 
-=back
+The API method. Example: PutEvents
 
+=item content_type
+
+Default content for references passed to the C<invoke_api()> method.  The default is C<application/x-amz-json-1.1>.
+
+=back
 
 =cut
 
@@ -81,11 +136,57 @@ sub new {
     $self->set_user_agent(new LWP::UserAgent);
   }
 
+  $self->set_region('us-east-1')
+    unless $self->get_region;
+  
+  unless ( $self->get_credentials ) {
+    $self->set_credentials( new Amazon::Credentials( { aws_secret_access_key => $self->get_aws_secret_access_key,
+						       aws_access_key_id     => $self->get_aws_access_key_id,
+						       token                 => $self->get_token
+						     })
+			  );
+  }
+  
+  unless ( $self->get_url ) {
+    if ( $self->get_service_url_base() ) {
+      $self->set_url(sprintf("https://%s.%s.amazonaws.com", $self->get_service_url_base, $self->get_region));
+    }
+    else {
+      die "ERROR: no url or service_url defined.\n"
+    }
+  }
+  
   $self->set_signer(AWS::Signature4->new(-access_key => $self->get_credentials->get_aws_access_key_id,
 					 -secret_key => $self->get_credentials->get_aws_secret_access_key)
 		   );
+ 
+  
+  if ( $self->get_api_methods ) {
+    no strict 'refs';
+    
+    foreach my $api (@{$self->get_api_methods}) {
+      my $method = lcfirst $api;
+      
+      $method =~s/([a-z])([A-Z])/$1_$2/g;
+      $method = lc $method;
+      
+      # snake case rules the day
+      *{"Amazon::API::" . $method} = sub { shift->invoke_api("$api", @_) };
+      # but some prefer camels
+      *{"Amazon::API::" . $api} = sub { shift->$method(@_) }; # pass on to the snake
+    }
+  }
+  
+  $self->set_content_type('application/x-amz-json-1.1') unless
+    $self->get_content_type;
   
   $self;
+}
+
+sub get_api_name {
+  my $self = shift;
+  
+  return join("", map { ucfirst } split /_/, shift);
 }
 
 =pod
@@ -127,6 +228,9 @@ sub invoke_api {
   my $self = shift;
   my ($action, $parameters, $content_type) = @_;
 
+  print STDERR "WARNING: 'parameters' is undefined. This could be a problem or you have not implemented the '" . $self->get_api_name($action) . "' API\n"
+    unless defined $parameters;
+  
   $self->set_action($action);
   $self->set_last_action($action);
 
@@ -163,9 +267,10 @@ sub invoke_api {
   # probably want to decode content when there is an error, but this
   # will do for now
   unless ($rsp->is_success) {
-    die new Amazon::API::Error({error       => $rsp->code,
-				message_raw => $rsp->content,
-				api         => $self
+    die new Amazon::API::Error({error        => $rsp->code,
+				message_raw  => $rsp->content,
+				content_type => $rsp->content_type,
+				api          => $self
 			       });
     
   }
@@ -195,10 +300,6 @@ Content types we have seen used to send values to AWS APIs:
  application/x-amz-json-1.0
  application/x-amz-json-1.1
  application/x-www-form-urlencoded
- application/json
- application/x-amz-json-1.0
- application/x-amz-json-1.1
- application/x-www-form-urlencoded
 
 =back
 
@@ -210,28 +311,12 @@ sub submit {
 
   my $request = HTTP::Request->new('POST', $self->get_url);
 
-  # NOTE:
-  #
-  # Some APIs want the version in the target, some don't. Sparse
-  # documentation on X-Amz-Target. DDB & KMS seems to be able to use
-  # this in lieu of query variables Action & Version, although there
-  # is a lot of inconsisitency in the APIs.  DDB uses
-  # DynamoDB_YYYYMMDD.Action while KMS will not take the version
-  # that way and prefers TrentService.Action (with no version).
-  # There is no explanation in any of the documentations as to what
-  # "TrentService" might actually mean.
-  #
-  # In general, the AWS API ecosystem is junk. Each service seems to
-  # have its own rules and protocol regarding what the content of the
-  # headers should be.  This generic API interface tries to make it
-  # possible to use a central class (Amazon::API) as a sort of gateway
-  # to the APIs. The most generic interface is simply sending query
-  # variables and not much else in the header.  APIs like EC2 conform
-  # to the that school, so we use 'Action' to determine whether to
-  # send the API action in the header or to assume that it is being
-  # sent as one of the query variables.  Other APIs like, DynamoDB
-  # like to see the Action in the header (X-Amz-Target).
+  # 1. set the header
+  # 2. set the content
+  # 3. sign the request
+  # 4. send the request & return result
   
+  # see IMPLEMENTATION NOTES for an explanation
   if ( $self->get_action ) {
     if ( $self->get_version) {
       $self->set_target(sprintf("%s_%s.%s", $self->get_api, $self->get_version, $self->get_action));
@@ -243,12 +328,6 @@ sub submit {
     $request->header('X-Amz-Target', $self->get_target());
   }
 
-  # Content types we have seen used to send values to AWS APIs
-  #
-  #   application/json
-  #   application/x-amz-json-1.0
-  #   application/x-amz-json-1.1
-  #   application/x-www-form-urlencoded
   
   $options{content_type} = $options{content_type} || 'application/x-amz-json-1.1';
   $request->content_type($options{content_type});
@@ -269,8 +348,131 @@ sub submit {
   $self->get_user_agent->request($request);
 }
 
-
 =pod
+
+=head1 IMPLEMENTATION NOTES
+
+=head2 X-Amz-Target
+
+Most of the newer AWS APIs accept a header (X-Amz-Target) in lieu of
+the CGI parameter Action. Some APIs also want the version in the
+target, some don't. Sparse documentation about some of the nuances of
+using the REST interface directly to call AWS APIs.
+
+The convention used in this class is to pass the version if it is set
+and to set the action (aka the API method to be called) in the header
+if C<action> is set.
+
+  if ( $self->get_action ) {
+    if ( $self->get_version) {
+      $self->set_target(sprintf("%s_%s.%s", $self->get_api, $self->get_version, $self->get_action));
+    }
+    else {
+      $self->set_target(sprintf("%s.%s", $self->get_api, $self->get_action));
+    }
+
+    $request->header('X-Amz-Target', $self->get_target());
+  }
+
+
+DynamoDB & KMS seems to be able to use this in lieu of query variables
+Action & Version, although again, there seems to be a lot of
+inconsisitency in the APIs.  DynamoDB uses DynamoDB_YYYYMMDD.Action
+while KMS will not take the version that way and prefers
+TrentService.Action (with no version).  There is no explanation in any
+of the documentations I have been able to find as to what
+"TrentService" might actually mean.
+
+In general, the AWS API ecosystem is very organic. Each service seems
+to have its own rules and protocol regarding what the content of the
+headers should be. This generic API interface tries to make it
+possible to use a central class (Amazon::API) as a sort of gateway to
+the APIs. The most generic interface is simply sending query variables
+and not much else in the header.  APIs like EC2 conform to the that
+school, so as indicated above we use C<action> to determine whether to
+send the API action in the header or to assume that it is being sent
+as one of the query variables.
+
+=head2 Rolling a new API 
+
+The class will stub out methods for the API if you pass an array of
+API method names.  The stub is equivalent to:
+
+
+ sub some_api {
+   my $self = shift;
+
+   $self ->invoke_api('SomeApi', @_);
+ }
+
+Some will also be happy to know that the class will create an
+equivalent CamelCase version of the method.  If you choose to override
+the method, you should override the snake case version of the method.
+
+As an example, here is a possible implementation of
+C<Amazon::CloudWatchEvents> that implements one of the API calls.
+
+ package Amazon::CloudWatchEvents;
+
+ use parent qw/Amazon::API/;
+ 
+ sub new {
+   my $class = shift;
+   my $options = shift || {};
+
+   $options->{api} 'AWSEvents';
+   $options->{url} 'https://events.us-east-1.amazonaws.com';
+   $options->{api_methods} => [ 'ListRules' ];
+
+   return $class->SUPER::new($options);
+ }
+
+ 1;
+
+Then...
+
+  my $cwe = new Amazon::CloudWatchEvents();
+  $cwe->ListRules({});
+
+Of course, creating a class for the service is optional. It may be
+desirable however to create higher level and more convenient methods
+that aid the developer in utilizing a particular API.
+
+ my $api = new Amazon::API({ credentials => new Amazon::Credentials, api => 'AWSEvents', url => 'https://events.us-east-1.amazonaws.com' });
+ $api->invoke_api('ListRules', {});
+
+=head2 Content-Type
+
+Yet another piece of evidence that suggests the I<organic> nature of
+the Amazon API ecosystem is their use of multiple forms of input to
+their methods indicated by the required Content-Type for different
+services.  Some of the variations include:
+
+ application/json
+ application/x-amz-json-1.0
+ application/x-amz-json-1.1
+ application/x-www-form-urlencoded
+
+Accordingly, the C<invoke_api()> can be passed the Content-Type or
+will try to make "best guess" based on the input parameter you passed.
+It guesses using the following decision tree:
+
+=over 5
+
+=item * If the Content-Type parameter is passed as the third argument, that is used.  Full stop.
+
+=item * If the C<parameters> value to C<invoke_api()> is a reference, then the Content-Type is either the value of C<get_content_type> or C<application/x-amzn-json-1.1>.
+
+=item * If the C<parameters> value to C<invoke_api()> is a scalar, then the Content-Type is C<application/x-www-form-urlencoded>.
+
+=back
+
+You can set the default Content-Type used for the calling service when
+a reference is passed to the C<invoke_api()> method by passing the
+C<content_type> option to the constructor.
+
+ $class->SUPER::new({%@_, content_type => 'application/x-amz-json-1.1', api => 'AWSEvents', 
+                     url => 'https://events.us-east-1.amazonaws.com'});
 
 =head1 SEE OTHER
 
