@@ -71,14 +71,15 @@ use Amazon::Credentials;
 use AWS::Signature4;
 use Data::Dumper;
 use HTTP::Request;
-use JSON qw/to_json/;
+use JSON qw/to_json from_json/;
 use LWP::UserAgent;
 use Scalar::Util qw/reftype/;
 use XML::Simple;
 
 __PACKAGE__->follow_best_practice;
+
 __PACKAGE__->mk_accessors(qw/action api api_methods version content_type
-			     credentials
+			     http_method credentials response
 			     region url service_url_base 
 			     signer target user_agent debug last_action
 			     aws_access_key_id aws_secret_access_key token
@@ -136,8 +137,13 @@ sub new {
     $self->set_user_agent(new LWP::UserAgent);
   }
 
+  # some APIs are GET only (I'm talkin' to you IAM!)
+  $self->set_http_method('POST')
+    unless defined $self->get_http_method;
+  
+  # note some APIs are global, hence an API may send '' to indicate global
   $self->set_region('us-east-1')
-    unless $self->get_region;
+    unless defined $self->get_region;
   
   unless ( $self->get_credentials ) {
     $self->set_credentials( new Amazon::Credentials( { aws_secret_access_key => $self->get_aws_secret_access_key,
@@ -149,7 +155,12 @@ sub new {
   
   unless ( $self->get_url ) {
     if ( $self->get_service_url_base() ) {
-      $self->set_url(sprintf("https://%s.%s.amazonaws.com", $self->get_service_url_base, $self->get_region));
+      if ( $self->get_region ) {
+	$self->set_url(sprintf("https://%s.%s.amazonaws.com", $self->get_service_url_base, $self->get_region));
+      }
+      else {
+	$self->set_url(sprintf("https://%s.amazonaws.com", $self->get_service_url_base));
+      }
     }
     else {
       die "ERROR: no url or service_url defined.\n"
@@ -242,7 +253,10 @@ sub invoke_api {
       $content = to_json($parameters || {});
     }
     elsif ( ref($parameters) && reftype($parameters) eq 'ARRAY') {
-      $content_type = 'application/x-www-form-url-encoded';
+      
+      $content_type = 'application/x-www-form-url-encoded'
+	unless $self->get_http_method eq 'GET';
+      
       my @query_string;
       foreach (@{$parameters}) {
 	push @query_string, ref($_) ? sprintf("%s=%s", %$_) : $_;
@@ -250,7 +264,8 @@ sub invoke_api {
       $content = join('&', @query_string);
     }
     else {
-      $content_type = 'application/x-www-form-url-encoded';
+      $content_type = 'application/x-www-form-url-encoded'
+	unless $self->get_http_method eq 'GET';
       $content = $parameters;
     }
   }
@@ -274,9 +289,36 @@ sub invoke_api {
 			       });
     
   }
-    
+  
+  $self->set_response($rsp);
+  
   return $rsp->content;
 }
+sub decode_response {
+  my $self = shift;
+  my $rsp = $self->get_response;
+  
+  return undef unless $rsp;
+
+  my $result = eval {
+    if ( $rsp->content_type =~/xml/i) {
+      XMLin($rsp->content);
+    }
+    elsif ( $rsp->content_type =~/json/i ) {
+      from_json($rsp->content);
+    }
+    else {
+      $rsp->content;
+    }
+  };
+
+  if ( $@ ) {
+    $result = $rsp->content;
+  }
+
+  $result;
+}
+
 
 =pod
 
@@ -309,7 +351,7 @@ sub submit {
   my $self = shift;
   my %options = @_;
 
-  my $request = HTTP::Request->new('POST', $self->get_url);
+  my $request = HTTP::Request->new($self->get_http_method || 'POST', $self->get_url);
 
   # 1. set the header
   # 2. set the content
@@ -327,12 +369,15 @@ sub submit {
 
     $request->header('X-Amz-Target', $self->get_target());
   }
-
   
-  $options{content_type} = $options{content_type} || 'application/x-amz-json-1.1';
-  $request->content_type($options{content_type});
-
-  $request->content($options{content});
+  unless ($self->get_http_method eq 'GET') {
+    $options{content_type} = $options{content_type} || 'application/x-amz-json-1.1';
+    $request->content_type($options{content_type});
+    $request->content($options{content});
+  }
+  else {
+    $request->uri(sprintf("%s?%s%s", $request->uri(), $options{content},  $self->get_version ? ('&Version=' . $self->get_version) : ''));
+  }
   
   $request->header('X-Amz-Security-Token', $self->get_credentials->get_token)
     if $self->get_credentials->get_token;
@@ -344,7 +389,7 @@ sub submit {
   if ( $self->get_debug ) {
     print STDERR Dumper([$request]);
   }
-
+  
   $self->get_user_agent->request($request);
 }
 
