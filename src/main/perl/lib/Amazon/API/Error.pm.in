@@ -78,6 +78,23 @@ sub new {
 	  from_json($message);
 	};
       }
+    else {
+      # try a little harder...
+      my $m = eval {
+	from_json($message);
+      };
+      
+      if ( $@ ) {
+	$m = eval {
+	  XMLin($message);
+	};
+      }
+      else {
+	$m = $message;
+      }
+      
+      $message = $m;
+    }
     
     $self->set_response($message);
   }

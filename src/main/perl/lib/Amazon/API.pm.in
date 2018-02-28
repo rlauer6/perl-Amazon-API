@@ -238,9 +238,6 @@ pairs, or an array of scalars of the form Name=Value.
 sub invoke_api {
   my $self = shift;
   my ($action, $parameters, $content_type) = @_;
-
-  print STDERR "WARNING: 'parameters' is undefined. This could be a problem or you have not implemented the '" . $self->get_api_name($action) . "' API\n"
-    unless defined $parameters;
   
   $self->set_action($action);
   $self->set_last_action($action);
@@ -294,6 +291,19 @@ sub invoke_api {
   
   return $rsp->content;
 }
+
+
+=pod
+
+=head2 decode_response
+
+Attempts to decode the response from the API based on the Content-Type
+returned in the response header.  If there is no Content-Type, then
+the raw content is returned.
+
+
+=cut
+
 sub decode_response {
   my $self = shift;
   my $rsp = $self->get_response;
@@ -359,7 +369,7 @@ sub submit {
   # 4. send the request & return result
   
   # see IMPLEMENTATION NOTES for an explanation
-  if ( $self->get_action ) {
+  if ( $self->get_api ) {
     if ( $self->get_version) {
       $self->set_target(sprintf("%s_%s.%s", $self->get_api, $self->get_version, $self->get_action));
     }
@@ -373,10 +383,14 @@ sub submit {
   unless ($self->get_http_method eq 'GET') {
     $options{content_type} = $options{content_type} || 'application/x-amz-json-1.1';
     $request->content_type($options{content_type});
+    
+    if ( $options{content_type} eq 'application/x-www-form-url-encoded') {
+      $options{content} = $self->_finalize_content($options{content});
+    }
     $request->content($options{content});
   }
   else {
-    $request->uri(sprintf("%s?%s%s", $request->uri(), $options{content},  $self->get_version ? ('&Version=' . $self->get_version) : ''));
+    $request->uri(sprintf("%s?%s%s", $request->uri(), $self->_finalize_content($options{content})));
   }
   
   $request->header('X-Amz-Security-Token', $self->get_credentials->get_token)
@@ -393,6 +407,23 @@ sub submit {
   $self->get_user_agent->request($request);
 }
 
+sub _finalize_content {
+  my $self = shift;
+  my $content = shift;
+  
+  my @args = $content if $content;
+  
+  if ( $content && $content !~/Action=/ || ! $content ) {
+    push @args, "Action=" . $self->get_action;
+  }
+  
+  if ( $self->get_version) {
+    push @args, "Version=" . $self->get_version
+  }
+  
+  return @args ? join('&', @args) : '';
+}
+
 =pod
 
 =head1 IMPLEMENTATION NOTES
@@ -404,11 +435,12 @@ the CGI parameter Action. Some APIs also want the version in the
 target, some don't. Sparse documentation about some of the nuances of
 using the REST interface directly to call AWS APIs.
 
-The convention used in this class is to pass the version if it is set
-and to set the action (aka the API method to be called) in the header
-if C<action> is set.
+We use the C<api> value as a trigger to indicate we need to set the
+Action in the X-Amz-Target header.  We also check to see if the
+version needs to be attached to the Action value as required by some
+APIs.
 
-  if ( $self->get_action ) {
+  if ( $self->get_api ) {
     if ( $self->get_version) {
       $self->set_target(sprintf("%s_%s.%s", $self->get_api, $self->get_version, $self->get_action));
     }
