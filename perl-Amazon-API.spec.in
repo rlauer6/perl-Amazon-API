@@ -35,7 +35,7 @@ BuildRequires: automake autoconf
 #--------------------------------------------------------------------#
 
 Summary:  @PACKAGE@
-Group:    Amazon API
+Group:    Development/Libraries
 
 %description
 
@@ -47,7 +47,8 @@ Group:    Amazon API
 %build
 ./configure --prefix=/usr \
 	    --with-perl5libdir \
-            --enable-rpmbuild
+            --enable-rpmbuild \
+	    --disable-perldeps
 make
 
 # Pre-installation steps go here
