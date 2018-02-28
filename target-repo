@@ -1,1 +1,4 @@
-perl-aws-api
+YRB_REPO=perl-aws-api
+YRB_REPO_PREFIX=/
+YRB_DEST_BUCKET=perl-aws-api.openbedrock.net
+YRB_SOURCE_BUCKET=perl-aws-api.openbedrock.net
