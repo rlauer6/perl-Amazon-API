@@ -24,7 +24,7 @@ phases:
       - find ~/rpmbuild/RPMS/ -name '*.rpm' | sed 's|/root/rpmbuild/RPMS/||' > "/root/$(cat package-name).lst"
       - test -e target-repo && cp target-repo "/root/repo/$(cat package-name).repo"
       - tree /root
-      - cat /root/$(cast package-name).lst
+      - cat /root/$(cat package-name).lst
 artifacts:
   discard-paths: yes
   files:
