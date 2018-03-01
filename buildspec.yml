@@ -21,9 +21,10 @@ phases:
       - echo $(basename $(ls -1 *.tar.gz | head -1) .tar.gz) > package-name
       - rpmbuild -tb $(ls -1 *.tar.gz | head -1)
       - test -e target-repo && mkdir /root/repo
-      - find ~/rpmbuild/RPMS/ -name '*.rpm' | sed 's|/root/rpmbuild/RPMS/||' > "$(cat package-name).lst"
+      - find ~/rpmbuild/RPMS/ -name '*.rpm' | sed 's|/root/rpmbuild/RPMS/||' > "/root/$(cat package-name).lst"
       - test -e target-repo && cp target-repo "/root/repo/$(cat package-name).repo"
       - tree /root
+      - cat /root/$(cast package-name).lst
 artifacts:
   discard-paths: yes
   files:
