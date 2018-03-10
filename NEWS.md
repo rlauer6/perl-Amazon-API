@@ -1,23 +1,27 @@
-This is the 'NEWS' file for the 'perl-Amazon-API' project. This file contains
+This is the `NEWS` file for the `perl-Amazon-API` project. This file contains
 information on changes since the last release of the package, as well as a
 running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+_Note that a release date of YYYY-??-?? indicates that this version has
+not yet been tagged for release and is a work-in-progress._
+
 -----------------------------------------------------------------------
 
-perl-Amazon-API 1.0.0 (2017-12-24)
+perl-Amazon-API 1.1.1 (2018-??-??)
 
     Enhancements:
 
-    (None)
-
+    - added option 'protocol'
+    
     Fixes:
 
-    (None)
+    - spurious "%s" fabricating GET url
+
 -----------------------------------------------------------------------
 
-perl-Amazon-API 1.1.0 (2018-0-24)
+perl-Amazon-API 1.1.0 (2018-02-24)
 
     Enhancements:
 
