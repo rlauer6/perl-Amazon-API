@@ -1,8 +1,12 @@
 **/Makefile
+**/Makefile.in
 configure
 config.log
 config.status
-autom4te.cache/requests
+autom4te.cache/*
+autotools/test-driver
+autotools/missing
+autotools/installs-sh
 *.tar.gz
 *.rpm
 *.spec
