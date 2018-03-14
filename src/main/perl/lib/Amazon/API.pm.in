@@ -63,7 +63,7 @@ Errors encountered are returned as an C<Amazon::API::Error> exception object.  S
 use strict;
 use warnings;
 
-use parent qw/Class::Accessor/;
+use parent qw/Class::Accessor Exporter/;
 
 use Amazon::API::Error;
 use Amazon::Credentials;
@@ -84,6 +84,12 @@ __PACKAGE__->mk_accessors(qw/action api api_methods version content_type
 			     signer target user_agent debug last_action
 			     aws_access_key_id aws_secret_access_key token
 			    /);
+
+use vars qw/@EXPORT $VERSION/;
+
+@EXPORT=qw/$VERSION/;
+
+$VERSION='@PACKAGE_VERSION@';
 
 =pod
 

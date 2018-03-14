@@ -34,6 +34,8 @@ BuildRequires: automake autoconf
 
 #--------------------------------------------------------------------#
 
+Requires: perl(LWP::Protocol::https)
+
 Summary:  @PACKAGE@
 Group:    Development/Libraries
 
