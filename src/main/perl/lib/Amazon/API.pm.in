@@ -186,6 +186,7 @@ sub new {
   
   if ( $self->get_api_methods ) {
     no strict 'refs';
+    no warnings 'redefine';
     
     foreach my $api (@{$self->get_api_methods}) {
       my $method = lcfirst $api;
