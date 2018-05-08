@@ -9,6 +9,16 @@ fixed will be noted here, as well.
 _Note that a release date of YYYY-??-?? indicates that this version has
 not yet been tagged for release and is a work-in-progress._
 
+# perl-Amazon-API 1.1.3 (2018-??-??)
+
+## Enhancements
+
+_None_
+
+## Fixes
+
+_None_
+
 # perl-Amazon-API 1.1.2 (2018-03-14)
 
 ## Enhancements
