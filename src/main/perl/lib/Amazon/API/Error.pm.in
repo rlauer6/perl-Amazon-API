@@ -9,6 +9,8 @@ use XML::Simple;
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(qw/error api message_raw response content_type/);
 
+our $VERSION = '@PACKAGE_VERSION@'; $VERSION=~s/\-.*$//;
+
 =pod
 
 =head1 NAME
