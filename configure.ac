@@ -1,4 +1,4 @@
-AC_INIT([perl-Amazon-API], [1.1.3-0], [rlauer6@comcast.net], [perl-Amazon-API])
+AC_INIT([perl-Amazon-API], [1.1.3-5], [rlauer6@comcast.net], [perl-Amazon-API])
 
 __poor_mans_expand_file_name () {
     _tmp_name=$1

@@ -89,7 +89,7 @@ use vars qw/@EXPORT $VERSION/;
 
 @EXPORT=qw/$VERSION/;
 
-$VERSION='@PACKAGE_VERSION@';
+$VERSION = '@PACKAGE_VERSION@'; $VERSION=~s/\-.*$//;
 
 =pod
 
@@ -109,7 +109,8 @@ C<->can(get_aws_secret_access_key)> and C<->can(get_token)>
 
 =item user_agent
 
-Your own user agent object or by default C<LWP::UserAgent>.
+Your own user agent object or by default C<LWP::UserAgent>.  Using
+C<Furl>, if you have it avaiable may result in faster response.
 
 =item api
 
