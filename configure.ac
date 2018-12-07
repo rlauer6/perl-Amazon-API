@@ -1,4 +1,4 @@
-AC_INIT([perl-Amazon-API], [1.1.3-5], [rlauer6@comcast.net], [perl-Amazon-API])
+AC_INIT([perl-Amazon-API], [1.1.4], [rlauer6@comcast.net], [perl-Amazon-API])
 
 __poor_mans_expand_file_name () {
     _tmp_name=$1
@@ -135,6 +135,7 @@ AC_CONFIG_FILES([
     src/main/Makefile
     src/main/perl/Makefile
     src/main/perl/lib/Makefile
+    cpan/Makefile
     ${PACKAGE_NAME}.spec
 ])
 
