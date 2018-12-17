@@ -9,3 +9,5 @@ pm_module: Amazon::API
 path:
   pm_module: ../src/main/perl/lib
   tests: ../src/main/perl/t
+extra-files:
+  - ../ChangeLog
