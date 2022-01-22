@@ -2,9 +2,9 @@ package Amazon::API::Error;
 
 use parent qw/Class::Accessor/;
 
-use JSON qw/from_json/;
-use Scalar::Util qw/reftype/;
-use XML::Simple;
+use JSON::PP qw{ decode_json };
+use Scalar::Util qw{ reftype };
+use XML::LibXML::Simple  qw{ XMLin };
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(qw/error api message_raw response content_type/);
@@ -20,11 +20,17 @@ C<Amazon::API::Error>
 =head1 SYNOPIS
 
  my $result = eval {
-   from_json($cwe->PutPermission({ Action => "PutEvents", Principal => "123454657889012", StatementId => "12345"});
- };
- 
- print Dumper([ $@->get_response, $@->get_error ])
-   if $@ && ref($@) =~/API::Error/;
+   decode_json(
+     $cwe->PutPermission(
+       { Action      => "PutEvents",
+         Principal   => "123454657889012",
+         StatementId => "12345"
+       }
+     );
+   };
+  
+ print Dumper( [ $@->get_response, $@->get_error ] )
+   if $@ && ref($@) =~ /API::Error/;
 
 =head1 DESCRIPTION
 
@@ -77,13 +83,13 @@ sub new {
     }
     elsif ( $self->get_content_type =~/json/ ) {
 	$message = eval {
-	  from_json($message);
+	  decode_json($message);
 	};
       }
     else {
       # try a little harder...
       my $m = eval {
-	from_json($message);
+	decode_json($message);
       };
       
       if ( $@ ) {

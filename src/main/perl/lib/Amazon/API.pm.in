@@ -72,10 +72,10 @@ use Amazon::Credentials;
 use AWS::Signature4;
 use Data::Dumper;
 use HTTP::Request;
-use JSON qw/to_json from_json/;
+use JSON::PP qw {encode_json decode_json };
 use LWP::UserAgent;
-use Scalar::Util qw/reftype/;
-use XML::Simple;
+use Scalar::Util qw{ reftype };
+use XML::LibXML::Simple qw{ XMLin };
 
 __PACKAGE__->follow_best_practice;
 
@@ -263,7 +263,7 @@ sub invoke_api {
   unless ( $content_type ) {
     if ( ref($parameters) && reftype($parameters) eq 'HASH' ) {
       $content_type =  $self->get_content_type;
-      $content = to_json($parameters || {});
+      $content = encode_json($parameters || {});
     }
     elsif ( ref($parameters) && reftype($parameters) eq 'ARRAY') {
       $content_type = 'application/x-www-form-url-encoded'
@@ -330,7 +330,7 @@ sub decode_response {
       XMLin($rsp->content);
     }
     elsif ( $rsp->content_type =~/json/i ) {
-      from_json($rsp->content);
+      decode_json($rsp->content);
     }
     else {
       $rsp->content;

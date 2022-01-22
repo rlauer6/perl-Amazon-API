@@ -1,3 +1,13 @@
+Sat Jan 22 17:52:28 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.1.5]:
+	* configure.ac: bump version
+	* src/main/perl/lib/Amazon/API.pm.in
+	- JSON::PP
+	- XML::LibXML::Simple
+	* src/main/perl/lib/Amazon/Error.pm.in: likewise
+	* bootstrap: bump, VERSION support
+
 Mon Dec 17 10:16:01 2018  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.1.4-1]:
