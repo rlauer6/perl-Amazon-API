@@ -1,3 +1,13 @@
+Sun Jan 23 07:57:42 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.1.6]:
+	* confgure.ac: bump
+	* src/main/perl/lib/Amazon/API.pm.in
+	- tweaks to pod
+	(new)
+	- use Amazon::Credentials as default credential provider
+	(invoke_api): assume {} if no parameter and content_type is json
+
 Sat Jan 22 17:52:28 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.1.5]:
