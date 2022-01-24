@@ -1,0 +1,70 @@
+package Amazon::API::Signature4;
+
+use strict;
+use warnings;
+
+use parent qw{ AWS::Signature4 };
+
+sub new {
+  my $class = shift;
+  $class = ref($class) || $class;
+
+  my %args;
+  
+  if ( @_ > 1 && ! ref($_[0] ) ) {
+    %args = @_;
+  }
+  elsif ( ref($_[0]) ) {
+    %args = %{$_[0]};
+  }
+  else {
+    %args = @_;
+  }
+  
+  my $self = $class->SUPER::new(%args);
+
+  my @extra = grep { ! /(access_key|secret_key|security_token)/ } keys %args;;
+
+  @{$self}{@extra} = @args{@extra};
+   
+  return $self;
+}
+
+sub _scope {
+  my $self = shift;
+  
+  my ($request, $region) = @_;
+  
+  my $host     = $request->uri->host;
+  my $datetime = $self->_datetime($request);
+  my ($date)   = $datetime =~ /^(\d+)T/;
+  
+  my $service = $self->{service};
+
+  if ( !$service || !$region ) {
+
+    if ($host =~ /^([\w.-]+)\.s3\.amazonaws.com/) { # S3 bucket virtual host
+      $service = 's3';
+      $region  ||= 'us-east-1';
+    }
+    elsif ($host =~ /^[\w-]+\.s3-([\w-]+)\.amazonaws\.com/) {
+      $service = 's3';
+      $region  ||= $2;
+    }
+    elsif
+      ($host =~ /^(\w+)[-.]([\w-]+)\.amazonaws\.com/) {
+      $service  = $1;
+      $region ||= $2;
+    }
+    elsif ($host =~ /^([\w-]+)\.amazonaws\.com/) {
+      $service = $1;
+    }
+  }
+  
+  $region = $self->{region} || 'us-east-1'
+    if !$region;
+    
+  return "$date/$region/$service/aws4_request";
+}
+
+1;
