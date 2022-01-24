@@ -137,14 +137,19 @@ use LWP::UserAgent;
 use Scalar::Util qw{ reftype };
 use XML::LibXML::Simple qw{ XMLin };
 
+$Data::Dumper::Pair = ':';
+$Data::Dumper::Useqq = 1;
+$Data::Dumper::Terse = 1;
+
 __PACKAGE__->follow_best_practice;
 
 __PACKAGE__->mk_accessors(
   qw{ action api api_methods version content_type
     http_method credentials response protocol
-    region url service_url_base
+    region url service_url_base decode_always
     signer target user_agent debug last_action
     aws_access_key_id aws_secret_access_key token
+    print_error raise_error error
     }
 );
 
@@ -255,10 +260,16 @@ sub new {
   
   my $self = $class->SUPER::new(@_);
 
+  $self->set_raise_error(1) if !defined $self->get_raise_error;
+  $self->set_print_error(1) if !defined $self->get_print_error;
+
   if (!$self->get_user_agent) {
     $self->set_user_agent(new LWP::UserAgent);
   }
 
+  # legacy behavior is to never decode... :-(
+  $self->set_decode_always(defined $self->get_decode_always || 0);
+  
   # some APIs are GET only (I'm talkin' to you IAM!)
   $self->set_http_method($self->get_http_method // 'POST');
   
@@ -387,10 +398,10 @@ sub invoke_api {
   
   $self->set_action($action);
   $self->set_last_action($action);
-
+  $self->set_error(undef);
+  
   my $content;
 
-  
   $content_type = $self->get_content_type
     if !$parameters && !$content_type;
   
@@ -430,29 +441,57 @@ sub invoke_api {
   }
    
   my $rsp = $self->submit(content => $content, content_type => $content_type);
+
+  $self->set_response($rsp);
   
   if ( $self->get_debug ) {
     print STDERR Dumper [$rsp];
   }
     
-  # probably want to decode content when there is an error, but this
-  # will do for now
   if ( !$rsp->is_success ) {
-    die Amazon::API::Error->new(
-      { error        => $rsp->code,
-        message_raw  => $rsp->content,
-        content_type => $rsp->content_type,
-        api          => $self
-      }
+    $self->set_error(
+      Amazon::API::Error->new(
+        { error        => $rsp->code,
+          message_raw  => $rsp->content,
+          content_type => $rsp->content_type,
+          api          => ref($self),
+          response     => $rsp
+        }
+      )
     );
 
+    $self->print_error if $self->get_print_error;
+
+    if ( $self->get_raise_error ) {
+      die $self->print_error;
+    }
+    else {
+      return undef;
+    }
   } ## end unless ( $rsp->is_success )
   
-  $self->set_response($rsp);
-  
-  return $rsp->content;
+  return $self->get_decode_always ? $self->decode_response : $rsp->content;
 }
 
+sub print_error {
+  my $self = shift;
+
+  my $error = $self->get_error;
+  my $err_str = 'API ERROR (' . $self->get_last_action . '): ';
+  
+  if ( $error && ref($error) =~ /Amazon::API::Error/ ) {
+    my $response = $error->get_response;
+    
+    $err_str .= sprintf( "[%s], %s,%s\n",
+      $error->get_error, Dumper( ref($response) ? $response : [ $response] ),
+      $error->get_message_raw);
+  }
+  else {
+    $err_str .= '[' . $error . ']';
+  }
+  
+  return $err_str;
+}
 
 =pod
 

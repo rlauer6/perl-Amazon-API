@@ -1,3 +1,20 @@
+Sun Jan 23 19:32:42 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.1.7]:
+	* src/main/perl/lib/Amazon/API/Error.pm.in: pod tweaks
+	* src/main/perl/lib/Amazon/API.pm.in
+	- make Data::Dumper behave in a JSONy way
+	- added decode_always option
+	- print_error, raise_error options
+	(new)
+	- defaults are print_error, raise_error
+	- decode_always default is false
+	(invoke_api)
+	- save http response
+	- die with print_error message
+	- decode responses if decode_always
+	(print_error): new
+
 Sun Jan 23 07:57:42 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.1.6]:

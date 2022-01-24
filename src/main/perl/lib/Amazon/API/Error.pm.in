@@ -45,7 +45,7 @@ Returns the HTTP status code returned by the API call.
 
 =head2 get_response
 
-Returns a decode response. Usuall a hash.
+Returns a decoded response. Usually a hash.
 
 =head2 get_message_raw
 
@@ -71,7 +71,7 @@ An example response:
 sub new {
   my $class = shift;
   my $self = $class->SUPER::new(@_);
-  
+
   my $message = $self->get_message_raw;
   
   if ( $message ) {
