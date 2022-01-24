@@ -1,5 +1,6 @@
 **/Makefile
 **/Makefile.in
+**/*.pm
 configure
 config.log
 config.status

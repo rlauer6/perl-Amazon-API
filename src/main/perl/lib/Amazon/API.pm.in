@@ -127,9 +127,10 @@ use warnings;
 use parent qw/Class::Accessor Exporter/;
 
 use Amazon::API::Error;
+use Amazon::API::Signature4;
+
 use Amazon::Credentials;
 
-use AWS::Signature4;
 use Data::Dumper;
 use HTTP::Request;
 use JSON::PP qw {encode_json decode_json };
@@ -264,7 +265,7 @@ sub new {
   $self->set_print_error(1) if !defined $self->get_print_error;
 
   if (!$self->get_user_agent) {
-    $self->set_user_agent(new LWP::UserAgent);
+    $self->set_user_agent( LWP::UserAgent->new );
   }
 
   # legacy behavior is to never decode... :-(
@@ -321,13 +322,16 @@ sub new {
   } ## end if ( !$self->get_url )
 
   $self->set_signer(
-    AWS::Signature4->new(
-      -access_key => $self->get_credentials->get_aws_access_key_id,
-      -secret_key => $self->get_credentials->get_aws_secret_access_key
+    Amazon::API::Signature4->new(
+      -access_key     => $self->get_credentials->get_aws_access_key_id,
+      -secret_key     => $self->get_credentials->get_aws_secret_access_key,
+      -security_token => $self->get_credentials->get_token,
+      service         => $self->get_api,
+      region          => $self->get_region
+
     )
   );
- 
-  
+
   if ( $self->get_api_methods ) {
     no strict 'refs';
     no warnings 'redefine';
@@ -580,14 +584,16 @@ sub submit {
     $request->header('X-Amz-Target', $self->get_target());
   }
   
-  unless ($self->get_http_method eq 'GET') {
+  if ($self->get_http_method ne 'GET') {
     $options{content_type} = $options{content_type} || 'application/x-amz-json-1.1';
     $request->content_type($options{content_type});
     
     if ( $options{content_type} eq 'application/x-www-form-url-encoded') {
       $options{content} = $self->_finalize_content($options{content});
     }
+
     $request->content($options{content});
+
   }
   else {
     $request->uri(sprintf("%s?%s", $request->uri(), $self->_finalize_content($options{content})));
@@ -595,9 +601,9 @@ sub submit {
   
   $request->header('X-Amz-Security-Token', $self->get_credentials->get_token)
     if $self->get_credentials->get_token;
-		 
+  
   # sign the request
-  $self->get_signer->sign($request);
+  $self->get_signer->sign($request, $self->get_region);
 
   # make the request, return response object
   if ( $self->get_debug ) {

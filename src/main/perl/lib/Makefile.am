@@ -19,7 +19,8 @@ PERLMODULES = \
     Amazon/API.pm.in
 
 APIMODULES = \
-    Amazon/API/Error.pm.in
+    Amazon/API/Error.pm.in \
+    Amazon/API/Signature4.pm.in
 
 GPERLMODULES = $(PERLMODULES:.pm.in=.pm)
 GAPIMODULES = $(APIMODULES:.pm.in=.pm)
@@ -45,12 +46,16 @@ PERLINCLUDE = \
 $(GPERLMODULES): % : %.in  $(GAPIMODULES)
 	test -d "$$(dirname "$@")" || $(INSTALL) -d "$$(dirname "$@")"
 	$(do_subst) $< > $@
-	$(perlwc) $(PERLINCLUDE)  $@ || { ret=$?; rm $@ && exit $ret; }
+	PERLINCLUDE="$(PERLINCLUDE)"; \
+	test -n "$$PERL5LIB" && PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
+	echo $(perlwc) $$PERLINCLUDE  $@ || { ret=$$?; rm $@ && exit $$ret; }
 
 $(GAPIMODULES): % : %.in 
 	test -d "$$(dirname "$@")" || $(INSTALL) -d "$$(dirname "$@")"
 	$(do_subst) $< > $@
-	$(perlwc) $(PERLINCLUDE)  $@ || { ret=$?; rm $@ && exit $ret; }
+	PERLINCLUDE="$(PERLINCLUDE)"; \
+	test -n "$$PERL5LIB" && PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
+	echo $(perlwc) $$PERLINCLUDE  $@ || { ret=$$?; rm $@ && exit $$ret; }
 all:
 
 CLEANFILES = \

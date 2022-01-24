@@ -1,3 +1,13 @@
+Mon Jan 24 13:00:55 2022  Rob Lauer  <rlauer6@comast.net>
+
+	[1.1.8]: Signature4
+	* src/main/perl/lib/Amazon/API/Signature4.pm.in: new
+	* src/main/perl/lib/Makefile.am
+	- add above to build
+	- add PERL5LIB to include path
+	* src/main/perl/lib/Amazon/API.pm.in
+	- use new Signature4 to send service
+
 Sun Jan 23 19:32:42 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.1.7]:
