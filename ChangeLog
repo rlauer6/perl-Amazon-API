@@ -1,3 +1,71 @@
+Sun Feb 20 08:40:43 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.2.0 - examples, perlcritic cleanup]:
+
+	* configure.ac
+	- use VERSION
+	- output version
+	* cpan/Makefile.am:
+	- add NOCLEANUP, DRYRUN, SCANDEPS, NOVERSION env options
+	- CLEANFILES
+	* src/main/perl/Makefile.am: include pwd for perl libraries
+	* src/main/perl/lib/Makefile.am
+	- remove echo
+	* src/main/perl/lib/Amazon/API/Signature4.pm.in
+	- use // for qw not q{} (perlreq)
+	- plain versions
+	- perlcritic cleanup
+	* Makefile.am: make cpan
+	* src/main/perl/lib/Amazon/API/Error.pm.in
+	- move pod to bottom
+	- perlcritic cleanup
+	* src/main/perl/lib/Amazon/API.pm.in
+	- update pod
+	- move pod to bottom
+	- extensive perlcritic cleanup
+	(new)
+	- don't pass debug to Amazon::Credentials
+	- don't create signer to avoid storing credentials
+	(decode_response): new, try *very* hard to decode responses
+	(get_api_name): removed
+	(_set_default_logger): new
+	(_set_defaults)
+	- allow '' as valid region for global services
+	(invoke_api):
+	- support legacy behavior of decoding responses for GET operations
+	(submit)
+	- create signer on every invocation to avoid storing credentials
+	(param_n): new
+	* .perlcriticrc
+	* .perltidyrc
+	* cpan/requires
+	* cpan/buildspec.yml
+	- add examples
+	- resources
+
+Wed Jan 26 14:07:07 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.1.10]:
+	* VERSION: new
+	* configure.ac: use VERSION
+	* cpan/Makefile.am
+	- options on command line to control make-cpan-dist
+	* src/main/perl/Makefile.am: abs path for -I
+	* requires: new
+	* cpan/buildspec.yml: dependencies
+	* src/main/perl/lib/Amazon/API.pm.in
+	(_create_methods)
+	- only create method if they do not exists
+	(invoke_api)
+	- test passed content-type, not default content-type
+
+Mon Jan 24 15:42:31 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.1.9]:
+	* src/main/perl/lib/Amazon/API.pm.in
+	- pod cleanup, enhancements
+	- refactoring
+
 Mon Jan 24 15:09:10 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.1.8]:

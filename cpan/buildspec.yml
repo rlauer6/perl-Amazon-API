@@ -11,3 +11,15 @@ path:
   tests: ../src/main/perl/t
 extra-files:
   - ../ChangeLog
+  -
+    examples: ../src/examples
+resources:
+  homepage: 'http://github.com/rlauer6/perl-Amazon-API'
+  bugtracker:
+    web: 'http://github.com/rlauer6/perl-Amazon-API/issues'
+    mailto: rlauer6@comcast.net
+  repository:
+    url: 'git://github.com/rlauer6/perl-Amazon-API.git'
+    web: 'http://github.com/rlauer6/perl-Amazon-API'
+    type: 'git'
+

@@ -30,6 +30,18 @@ amazon_api_DATA = $(GAPIMODULES)
 
 dist_noinst_DATA = $(PERLMODULES) $(APIMODULES)
 
+GALLMODULES = \
+   $(GPERLMODULES) \
+   $(GAPIMODULES)
+
+POD2MAN = /usr/bin/pod2man
+
+G3MANPAGES = $(GALLMODULES:.pm=.3man)
+
+AUTOMAKE_OPTIONS = -Wno-portability
+
+man3_MANS = $(G3MANPAGES)
+
 @do_subst_command@
 
 if USING_PERL5_EXTRA_INCLUDES
@@ -48,16 +60,54 @@ $(GPERLMODULES): % : %.in  $(GAPIMODULES)
 	$(do_subst) $< > $@
 	PERLINCLUDE="$(PERLINCLUDE)"; \
 	test -n "$$PERL5LIB" && PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
-	echo $(perlwc) $$PERLINCLUDE  $@ || { ret=$$?; rm $@ && exit $$ret; }
+	$(perlwc) $$PERLINCLUDE  $@ || { ret=$$?; rm $@ && exit $$ret; }
 
 $(GAPIMODULES): % : %.in 
 	test -d "$$(dirname "$@")" || $(INSTALL) -d "$$(dirname "$@")"
 	$(do_subst) $< > $@
 	PERLINCLUDE="$(PERLINCLUDE)"; \
 	test -n "$$PERL5LIB" && PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
-	echo $(perlwc) $$PERLINCLUDE  $@ || { ret=$$?; rm $@ && exit $$ret; }
+	$(perlwc) $$PERLINCLUDE  $@ || { ret=$$?; rm $@ && exit $$ret; }
 all:
+
+$(G3MANPAGES): %.3man : %.pm
+	set -x; \
+	target_name="$@"; \
+	echo $$target_name; \
+	tname=$$(echo "$${target_name}" | sed -e 's/\.3man$$//') ;\
+	"$(POD2MAN)"  \
+	--center="$(PACKAGE)" \
+	--name="$${tname}" \
+	--release=$(PACKAGE)-$(VERSION) \
+	--section=3man $< "$${target_name}" || touch "$${target_name}"
+
+.PHONY: clean-local
+clean-local:
+	$(MAKE) clean-generated-man-pages
+	find . -name '*.log' -exec rm {} \; || true
+
+.PHONY: clean-generated-man-pages
+clean-generated-man-pages:
+	for f in *.3man; do \
+	  echo "$$f"; \
+	  rm -f "$$f" ;\
+	done
+
+install-data-hook:
+	for a in $(G3MANPAGES); do \
+	  target_name=$$(echo "$$a" | sed -e 's/\//::/g'); \
+	  mv $(DESTDIR)$(mandir)/man3/$$(basename $$a) \
+	     $(DESTDIR)$(mandir)/man3/$${target_name}; \
+	done
+
+uninstall-local:
+	for a in $(G3MANPAGES); do \
+	  target_name=$$(echo "$$a" | sed -e 's/\//::/g'); \
+	  rm -f $(DESTDIR)$(mandir)/man3/$${target_name}; \
+	done
 
 CLEANFILES = \
     $(GPERLMODULES) \
-    $(GAPIMODULES)
+    $(GAPIMODULES) \
+    $(G3MANPAGES)
+

@@ -1,6 +1,9 @@
 **/Makefile
 **/Makefile.in
-**/*.pm
+src/main/perl/lib/**/*.pm
+src/main/perl/t/*.log
+src/main/perl/t/*.trs
+**/*.3man
 configure
 config.log
 config.status

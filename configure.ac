@@ -1,4 +1,13 @@
-AC_INIT([perl-Amazon-API], [1.1.8], [rlauer6@comcast.net], [perl-Amazon-API])
+AC_INIT([perl-Amazon-API],
+        m4_esyscmd_s([
+if test -z "$VERSION"; then \
+  VERSION=$(test -e VERSION && cat VERSION); \
+  VERSION=${VERSION:-0.0.0}; \
+fi; \
+echo $VERSION
+]),
+        m4_esyscmd_s([if test -z "$EMAIL"; then EMAIL=rclauer@gmail,com; fi; echo $EMAIL]),[perl-Amazon-API])
+
 
 __poor_mans_expand_file_name () {
     _tmp_name=$1
@@ -154,3 +163,4 @@ printf "\n"
 printf "                          perl: %s\n" "`__poor_mans_expand_file_name PERL`"
 printf "                          bash: %s\n" "`__poor_mans_expand_file_name BASHRUN`"
 printf "\n"
+printf "               Package Version: %s\n"   "${PACKAGE_VERSION}"

@@ -1,15 +1,74 @@
 package Amazon::API::Error;
 
+use strict;
+use warnings;
+
 use parent qw/Class::Accessor/;
 
+use English qw{ -no_match_vars };
 use JSON::PP qw{ decode_json };
 use Scalar::Util qw{ reftype };
-use XML::LibXML::Simple  qw{ XMLin };
+use XML::LibXML::Simple qw{ XMLin };
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(qw/error api message_raw response content_type/);
 
-our $VERSION = '@PACKAGE_VERSION@'; $VERSION=~s/\-.*$//;
+our $VERSION = '@PACKAGE_VERSION@';
+
+sub new {
+  my ( $class, @options ) = @_;
+
+  my $self = $class->SUPER::new(@options);
+
+  $self->_set_message;
+
+  return $self;
+} ## end sub new
+
+sub _set_message {
+  my ($self) = @_;
+
+  my $raw_message = $self->get_message_raw;
+  my $message;
+
+  if ($raw_message) {
+
+    if ( $self->get_content_type =~ /xml/xmsi ) {
+      $message = eval { return XMLin($raw_message); };
+    }
+    elsif ( $self->get_content_type =~ /json/xmsi ) {
+      $message = eval { return decode_json($raw_message); };
+    }
+
+    # try a little harder...
+    if ( !$message || $EVAL_ERROR ) {
+      $message = eval { return decode_json($raw_message); };
+
+      if ($EVAL_ERROR) {
+        $message = eval { return XMLin($raw_message); };
+      }
+    } ## end if ( !$message || $EVAL_ERROR)
+
+  } ## end if ($raw_message)
+
+  $message = $message || $raw_message;
+
+  $self->set_response($message);
+
+  return $message;
+} ## end sub _set_message
+
+sub get_aws_api {
+  my ($self) = @_;
+
+  my $api = eval { return $self->get_api->get_api || ref( $self->get_api ); };
+
+  return $api;
+} ## end sub get_aws_api
+
+1;
+
+__END__
 
 =pod
 
@@ -37,7 +96,7 @@ C<Amazon::API::Error>
 Error object that contains that status code and the error message
 contained in the body of the response to the API call.
 
-=head1 METHODS
+=head1 SUBROUTINES/METHODS
 
 =head2 get_error
 
@@ -66,68 +125,10 @@ An example response:
 <?xml version="1.0" encoding="UTF-8"?>
   <Response><Errors><Error><Code>UnauthorizedOperation</Code><Message>You are not authorized to perform this operation.</Message></Error></Errors><RequestID>599b0f86-4668-4adb-b493-552d6039fcd1</RequestID></Response>
 
-=cut
+=head1 LICENSE AND COPYRIGHT
 
-sub new {
-  my $class = shift;
-  my $self = $class->SUPER::new(@_);
-
-  my $message = $self->get_message_raw;
-  
-  if ( $message ) {
-   
-    if ( $self->get_content_type =~/xml/ ) {
-      $message = eval {
-	XMLin($message);
-      };
-    }
-    elsif ( $self->get_content_type =~/json/ ) {
-	$message = eval {
-	  decode_json($message);
-	};
-      }
-    else {
-      # try a little harder...
-      my $m = eval {
-	decode_json($message);
-      };
-      
-      if ( $@ ) {
-	$m = eval {
-	  XMLin($message);
-	};
-      }
-      else {
-	$m = $message;
-      }
-      
-      $message = $m;
-    }
-    
-    $self->set_response($message);
-  }
-  
-  $self;
-}
-
-sub get_aws_api {
-  my $self = shift;
-  my $api;
-  
-  {
-    local $@;
-    
-    $api = eval {
-      $self->get_api->get_api || ref($self->get_api);
-    };
-  }
-  
-  return $api;
-}
-
-1;
-
-=pod
+This module is free software. It may be used, redistributed and/or
+modified under the same terms as Perl itself.
 
 =head1 AUTHOR
 

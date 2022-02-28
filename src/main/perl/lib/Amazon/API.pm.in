@@ -2,6 +2,532 @@ package Amazon::API;
 
 # Generic interface to Amazon APIs
 
+use strict;
+use warnings;
+
+use parent qw/Class::Accessor::Fast/;
+
+use Amazon::API::Error;
+use Amazon::API::Signature4;
+
+use Amazon::Credentials;
+
+use Carp;
+use Data::Dumper;
+use Date::Format;
+use English qw{ -no_match_vars};
+use HTTP::Request;
+use JSON::PP qw/encode_json decode_json/;
+use LWP::UserAgent;
+use Scalar::Util qw/reftype/;
+use Time::Local;
+use XML::LibXML::Simple qw/XMLin/;
+
+use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
+  TRUE           => 1,
+  FALSE          => 0,
+  EMPTY          => q{},
+  DOUBLE_COLON   => q{::},
+  AMPERSAND      => q{&},
+  COLON          => q{:},
+  DEFAULT_REGION => 'us-east-1'
+};                ## end constant
+
+$Data::Dumper::Pair  = COLON;
+$Data::Dumper::Useqq = TRUE;
+$Data::Dumper::Terse = TRUE;
+
+__PACKAGE__->follow_best_practice;
+
+__PACKAGE__->mk_accessors(
+  qw/
+    action
+    api
+    api_methods
+    aws_access_key_id
+    aws_secret_access_key
+    content_type
+    credentials
+    debug
+    decode_always
+    error
+    http_method
+    last_action
+    logger
+    print_error
+    protocol
+    raise_error
+    region
+    response
+    service
+    service_url_base
+    target
+    token
+    url
+    user_agent
+    version
+    /
+);
+
+our $VERSION = '@PACKAGE_VERSION@';
+
+sub new {
+  my ( $class, @options ) = @_;
+  $class = ref($class) || $class;
+
+  my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
+
+  my $self = $class->SUPER::new( \%options );
+
+  if ( $self->get_service_url_base ) {
+    $self->set_service( $self->get_service_url_base );
+  }
+
+  croak "service is required\n"
+    if !$self->get_service;
+
+  $self->_set_defaults(%options);
+
+  $self->_create_methods;
+
+  $self->_set_default_logger;
+
+  return $self;
+} ## end sub new
+
+sub decode_response {
+  my ( $self, $response ) = @_;
+
+  $response = $response || $self->get_response;
+
+  if ( !ref($response) =~ /HTTP::Response/xms ) {
+    croak "can't decode response - not a response object\n";
+  }
+
+  my $decoded_content;
+
+  my $content      = $response->content;
+  my $content_type = $response->content_type;
+
+  if ($content) {
+
+    $decoded_content = eval {
+      if ( $content_type =~ /json/xmsi ) {
+        decode_json($content);
+      }
+      elsif ( $content_type =~ /xml/xmsi ) {
+        XMLin($content);
+      }
+    };
+
+    if ( !$decoded_content || $EVAL_ERROR ) {    # disregard content_type (it might be misleading)
+      $decoded_content = eval { return decode_json($content); };
+
+      if ( !$decoded_content || $EVAL_ERROR ) {
+        $decoded_content = eval { return XMLin($content); };
+      }
+    } ## end if ( !$decoded_content...)
+  } ## end if ($content)
+
+  return $decoded_content || $content;
+} ## end sub decode_response
+
+sub invoke_api {
+  my ( $self, $action, $parameters, $content_type ) = @_;
+
+  $self->set_action($action);
+  $self->set_last_action($action);
+  $self->set_error(undef);
+
+  my $decode_response = $self->get_decode_always;
+
+  my $content;
+  my $default_content_type = $self->get_content_type;
+
+  # guessing game...if you do not provide a content type
+  if ( !$content_type ) {
+
+    if ( ref($parameters) && reftype($parameters) eq 'HASH' ) {
+      $content_type = $default_content_type;
+      $content      = encode_json($parameters);
+    }
+    elsif ( ref($parameters) && reftype($parameters) eq 'ARRAY' ) {
+      if ( $self->get_http_method ne 'GET' ) {    # POST/PUT ?
+        $content_type = 'application/x-www-form-url-encoded';
+      }
+
+      # either { name => value } or "name=value"
+      my @query_string;
+      foreach my $p ( @{$parameters} ) {
+        push @query_string, ref($p) ? sprintf( '%s=%s', %{$p} ) : $p;
+      }
+
+      DEBUG( Dumper [ 'query string:', \@query_string ] );
+
+      $content = join AMPERSAND, @query_string;
+    } ## end elsif ( ref($parameters) ...)
+    else {    # scalar
+      if ( $self->get_http_method ne 'GET' && !$self->get_api ) {    # POST/PUT ?
+        $content_type = 'application/x-www-form-url-encoded';
+      }
+
+      $content = $parameters;
+    } ## end else [ if ( ref($parameters) ...)]
+  } ## end if ( !$content_type )
+  elsif ( $content_type =~ /json/xms ) {
+    $content = encode_json( $parameters || {} );
+  }
+  else {
+    $content = $parameters;
+  }
+
+  my $rsp
+    = $self->submit( content => $content, content_type => $content_type );
+
+  $self->set_response($rsp);
+
+  DEBUG( sub { Dumper( [$rsp] ); } );
+
+  if ( !$rsp->is_success ) {
+
+    $self->set_error(
+      Amazon::API::Error->new(
+        { error        => $rsp->code,
+          message_raw  => $rsp->content,
+          content_type => join EMPTY,
+          $rsp->content_type,
+          api      => ref($self),
+          response => $rsp
+        }
+      )
+    );
+
+    if ( $self->get_print_error ) {
+      print {*STDERR} $self->print_error;
+    }
+
+    if ( $self->get_raise_error ) {
+      die $self->get_error;    ## no critic (ErrorHandling::RequireCarping)
+    }
+  } ## end if ( !$rsp->is_success)
+
+  # legacy behavior for GET...was decode?
+  $decode_response = ( defined $decode_response ) ? $decode_response : 1;
+
+  return $decode_response ? $self->decode_response : $rsp->content;
+} ## end sub invoke_api
+
+sub print_error {
+  my $self = shift;
+
+  my $error = $self->get_error;
+
+  my $err_str = 'API ERROR (' . $self->get_last_action . '): ';
+
+  if ( $error && ref($error) =~ /Amazon::API::Error/xms ) {
+    my $response = $error->get_response;
+
+    $err_str .= sprintf "[%s], %s,%s\n",
+      $error->get_error, Dumper( ref($response) ? $response : [$response] ),
+      $error->get_message_raw;
+  } ## end if ( $error && ref($error...))
+  else {
+    $err_str .= '[' . $error . ']';
+  }
+
+  return $err_str;
+} ## end sub print_error
+
+sub submit {
+  my ( $self, %options ) = @_;
+
+  DEBUG( Dumper $self);
+
+  my $method = $self->get_http_method || 'POST';
+
+  my $request = HTTP::Request->new( $method, $self->get_url );
+
+  # 1. set the header
+  # 2. set the content
+  # 3. sign the request
+  # 4. send the request & return result
+
+  # see IMPLEMENTATION NOTES for an explanation
+  if ( $self->get_api ) {
+    $request = $self->_set_x_amz_target($request);
+  }
+
+  $self->_set_request_content( request => $request, %options );
+
+  if ( my $token = $self->get_credentials->get_token ) {
+    $request->header( 'X-Amz-Security-Token', $token );
+  }
+
+  # sign the request
+  Amazon::API::Signature4->new(
+    -access_key     => $self->get_credentials->get_aws_access_key_id,
+    -secret_key     => $self->get_credentials->get_aws_secret_access_key,
+    -security_token => $self->get_credentials->get_token || undef,
+    service         => $self->get_service,
+    region          => $self->get_region
+  )->sign( $request, $self->get_region );
+
+  # make the request, return response object
+  DEBUG( sub { Dumper( [$request] ) } );
+
+  return $self->get_user_agent->request($request);
+} ## end sub submit
+
+sub param_n {
+  my ( $message, $prefix, $idx ) = @_;
+
+  if ( !defined $prefix ) {    # first call, check args
+    croak "message argument must be reference\n"
+      if !ref $message;
+  }
+
+  my @param_n;
+
+  if ( ref $message ) {
+    if ( reftype($message) eq 'HASH' ) {
+      foreach my $k ( keys %{$message} ) {
+        push @param_n,
+          param_n( $message->{$k}, $prefix ? "$prefix.$k" : "$k", $idx );
+      }
+    } ## end if ( reftype($message)...)
+    else {
+      $idx = 1;
+      foreach my $e ( @{$message} ) {
+        push @param_n,
+          param_n( $e, $prefix ? "$prefix.$idx" : EMPTY, $idx++ );
+      }
+    } ## end else [ if ( reftype($message)...)]
+  } ## end if ( ref $message )
+  else {
+    return "$prefix=$message";
+  }
+
+  return @param_n;
+} ## end sub param_n
+
+# +-----------------+
+# | PRIVATE METHODS |
+# +-----------------+
+
+sub _create_methods {
+  my ($self) = @_;
+
+  my $class = ref($self) || $self;
+
+  if ( $self->get_api_methods ) {
+    no strict 'refs';          ## no critic (TestingAndDebugging::ProhibitNoStrict)
+    no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings)
+
+    my $stash = \%{ __PACKAGE__ . DOUBLE_COLON };
+
+    foreach my $api ( @{ $self->get_api_methods } ) {
+
+      my $method = lcfirst $api;
+
+      $method =~ s/([[:lower:]])([[:upper:]])/$1_$2/xmsg;
+      $method = lc $method;
+
+      my $snake_case_method = $class . DOUBLE_COLON . $method;
+      my $camel_case_method = $class . DOUBLE_COLON . $api;
+
+      # snake case rules the day
+
+      if ( !$stash->{$method} ) {
+        *{$snake_case_method}
+          = sub { my $self = shift; $self->invoke_api( $api, @_ ) };
+      }
+
+      # ...but some prefer camels
+      if ( !$stash->{$api} ) {
+        *{$camel_case_method} = sub { my $self = shift; $self->$method(@_) };
+      }
+    } ## end foreach my $api ( @{ $self->...})
+
+  } ## end if ( $self->get_api_methods)
+
+  return $self;
+} ## end sub _create_methods
+
+sub _set_default_logger {
+  my ($self) = @_;
+
+  {
+    no strict 'refs';          ## no critic (TestingAndDebugging::ProhibitNoStrict)
+    no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings)
+
+    *{ __PACKAGE__ . DOUBLE_COLON . 'DEBUG' } = sub {
+      return TRUE if !$self->get_debug;
+
+      my @message = @_;
+
+      my @tm = localtime time;
+      my $err_msg;
+
+      if ( ref( $message[0] ) && reftype( $message[0] ) eq 'CODE' ) {
+        $err_msg = $message[0]->();
+      }
+      else {
+        $err_msg = join EMPTY, @message;
+      }
+
+      print {*STDERR} sprintf " %s [%s] %s\n", strftime( '%c', @tm ),
+        $PROCESS_ID, $err_msg;
+
+      return TRUE;
+    };
+  }
+
+  return $self;
+} ## end sub _set_default_logger
+
+sub _set_defaults {
+  my ( $self, %options ) = @_;
+
+  $self->set_raise_error( $self->get_raise_error // TRUE );
+  $self->set_print_error( $self->get_print_error // TRUE );
+
+  if ( !$self->get_content_type ) {
+    $self->set_content_type('application/x-amz-json-1.1');
+  }
+
+  if ( !$self->get_user_agent ) {
+    $self->set_user_agent( LWP::UserAgent->new );
+  }
+
+  # legacy behavior is to never decode... :-(
+  # setting to undef vs FALSE to indicate unfortunate legacy behavior
+  $self->set_decode_always( $self->get_decode_always || undef );
+
+  # some APIs are GET only (I'm talkin' to you IAM!)
+  $self->set_http_method( $self->get_http_method // 'POST' );
+
+  $self->set_protocol( $self->get_protocol() // 'https' );
+
+  # note some APIs are global, hence an API may send '' to indicate global
+  if ( !defined $self->get_region ) {
+    $self->set_region( $self->get_region
+        || $ENV{AWS_REGION}
+        || $ENV{AWS_DEFAULT_REGION}
+        || DEFAULT_REGION );
+  } ## end if ( !defined $self->get_region)
+
+  $self->_set_url;
+
+  if ( !$self->get_credentials ) {
+    if ( $self->get_aws_secret_access_key && $self->aws_access_key_id ) {
+
+      $self->set_credentials(
+        Amazon::Credentials->new(
+          { aws_secret_access_key => $self->get_aws_secret_access_key,
+            aws_access_key_id     => $self->get_aws_access_key_id,
+            token                 => $self->get_token
+          }
+        )
+      );
+    } ## end if ( $self->get_aws_secret_access_key...)
+    else {
+      if ( $self->get_debug && $self->get_debug !~ /^2|insecure$/xms ) {
+        delete $options{debug};
+      }
+
+      $self->set_credentials( Amazon::Credentials->new(%options) );
+    } ## end else [ if ( $self->get_aws_secret_access_key...)]
+  } ## end if ( !$self->get_credentials)
+
+  return $self;
+} ## end sub _set_defaults
+
+sub _set_url {
+  my ($self) = @_;
+
+  my $url = $self->get_url;
+
+  if ( !$url ) {
+    $url
+      = $self->get_protocol . q{://}
+      . $self->get_service . q{.}
+      . $self->get_region
+      . '.amazonaws.com';
+  } ## end if ( !$url )
+  else {
+
+    if ( $url !~ /^https?/xmsi ) {
+      $url =~ s/^\///xms;    # just remove leading slash...
+      $url = $self->get_protocol . '://' . $url;
+    }
+
+  } ## end else [ if ( !$url ) ]
+
+  $self->set_url($url);
+
+  return $self;
+} ## end sub _set_url
+
+sub _set_x_amz_target {
+  my ( $self, $request ) = @_;
+
+  my $api
+    = $self->get_version
+    ? $self->get_api . q{_} . $self->get_version
+    : $self->get_api;
+
+  $self->set_target( $api . q{.} . $self->get_action );
+
+  $request->header( 'X-Amz-Target', $self->get_target );
+
+  return $request;
+} ## end sub _set_x_amz_target
+
+sub _set_form_url_encoded_string {
+  my ( $self, @args ) = @_;
+
+  if ( !grep {/Action=/xms} @args ) {    ## no critic (BuiltinFunctions::ProhibitBooleanGrep)
+    push @args, 'Action=' . $self->get_action;
+  }
+
+  if ( $self->get_version ) {
+    push @args, 'Version=' . $self->get_version;
+  }
+
+  return @args ? join( q{&}, @args ) : EMPTY;
+} ## end sub _set_form_url_encoded_string
+
+sub _set_request_content {
+  my ( $self, %args ) = @_;
+
+  my $request      = $args{'request'};
+  my $content      = $args{'content'};
+  my $content_type = $args{'content_type'} || $self->get_content_type;
+
+  if ( $self->get_http_method ne 'GET' ) {
+    $request->content_type($content_type);
+
+    if ( $content_type eq 'application/x-www-form-url-encoded' ) {
+      $content
+        = $self->_set_form_url_encoded_string( $content ? $content : () );
+    }
+
+    $request->content($content);
+  } ## end if ( $self->get_http_method...)
+  else {
+    $content
+      = $self->_set_form_url_encoded_string( $content ? $content : () );
+
+    $request->uri( $request->uri . q{?} . $content );
+  } ## end else [ if ( $self->get_http_method...)]
+
+  return $request;
+} ## end sub _set_request_content
+
+1;
+
+__END__
+
 =pod
 
 =head1 NAME
@@ -33,58 +559,56 @@ C<Amazon::API>
 
  sub new {
    my $class = shift;
-   my $options = shift || {};
- 
-   $class->SUPER::new({
- 		      %$options,
- 		      service_url_base => 'events',
- 		      version          => undef,
- 		      api              => 'AWSEvents',
- 		      api_methods      => \@API_METHODS,
- 		      content_type     => 'application/x-amz-json-1.1'
- 		     });
+
+   $class->SUPER::new(
+     service       => 'events',
+     api           => 'AWSEvents',
+     api_methods   => \@API_METHODS,
+     decode_always => 1
+   );
  }
 
  1;
 
-my $cwe = Amazon::CloudWatchEvents->new();
+Then...
 
-my $rules = $cwe->ListRules();
-
+ my $rules = Amazon::CloudWatchEvents->new->ListRules;
 
 =head1 DESCRIPTION
 
-Generic class to use for constructing AWS API interfaces.  Typically
-used as the parent class, but can be used directly.
+Generic class for constructing AWS API interfaces.  Typically used as
+the parent class, but can be used directly.
 
 =over 5
 
-=item * See L</IMPLEMENTATION NOTES> for using C<Amazon::API>
+=item * See L<IMPLEMENTATION NOTES/> for using C<Amazon::API>
 directly to call AWS services.
 
-=item * See C<Amazon::CloudWatchEvents> for an example of use this module as a
-parent class.
+=item * See L<Amazon::CloudWatchEvents> for an example of how to use
+this module as a parent class.
 
 =back
 
 =head1 BACKGROUND AND MOTIVATION
 
-A comprehensive Perl interface to AWS services similar to the boto
+A comprehensive Perl interface to AWS services similar to the I<boto>
 library for Python has been a long time in coming. The PAWS project
-has attempted to create an always up-to-date interface with community
-support.  Some however may find that project a little heavy in the
-dependency department. If you are looking for an extensible (albeit
-spartan) method using a subset of services without consuming all of
-CPAN you might want to consider C<Amazon::API>.
+has been attempting to create an always up-to-date AWS interface with
+community support.  Some however may find that project a little heavy
+in the dependency department. If you are looking for an extensible
+(albeit spartan) method of invoking a subset of services with a lower
+dependency count, you might want to consider C<Amazon::API>.
 
 =head1 THE APPROACH
 
 Essentially, most AWS APIs are RESTful services that adhere to a
-common protocol.
+common protocol, but differences in services make a single solution
+difficult. All services more or less adhere to this framework:
 
 =over 5
 
-=item 1. Set HTTP headers to indicate the API and method to be invoked
+=item 1. Set HTTP headers (or query string) to indicate the API and
+method to be invoked
 
 =item 2. Set credentials in the header
 
@@ -92,153 +616,111 @@ common protocol.
 
 =item 4. Sign the request and set the signature in the header
 
-=item 5. Send a payload of parameters for the method being invoked
+=item 5. Optionally send a payload of parameters for the method being invoked
 
 =back
 
-Specific details of each API call are well documented and early
-services often deviated from some of these patterns or included
-special parameters.  In any event, this module attempts to account for
-most if not all of those nuances and provide a fairly generic way of
-invoking these APIs in the most lightweight way as possible.
+Specific details of the more recent AWS services are well documented,
+however early services were usually implemented as simple HTTP
+services that accepted a query string. This module attempts to account
+for most if not all of those nuances of invoking AWS services and
+provide a fairly generic way of invoking these APIs in the most
+lightweight way possible.
 
-Of course, you get what you pay for, so you'll probably need to be
-very familiar with the APIs you are calling and willng to RTFM on
-Amazon's website.  However, the payoff is that you can probably use
-this class to call any AWS API.
+As a generic, lightweight module, it naturally does not provide
+support for individual AWS services. To use this class for invoking
+the AWS APIs, you need to be very familiar with the specific API
+requirements and responses and be willng to invest time reading the
+documentation on Amazon's website.  The payoff is that you can
+probably use this class to call I<any> AWS API without installing a large
+number of dependencies.
 
-Think of this class as a DIY kit to invoke just the methods you need
-to invoke for your AWS project.  A good example of creating a quick
-and dirty interface to CloudWatch Events can be found here:
+Think of this class as a DIY kit to invoke B<only> the methods you
+need for your AWS project. A good example of creating a quick and
+dirty interface to CloudWatch Events can be found here:
 
-L<Amazon::CloudWatchEvents|https://github.com/rlauer6/perl-Amazon-CloudWatchEvents>
+L<Amazon::CloudWatchEvents>
+
+And invoking some of the APIs is as easy as:
+
+  Amazon::API->new(
+    service     => 'sqs',
+    http_method => 'GET'
+  }
+  )->invoke_api('ListQueues');
 
 
 =head1 ERRORS
 
-Errors encountered are returned as an C<Amazon::API::Error> exception
-object.  See L<Amazon::API::Error>/
+When an error is encountered an exception class (C<Amazon::API::Error>)
+will be raised if C<raise_error> has been set to a true
+value. Additionally, a detailed error message will be displayed if
+C<print_error> is set to true.
 
-=cut
+See L<Amazon::API::Error> for more details.
 
-use strict;
-use warnings;
-
-use parent qw/Class::Accessor Exporter/;
-
-use Amazon::API::Error;
-use Amazon::API::Signature4;
-
-use Amazon::Credentials;
-
-use Data::Dumper;
-use HTTP::Request;
-use JSON::PP qw {encode_json decode_json };
-use LWP::UserAgent;
-use Scalar::Util qw{ reftype };
-use XML::LibXML::Simple qw{ XMLin };
-
-$Data::Dumper::Pair = ':';
-$Data::Dumper::Useqq = 1;
-$Data::Dumper::Terse = 1;
-
-__PACKAGE__->follow_best_practice;
-
-__PACKAGE__->mk_accessors(
-  qw{ action api api_methods version content_type
-    http_method credentials response protocol
-    region url service_url_base decode_always
-    signer target user_agent debug last_action
-    aws_access_key_id aws_secret_access_key token
-    print_error raise_error error
-    }
-);
-
-use vars qw/@EXPORT $VERSION/;
-
-@EXPORT=qw/$VERSION/;
-
-our $VERSION = '@PACKAGE_VERSION@'; $VERSION=~s/\-.*$//;
-
-=pod
-
-=head1 METHODS
+=head1 SUBROUTINES/METHODS
 
 =head2 new
 
- new( options )
+ new(options)
+
+All options are described below. C<options> can be a list or hash reference.
 
 =over 5
-
-=item credentials (optional)
-
-Accessing AWS services requires passing credentials that with
-sufficient privileges to invoke those APIs that support the service.
-This module supports three ways that you can provide those
-credentials.  
-
-=over 5
-
-=item 1. Pass the credentials keys directly.
-
-Pass the values for the keys below when call the C<new> method.
-
-=over 10
-
-=item aws_access_key_id
-
-=item aws_secret_access_key
-
-=item token
-
-=back
-
-=item 2. Pass a class that will provide the credential keys.
-
-Pass a reference to a class that has I<getters> for the credential
-keys. The class should supply C<get_{credential-key}> methods.
-
-Pass the reference as C<credentials> in the constructor.
-
- my $api = Amazon::API->new({ credentials => $credentials_class, ... });
-
-=item 3. Use the default C<Amazon::Credentials> class.
-
-If you don't pass the credentials or pass a class that will supply
-credentials, the module will use the C<Amazon::Credentials> class that
-attempts to find credentials in the environment, your credentials
-file, or the container or instance role.
-
-This method of obtaining credentials is probably the easiest to use.
-
-=item user_agent
-
-Your own user agent object or by default C<LWP::UserAgent>.  Using
-C<Furl>, if you have it avaiable may result in faster response.
-
-=item api (reqired)
-
-The name of the AWS service.  Example: AWSEvents
-
-=item url
-
-The service url.  Example: https://events.us-east-1.amazonaws.com
-
-=item debug
-
-0/1 - will dump request/response if set to true.
 
 =item action
 
-The API method. Example: PutEvents
+The API method. Normally, you would not set C<action> when you
+construct your object. It is set when you call the C<invoke_api>
+method or automatically set when you call one of the API stubs created
+for you.
+
+Example: 'PutEvents'
+
+=item api
+
+The name of the AWS service. See L<IMPLEMENTATION NOTES/> for a
+detailed explanation of when to set this value.
+
+Example: 'AWSEvents'
+
+=item api_methods
+
+A reference to an array of method names for the API.  The new
+constructor will create methods for each of the method names listed in
+the array.
+
+The methods that are created for you are nothing more than stubs that
+call C<invoke_api>. The stub is a convenience for calling the
+C<invoke_api> method as shown below.
+
+  Amazon::CloudWatch->new->PutEvents($events);
+
+...is equivalent to:
+
+ $api->invoke_api->('PutEvents', $events);
+
+Consult the API documentation for to determine what parameters each
+method requires.
+
+=item aws_access_key_id
+
+Your AWS access key. Both the access key and secret access key are
+required if either is passed. If no credentials are passed, an attempt
+will be made to find credentials using L<Amazon::Credentials>.
+
+=item aws_secret_access_key
+
+Your AWS secret access key.
 
 =item content_type
 
-Default content for paraemters passed to the C<invoke_api()> method.
+Default content for parameters passed to the C<invoke_api()> method.
 The default is C<application/x-amz-json-1.1>.  If you are calling an
 API that does not expect parameters (or all of them are optional and
-you do not pass a parameter) the default will be to pass an empty
-hash. 
+you do not pass a parameter) the default is to pass an empty
+hash.
 
   $cwe->ListRules();
 
@@ -246,299 +728,300 @@ would be equivalent to...
 
   $cwe->ListRules({});
 
+I<CAUTION! This may not be what the API expects! Always consult
+the AWS API for the service you are are calling.>
+
+=item credentials (optional)
+
+Accessing AWS services requires credentials with sufficient privileges
+to make programmatic calls to the APIs that support a service.  This
+module supports three ways that you can provide those credentials.
+
+=over 10
+
+=item 1. Pass the credentials (C<aws_access_key_id>,
+C<aws_secret_access_key>, C<token>) keys directly. A session token is
+typically required when you have assumed a role, you are using the
+EC2's instance role or a container's role.
+
+Pass the values for the credential keys when you call the C<new> method.
+
+=item 2. Pass a class that will provide the credential keys.
+
+Pass a reference to a class that has I<getters> for the credential
+keys. The class should supply I<getters> for all three credential keys.
+
+Pass the reference as C<credentials> in the constructor as shown here:
+
+ my $api = Amazon::API->new(credentials => $credentials_class, ... );
+
+=item 3. Use the default C<Amazon::Credentials> class.
+
+If you do not explicitly pass credentials or do not pass a class that will
+supply credentials, the module will use the C<Amazon::Credentials>
+class that attempts to find credentials in the I<environment>, your
+I<credentials file(s)>, or the I<container or instance role>.  See
+L<Amazon::Credentials> for more details.
+
+I<NOTE: The latter method of obtaining credentials is probably the easiest to
+use and provides the most succinct and secure way of obtaining
+credentials.>
+
+=back
+
+=item debug
+
+Set debug to a true value to enable debug messages. Debug mode will
+dump the request and response from all API calls. You can also set the
+environment variable DEBUG to enable debugging output.
+
+I<NOTE: By default this value will not be passed to
+C<Amazon::Credentials> to prevent accidental output of credentials in
+logs. If you want to explicitly pass this value, set the debug option
+to 2 or 'insecure'.>
+
+default: false
+
+=item decode_always
+
+Set C<decode_always> to a true value to return Perl objects from API
+method calls. The default is to return the raw output from the call.
+Typically, API calls will return either XML or JSON encoded objects.
+Setting C<decode_always> will attempt to decode the content based on
+the returned content type.
+
+default: false
+
+=item error
+
+The most recent result of an API call. C<undef> indicates no error was
+encountered the last time C<invoke_api> was called.
+
+=item http_method
+
+Sets the HTTP method used to invoke the API. Consult the AWS
+documentation for each service to determine the method utilized. Most
+of the more recent services utilize the POST method, however older
+services like SQS or S3 utilize GET or a combination of methods
+depending on the specific method being invoked.
+
+default: POST
+
+=item last_action
+
+The last method call invoked.
+
+=item print_error
+
+Setting this value to true enables a detailed error message containing
+the error code and any messages returned by the API when errors occur.
+
+default: true
+
 =item protocol
 
 One of 'http' or 'https'.  Some Amazon services do not support https
 (yet).
 
+default: https
+
+=item raise_error
+
+Setting this value to true will raise an exception when errors
+occur. If you set this value to false you can inspect the C<error>
+attribute to determine the success or failure of the last method call.
+
+ $api->invoke_api('ListQueues');
+
+ if ( $api->get_error ) {
+   ...
+ }
+
+default: true
+
+=item region
+
+The AWS region. Pass an empty string if the service is a global
+service that does not require or want a region.
+
+default: $ENV{AWS_REGION}, $ENV{AWS_DEFAULT_REGION}, 'us-east-1'
+
+=item response
+
+The HTTP response from the last API call.
+
+=item service
+
+The AWS service name. Example: C<sqs>. This value is used as a prefix
+when constructing the the service URL (if not C<url> attribute is set).
+
+=item service_url_base
+
+Deprecated, use C<service>
+
+=item token
+
+Session token for assumed roles.
+
+=item url
+
+The service url.  Example: https://events.us-east-1.amazonaws.com
+
+Typically this will be constructed for you based on the region and the
+service being invoked. However, you may want to set this manually if
+for example you are using a service like
+<LocalStack|https://localstack.cloud/> that mocks AWS API calls.
+
+ my $api = Amazon::API->new(service => 's3', url => 'http://localhost:4566/');
+
+=item user_agent
+
+Your own user agent object.  Using
+C<Furl>, if you have it avaiable may result in faster response.
+
+default: C<LWP::UserAgent>
+
+=item version
+
+Sets the API version.  Some APIs require a version. Consult the
+documentation for individual services.
+
 =back
-
-=cut
-
-sub new {
-  my $class = shift;
-  $class = ref($class) || $class;
-  
-  my $self = $class->SUPER::new(@_);
-
-  $self->set_raise_error(1) if !defined $self->get_raise_error;
-  $self->set_print_error(1) if !defined $self->get_print_error;
-
-  if (!$self->get_user_agent) {
-    $self->set_user_agent( LWP::UserAgent->new );
-  }
-
-  # legacy behavior is to never decode... :-(
-  $self->set_decode_always(defined $self->get_decode_always || 0);
-  
-  # some APIs are GET only (I'm talkin' to you IAM!)
-  $self->set_http_method($self->get_http_method // 'POST');
-  
-  # note some APIs are global, hence an API may send '' to indicate global
-  $self->set_region($self->get_region // 'us-east-1');
-  
-  if ( !$self->get_credentials ) {
-    if ( $self->get_aws_secret_access_key && $self->aws_access_key_id ) {
-
-      $self->set_credentials(
-        Amazon::Credentials->new(
-          { aws_secret_access_key => $self->get_aws_secret_access_key,
-            aws_access_key_id     => $self->get_aws_access_key_id,
-            token                 => $self->get_token
-          }
-        )
-      );
-    } ## end if ( $self->get_aws_secret_access_key...)
-    else {
-      $self->set_credentials( Amazon::Credentials->new() );
-    }
-  } ## end if ( !$self->get_credentials)
-
-  $self->set_protocol( $self->get_protocol() // 'https' );
-  
-  if ( !$self->get_url ) {
-    if ( $self->get_service_url_base() ) {
-      if ( $self->get_region ) {
-        $self->set_url(
-          sprintf(
-            "%s://%s.%s.amazonaws.com",
-            $self->get_protocol, $self->get_service_url_base,
-            $self->get_region
-          )
-        );
-      } ## end if ( $self->get_region)
-      else {
-        $self->set_url(
-          sprintf(
-            "%s://%s.amazonaws.com",
-            $self->get_protocol, $self->get_service_url_base
-          )
-        );
-      } ## end else [ if ( $self->get_region)]
-    } ## end if ( $self->get_service_url_base...)
-    else {
-      die "ERROR: no url or service_url defined.\n";
-    }
-  } ## end if ( !$self->get_url )
-
-  $self->set_signer(
-    Amazon::API::Signature4->new(
-      -access_key     => $self->get_credentials->get_aws_access_key_id,
-      -secret_key     => $self->get_credentials->get_aws_secret_access_key,
-      -security_token => $self->get_credentials->get_token,
-      service         => $self->get_api,
-      region          => $self->get_region
-
-    )
-  );
-
-  if ( $self->get_api_methods ) {
-    no strict 'refs';
-    no warnings 'redefine';
-    
-    foreach my $api (@{$self->get_api_methods}) {
-      my $method = lcfirst $api;
-      
-      $method =~s/([a-z])([A-Z])/$1_$2/g;
-      $method = lc $method;
-      
-      # snake case rules the day
-      *{"Amazon::API::" . $method} = sub { shift->invoke_api("$api", @_) };
-      # but some prefer camels
-      *{"Amazon::API::" . $api} = sub { shift->$method(@_) }; # pass on to the snake
-    }
-  }
-  
-  $self->set_content_type('application/x-amz-json-1.1') unless
-    $self->get_content_type;
-  
-  $self;
-}
-
-sub get_api_name {
-  my $self = shift;
-  
-  return join("", map { ucfirst } split /_/, shift);
-}
-
-=pod
 
 =head2 invoke_api
 
  invoke_api(action, [parameters, [content-type]]);
 
+Invokes the API with the provided parameters.
+
 =over 5
 
 =item action
 
+API name.
+
 =item parameters
 
-Parameters to send to the API. Can be a scalar, a hash reference or an
-array reference.
+Parameters to send to the API. C<parameters> can be a scalar, a hash
+reference or an array reference. See the discussion below regarding
+C<content-type> and how C<invoke_api()> formats parameters before
+sending them as a payload to the API.
 
 =item content-type
 
-If you send the C<content-type>, it is assumed that the parameters are
-the payload to be sent in the request.  Otherwise, the C<parameters>
-will be converted to a JSON string if the C<parameters> value is a
-hash reference or a query string if the C<parameters> value is an
-array reference.
+If you pass the C<content-type> parameter, it is assumed that the parameters are
+the actual payload to be sent in the request (unless the parameter is a reference).
 
-Hence, to send a query string, you should send an array key/value
-pairs, or an array of scalars of the form Name=Value.
+The C<parameters> will be converted to a JSON string if the
+C<parameters> value is a hash reference.  If the C<parameters> value
+is an array reference it will be converted to a query string (Name=Value&...).
+
+To pass a query string, you should send an array of key/value
+pairs, or an array of scalars of the form C<Name=Value>.
 
  [ { Action => 'DescribeInstances' } ]
  [ "Action=DescribeInstances" ]
 
-...are both equivalent ways to force the method to send a query string.
+You can also use the C<param_n()> method to format query string
+arguments that are required to be in the "param.n" notation. This is the
+about the best documentation I have seen for that format.
+
+=over 5
+
+Some actions take lists of parameters. These lists are specified using
+the param.n notation. Values of n are integers starting from 1. For
+example, a parameter list with two elements looks like this:
+
+&AttributeName.1=first
+
+&AttributeName.2=second
 
 =back
 
-=cut
+An example of using this notation to set queue attributes when
+creating an SQS queue is shown below.
 
-sub invoke_api {
-  my $self = shift;
-  my ($action, $parameters, $content_type) = @_;
-  
-  $self->set_action($action);
-  $self->set_last_action($action);
-  $self->set_error(undef);
-  
-  my $content;
+ my $attributes = { Attributes => [ { Name => 'VisibilityTimeout', Value => '100' } ] };
+ my @sqs_attributes= Amazon::API->param_n($attributes);
 
-  $content_type = $self->get_content_type
-    if !$parameters && !$content_type;
-  
-  # guessing game...if you do not provide a content type
-  if ( !$content_type ) {
-    if ( ref($parameters) && reftype($parameters) eq 'HASH' ) {
-      $content_type =  $self->get_content_type;
-      $content = encode_json($parameters);
-    }
-    elsif ( ref($parameters) && reftype($parameters) eq 'ARRAY') {
-      $content_type = 'application/x-www-form-url-encoded'
-	if $self->get_http_method ne 'GET';
-      
-      my @query_string;
-      foreach (@{$parameters}) {
-	push @query_string, ref($_) ? sprintf("%s=%s", %$_) : $_;
-      }
-      
-      $content = join('&', @query_string);
-    }
-    else {
-      $content_type = 'application/x-www-form-url-encoded'
-	unless $self->get_http_method eq 'GET';
-      $content = $parameters;
-    }
-  }
-  else {
-    if ( $content_type =~/json/ && ref($parameters) ) {
-      $content = encode_json($parameters);
-    }
-    elsif ($content_type =~/json/ && !$parameters ) {
-      $content = encode_json({});
-    }
-    else {
-      $content = $parameters;
-    }
-  }
-   
-  my $rsp = $self->submit(content => $content, content_type => $content_type);
+ eval {
+   $sqs->CreateQueue([ "QueueName=foo", @sqs_attributes ]);
+ };
 
-  $self->set_response($rsp);
-  
-  if ( $self->get_debug ) {
-    print STDERR Dumper [$rsp];
-  }
-    
-  if ( !$rsp->is_success ) {
-    $self->set_error(
-      Amazon::API::Error->new(
-        { error        => $rsp->code,
-          message_raw  => $rsp->content,
-          content_type => $rsp->content_type,
-          api          => ref($self),
-          response     => $rsp
-        }
-      )
-    );
+See L</param_n> for more details.
 
-    $self->print_error if $self->get_print_error;
-
-    if ( $self->get_raise_error ) {
-      die $self->print_error;
-    }
-    else {
-      return undef;
-    }
-  } ## end unless ( $rsp->is_success )
-  
-  return $self->get_decode_always ? $self->decode_response : $rsp->content;
-}
-
-sub print_error {
-  my $self = shift;
-
-  my $error = $self->get_error;
-  my $err_str = 'API ERROR (' . $self->get_last_action . '): ';
-  
-  if ( $error && ref($error) =~ /Amazon::API::Error/ ) {
-    my $response = $error->get_response;
-    
-    $err_str .= sprintf( "[%s], %s,%s\n",
-      $error->get_error, Dumper( ref($response) ? $response : [ $response] ),
-      $error->get_message_raw);
-  }
-  else {
-    $err_str .= '[' . $error . ']';
-  }
-  
-  return $err_str;
-}
-
-=pod
+=back
 
 =head2 decode_response
 
-Attempts to decode the response from the API based on the Content-Type
-returned in the response header.  If there is no Content-Type, then
-the raw content is returned.
+Attempts to decode the most recent response from an invoked API based
+on the I<Content-Type> header returned.  If there is no
+I<Content-Type> header, then the method will try to decode it first as
+a JSON string and then as an XML string. If both of those fail, the
+raw content is returned.
+
+You can enable decoded responses globally by setting the
+C<decode_always> attribute when you call the C<new>
+constructor. Legacy behavior of this API was to always decode GET
+responses. You can explicitly disable this behavior by setting
+C<decode_always> to 0.
+
+=head2 param_n
+
+ param_n(parameters)
+
+Format parameters in the "param.n" notation.
+
+C<parameters> should be a hash or array reference.
+
+A good example of a service that uses this notation is the I<SendMessageBatch> SQS API call.
+
+The sample request can be found here:
+
+L<SendMessageBatch|https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessageBatch.html>
 
 
-=cut
+ https://sqs.us-east-2.amazonaws.com/123456789012/MyQueue/
+ ?Action=SendMessageBatch
+ &SendMessageBatchRequestEntry.1.Id=test_msg_001
+ &SendMessageBatchRequestEntry.1.MessageBody=test%20message%20body%201
+ &SendMessageBatchRequestEntry.2.Id=test_msg_002
+ &SendMessageBatchRequestEntry.2.MessageBody=test%20message%20body%202
+ &SendMessageBatchRequestEntry.2.DelaySeconds=60
+ &SendMessageBatchRequestEntry.2.MessageAttribute.1.Name=test_attribute_name_1
+ &SendMessageBatchRequestEntry.2.MessageAttribute.1.Value.StringValue=test_attribute_value_1
+ &SendMessageBatchRequestEntry.2.MessageAttribute.1.Value.DataType=String
+ &Expires=2020-05-05T22%3A52%3A43PST
+ &Version=2012-11-05
+ &AUTHPARAMS
 
-sub decode_response {
-  my $self = shift;
-  my $rsp = $self->get_response;
-  
-  return undef unless $rsp;
+To produce this message you would pass the Perl object below to C<param_n()>:
 
-  my $result = eval {
-    if ( $rsp->content_type =~/xml/i) {
-      XMLin($rsp->content);
-    }
-    elsif ( $rsp->content_type =~/json/i ) {
-      decode_json($rsp->content);
-    }
-    else {
-      $rsp->content;
-    }
-  };
+ my $message = {
+   SendMessageBatchRequestEntry => [
+     { Id          => 'test_msg_001',
+       MessageBody => 'test message body 1'
+     },
+     { Id               => 'test_msg_002',
+       MessageBody      => 'test message body 2',
+       DelaySeconds     => 60,
+       MessageAttribute => [
+         { Name  => 'test_attribute_name_1',
+           Value =>
+             { StringValue => 'test_attribute_value_1', DataType => 'String' }
+         }
+       ]
+     }
+   ]
+ };
 
-  if ( $@ ) {
-    $result = $rsp->content;
-  }
-
-  $result;
-}
-
-
-=pod
 
 =head2 submit
 
- submit( options )
+ submit(options)
+
+I<This method is used internally by C<invoke_api> and normally should
+not be called by your applications.>
 
 C<options> is hash of options:
 
@@ -557,94 +1040,25 @@ Content types we have seen used to send values to AWS APIs:
  application/x-amz-json-1.1
  application/x-www-form-urlencoded
 
+Check the documentation for the individual APIs for the correct
+content type.
+
 =back
-
-=cut
-
-sub submit {
-  my $self = shift;
-  my %options = @_;
-
-  my $request = HTTP::Request->new($self->get_http_method || 'POST', $self->get_url);
-
-  # 1. set the header
-  # 2. set the content
-  # 3. sign the request
-  # 4. send the request & return result
-  
-  # see IMPLEMENTATION NOTES for an explanation
-  if ( $self->get_api ) {
-    if ( $self->get_version) {
-      $self->set_target(sprintf("%s_%s.%s", $self->get_api, $self->get_version, $self->get_action));
-    }
-    else {
-      $self->set_target(sprintf("%s.%s", $self->get_api, $self->get_action));
-    }
-
-    $request->header('X-Amz-Target', $self->get_target());
-  }
-  
-  if ($self->get_http_method ne 'GET') {
-    $options{content_type} = $options{content_type} || 'application/x-amz-json-1.1';
-    $request->content_type($options{content_type});
-    
-    if ( $options{content_type} eq 'application/x-www-form-url-encoded') {
-      $options{content} = $self->_finalize_content($options{content});
-    }
-
-    $request->content($options{content});
-
-  }
-  else {
-    $request->uri(sprintf("%s?%s", $request->uri(), $self->_finalize_content($options{content})));
-  }
-  
-  $request->header('X-Amz-Security-Token', $self->get_credentials->get_token)
-    if $self->get_credentials->get_token;
-  
-  # sign the request
-  $self->get_signer->sign($request, $self->get_region);
-
-  # make the request, return response object
-  if ( $self->get_debug ) {
-    print STDERR Dumper([$request]);
-  }
-  
-  $self->get_user_agent->request($request);
-}
-
-sub _finalize_content {
-  my $self = shift;
-  my $content = shift;
-  
-  my @args = $content if $content;
-  
-  if ( $content && $content !~/Action=/ || ! $content ) {
-    push @args, "Action=" . $self->get_action;
-  }
-  
-  if ( $self->get_version) {
-    push @args, "Version=" . $self->get_version
-  }
-  
-  return @args ? join('&', @args) : '';
-}
-
-=pod
 
 =head1 IMPLEMENTATION NOTES
 
 =head2 X-Amz-Target
 
-Most of the newer AWS APIs accept a header (X-Amz-Target) in lieu of
-the CGI parameter I<Action>. Some APIs also want the version in the
-target, some don't. There is sparse documentation about the nuances of
-using the REST interface directly to call AWS APIs.
+Most of the newer AWS APIs are invoked as HTTP POST operations and
+accept a header (X-Amz-Target) in lieu of the CGI parameter I<Action>
+to specify the specific API action. Some APIs also want the version in
+the target, some don't. There is sparse documentation about the
+nuances of using the REST interface directly to call AWS APIs.
 
-We use the C<api> value as a trigger to indicate we need to set the
-Action in the X-Amz-Target header.  We also check to see if the
-version needs to be attached to the Action value as required by some
-APIs.
+When invoking an API the class uses the C<api> value as to indicate
+that the action should be set in the C<X-Amz-Target> header.  We also
+check to see if the version needs to be attached to the action value
+as required by some APIs.
 
   if ( $self->get_api ) {
     if ( $self->get_version) {
@@ -657,28 +1071,44 @@ APIs.
     $request->header('X-Amz-Target', $self->get_target());
   }
 
-
-DynamoDB & KMS seems to be able to use this in lieu of query variables
-Action & Version, although again, there seems to be a lot of
-inconsisitency in the APIs.  DynamoDB uses DynamoDB_YYYYMMDD.Action
-while KMS will not take the version that way and prefers
-TrentService.Action (with no version).  There is no explanation in any
-of the documentations I have been able to find as to what
-"TrentService" might actually mean.
+DynamoDB and KMS seem to be able to use this in lieu of query
+variables C<Action> and C<Version>, although again, there seems to be
+a lot of inconsisitency in the APIs.  DynamoDB uses
+DynamoDB_YYYYMMDD.Action while KMS does not require the version that
+way and prefers TrentService.Action (with no version).  There is no
+explanation in any of the documentations I have been able to find as
+to what "TrentService" might actually mean.  Again, your best approach
+is to read Amazon's documentation and look at their sample requests
+for guidance.
 
 In general, the AWS API ecosystem is very organic. Each service seems
 to have its own rules and protocol regarding what the content of the
 headers should be.
 
-This generic API interface tries to make it possible to use a central
-class (Amazon::API) as a sort of gateway to the APIs. The most generic
-interface is simply sending query variables and not much else in the
-header.  APIs like EC2 conform to that protocol, so as indicated
-above, we use C<action> to determine whether to send the API action in
-the header or to assume that it is being sent as one of the query
-variables.
+As noted, this generic API interface tries to make it possible to use
+one class C<Amazon::API> as a sort of gateway to the APIs. The most
+generic interface is simply sending query variables and not much else
+in the header.  Services like EC2 conform to that protocol and can be
+invoked with relatively little fanfare.
 
-=head2 Rolling a New API 
+ use Amazon::API;
+ use Data::Dumper;
+
+ print Dumper(
+   Amazon::API->new(
+     service => 'ec2',
+     version => '2016-11-15'
+   )->invoke_api('DescribeInstances')
+ );
+
+Note that for this invoking the API in this fashion, C<version> is
+required.
+
+For more hints regarding how to call a particular service, you can use
+the AWS CLI with the --debug option.  Invoke the service using the CLI
+and examine the payloads sent by the boto library.
+
+=head2 Rolling a New API
 
 The class will stub out methods for the API if you pass an array of
 API method names.  The stub is equivalent to:
@@ -690,9 +1120,7 @@ API method names.  The stub is equivalent to:
  }
 
 Some will also be happy to know that the class will create an
-equivalent I<CamelCase> version of the method.  If you choose to
-override the method, you should override the snake case version of the
-method.
+equivalent I<CamelCase> version of the method.
 
 As an example, here is a possible implementation of
 C<Amazon::CloudWatchEvents> that implements one of the API calls.
@@ -700,53 +1128,65 @@ C<Amazon::CloudWatchEvents> that implements one of the API calls.
  package Amazon::CloudWatchEvents;
 
  use parent qw/Amazon::API/;
- 
+
  sub new {
-   my $class = shift;
-   my $options = shift || {};
+   my ($class, $options) = @_;
 
-   $options->{api} 'AWSEvents';
-   $options->{url} 'https://events.us-east-1.amazonaws.com';
-   $options->{api_methods} => [ 'ListRules' ];
+   my $self = $class->SUPER::new(
+     { %{$options},
+       api         => 'AWSEvents',
+       service     => 'events',
+       api_methods => [qw{ ListRules }],
+     }
+   );
 
-   return $class->SUPER::new($options);
+   return $self;
  }
-
- 1;
 
 Then...
 
-  my $cwe = new Amazon::CloudWatchEvents();
-  $cwe->ListRules({});
+ use Data::Dumper;
+
+ print Dumper(Amazon::CloudWatchEvents->new->ListRules({}));
 
 Of course, creating a class for the service is optional. It may be
 desirable however to create higher level and more convenient methods
 that aid the developer in utilizing a particular API.
 
- my $api = new Amazon::API(
-   { credentials => new Amazon::Credentials,
-     api         => 'AWSEvents',
-     url         => 'https://events.us-east-1.amazonaws.com'
-   }
- );
+=head2 Overriding Methods
 
-$api->invoke_api( 'ListRules', {} );
+Because the class does some symbol table munging, you cannot easily
+override the methods in the usual way.
+
+ sub ListRules {
+   my $self = shift;
+   ...
+   $self->SUPER::ListRules(@_)
+ }
+
+Instead, you should re-implement the method as implemented by this
+class.
+
+ sub ListRules {
+   my $self = shift;
+   ...
+   $self->invoke_api('ListRules', @_);
+ }
 
 =head2 Content-Type
 
 Yet another piece of evidence that suggests the I<organic> nature of
-the Amazon API ecosystem is their use of multiple forms of input to
-their methods indicated by the required Content-Type for different
-services.  Some of the variations include:
+the Amazon API ecosystem is their use of different Content-Type
+headers.  Some of the variations include:
 
  application/json
  application/x-amz-json-1.0
  application/x-amz-json-1.1
  application/x-www-form-urlencoded
 
-Accordingly, the C<invoke_api()> can be passed the Content-Type or
-will try to make "best guess" based on the input parameter you passed.
-It guesses using the following decision tree:
+Accordingly, the C<invoke_api()> method can be passed the
+I<Content-Type> or will try to make its I<best guess> based on the
+input parameters you passed.  It guesses using the following algorithm:
 
 =over 5
 
@@ -764,19 +1204,93 @@ then the Content-Type is C<application/x-www-form-urlencoded>.
 
 You can set the default Content-Type used for the calling service when
 a reference is passed to the C<invoke_api()> method by passing the
-C<content_type> option to the constructor.
+C<content_type> option to the constructor. The default is
+'application/x-amz-json-1.1'.
 
- $class->SUPER::new({%@_, content_type => 'application/x-amz-json-1.1', api => 'AWSEvents', 
-                     url => 'https://events.us-east-1.amazonaws.com'});
+  $class->SUPER::new(
+    content_type => 'application/x-amz-json-1.1',
+    api          => 'AWSEvents',
+    service      => 'events'
+  );
+
+=head2 ADDITIONAL HINTS
+
+=over 5
+
+=item * Bad Request
+
+If you send the wrong headers or payload you're liable to get a 400
+Bad Request. You may also get other errors that can be misleading when
+you send incorrect parameters. When in doubt compare your requests to
+requests from the AWS CLI.
+
+=over 10 
+
+=item 1. Set the C<debug> option to true to see the request object and
+the response object from C<Amazon::API>.
+
+=item 2. Excecute the AWS CLI with the --debug option and compare the
+request and response with that of your calls.
+
+=back
+
+=item * Payloads
+
+Pay attention to the payloads that are required by each service.  B<Do
+not> assume that sending nothing when you have no parameters to pass
+is correct. For example, the C<ListSecrets> API of SecretsManager
+requires at least an empty JSON object.
+
+ $api->invoke_api('ListSecrets', {});
+
+Failure to send at least an empty JSON object will result in a 400
+response. 
+
+=back
+
+=head1 VERSION
+
+This documentation refers to version @PACKAGE_VERSION@ of C<Amazon::API>.
+
+=head1 DIAGNOSTICS
+
+To enable diagnostic output set C<debug> to a true value when calling
+the constructor. You can also set the C<DEBUG> environment variable to a
+true value to enable diagnostics.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+=head1 DEPENDENCIES
+
+ L<Amazon::Signature4>
+ L<Amazon::Credentials>
+ L<Date::Format>
+ L<HTTP::Request>
+ L<JSON::PP>
+ L<LWP::UserAgent>
+ L<Scalar::Util>
+ L<Time::Local>
+ L<XML::LibXML::Simple>
+
+...and possibly others.
+
+=head1 INCOMPATIBILITIES
+
+=head1 BUGS AND LIMITATIONS
+
+This module has not been tested on Windows OS.
+
+=head1 LICENSE AND COPYRIGHT
+
+This module is free software. It may be used, redistributed and/or
+modified under the same terms as Perl itself.
 
 =head1 SEE OTHER
 
-C<Amazon::Credentials>, C<Amazon::API::Error>
+C<Amazon::Credentials>, C<Amazon::API::Error>, C<AWS::Signature4>
 
 =head1 AUTHOR
 
 Rob Lauer - <rlauer6@comcast.net>
 
 =cut
-
-1;
