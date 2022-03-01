@@ -5,6 +5,8 @@ project:
   author:
     name: Rob Lauer
     mailto: rlauer6@comcast.net
+dependencies:
+  path: requires
 pm_module: Amazon::API
 path:
   pm_module: ../src/main/perl/lib

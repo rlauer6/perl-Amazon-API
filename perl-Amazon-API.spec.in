@@ -16,7 +16,7 @@ BuildArch:  noarch
 %define _sysconfdir     %{_prefix}/etc
 %define _datadir        %{_prefix}/share
 %define _localstatedir  %{_prefix}/var
-%define _mandir         %{_prefix}/man
+%define _mandir         %{_datadir}/man
 %define _infodir        %{_prefix}/info
 %define _libdir         %{_prefix}/lib
 %define _bindir         %{_prefix}/bin
@@ -68,6 +68,9 @@ make DESTDIR=%{buildroot} install
 
 # Our perl modules
 %{_perl5libdir}/*
+
+# man pages
+%{_mandir}/man3/*
 
 # Executables run by the user go in bin
 # %{_bindir}/*

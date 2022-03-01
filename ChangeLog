@@ -1,3 +1,14 @@
+Tue Mar  1 08:23:52 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.2.1 - requirements]:
+	* VERSION: bump
+	* cpan/requires: add Find::ShareDir::Install to dependencies
+	* cpan/buildspec.yml: dependencies
+	* cpan/Makefile.am: requires is a dependency for cpan build
+	* perl-Amazon-API.spec.in: man pages
+	* README.md: cpan building, examples
+	* src/examples/README.md: LocalStack
+
 Sun Feb 20 08:40:43 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.2.0 - examples, perlcritic cleanup]:

@@ -7,6 +7,7 @@ constant 1.33
 Data::Dumper 2.145
 Date::Format 2.24
 English 1.05
+File::ShareDir::Install 0.13
 HTTP::Request 6.00
 JSON::PP 2.97001
 LWP::UserAgent 6.36

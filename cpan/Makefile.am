@@ -1,11 +1,12 @@
 SUBDIRS = .
 
 CPAN_DIST_MAKER=/usr/local/libexec/make-cpan-dist.pl
+
 package_version=@PACKAGE_VERSION@
 package=@PACKAGE@
 
 # builds the distribution tarball and renames based on package version
-cpan: buildspec.yml
+cpan: buildspec.yml requires
 	set -x; \
 	test -e requires && REQUIRES="-r requires"; \
 	test -n "$(NOCLEANUP)" && NOCLEANUP="--nocleanup"; \
