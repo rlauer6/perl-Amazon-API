@@ -59,15 +59,19 @@ $(GPERLMODULES): % : %.in  $(GAPIMODULES)
 	test -d "$$(dirname "$@")" || $(INSTALL) -d "$$(dirname "$@")"
 	$(do_subst) $< > $@
 	PERLINCLUDE="$(PERLINCLUDE)"; \
-	test -n "$$PERL5LIB" && PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
+	if test -n "$$PERL5LIB"; then \
+	  PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
+	fi; \
 	$(perlwc) $$PERLINCLUDE  $@ || { ret=$$?; rm $@ && exit $$ret; }
 
 $(GAPIMODULES): % : %.in 
 	test -d "$$(dirname "$@")" || $(INSTALL) -d "$$(dirname "$@")"
 	$(do_subst) $< > $@
 	PERLINCLUDE="$(PERLINCLUDE)"; \
-	test -n "$$PERL5LIB" && PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
-	$(perlwc) $$PERLINCLUDE  $@ || { ret=$$?; rm $@ && exit $$ret; }
+	if test -n "$$PERL5LIB"; then \
+	  PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
+	fi; \
+	$(perlwc) $$PERLINCLUDE $@ || { ret=$$?; rm $@ && exit $$ret; }
 all:
 
 $(G3MANPAGES): %.3man : %.pm

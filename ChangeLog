@@ -6,8 +6,9 @@ Tue Mar  1 08:23:52 2022  Rob Lauer  <rlauer6@comcast.net>
 	* cpan/buildspec.yml: dependencies
 	* cpan/Makefile.am: requires is a dependency for cpan build
 	* perl-Amazon-API.spec.in: man pages
-	* README.md: cpan building, examples
+	* README.md: cpan building, examples, badge
 	* src/examples/README.md: LocalStack
+	* src/main/perl/lib/Makefile.am: use if/then to avoid bad exit
 
 Sun Feb 20 08:40:43 2022  Rob Lauer  <rlauer6@comcast.net>
 
