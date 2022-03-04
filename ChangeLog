@@ -1,3 +1,11 @@
+Fri Mar  4 12:42:35 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.2.2 - localize Data::Dumper parameters]:
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API.pm.in
+	- localize Data::Dumper settings
+
+
 Tue Mar  1 08:23:52 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.2.1 - requirements]:

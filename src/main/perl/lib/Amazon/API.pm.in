@@ -33,9 +33,9 @@ use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
   DEFAULT_REGION => 'us-east-1'
 };                ## end constant
 
-$Data::Dumper::Pair  = COLON;
-$Data::Dumper::Useqq = TRUE;
-$Data::Dumper::Terse = TRUE;
+local $Data::Dumper::Pair  = COLON;
+local $Data::Dumper::Useqq = TRUE;
+local $Data::Dumper::Terse = TRUE;
 
 __PACKAGE__->follow_best_practice;
 
