@@ -1,0 +1,48 @@
+package Amazon::SQS;
+
+use strict;
+use warnings;
+
+use parent qw{ Amazon::API };
+
+our @API_METHODS = qw{
+  AddPermission
+  ChangeMessageVisibility
+  ChangeMessageVisibilityBatch
+  CreateQueue
+  DeleteMessage
+  DeleteMessageBatch
+  DeleteQueue
+  GetQueueAttributes
+  GetQueueUrl
+  ListDeadLetterSourceQueues
+  ListQueues
+  ListQueueTags
+  PurgeQueue
+  ReceiveMessage
+  RemovePermission
+  SendMessage
+  SendMessageBatch
+  SetQueueAttributes
+  TagQueue
+  UntagQueue
+};
+
+sub new {
+  my ( $class, @options ) = @_;
+  $class = ref($class) || $class;
+
+  my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
+
+  return $class->SUPER::new(
+    { service       => 'sqs',
+      http_method   => 'GET',
+      api_methods   => \@API_METHODS,
+      decode_always => 1,
+      debug         => $ENV{DEBUG} // 0,
+      %options
+    }
+  );
+} ## end sub new
+
+1;

@@ -9,8 +9,8 @@ use Data::Dumper;
 use JSON::PP;
 use Data::UUID;
 
-$Data::Dumper::Pair  = q{:};
-$Data::Dumper::Terse = 1;
+local $Data::Dumper::Pair  = q{:};
+local $Data::Dumper::Terse = 1;
 
 our $DESCRIPTIONS = {
   CreateSecret =>

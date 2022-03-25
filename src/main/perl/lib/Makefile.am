@@ -18,21 +18,36 @@ amazon_apidir = $(amazondir)/API
 PERLMODULES = \
     Amazon/API.pm.in
 
+APISTUBMODULES = \
+    Amazon/API/CloudWatchLogs.pm.in \
+    Amazon/API/EC2.pm.in \
+    Amazon/API/ECS.pm.in \
+    Amazon/API/SecretsManager.pm.in \
+    Amazon/API/SQS.pm.in \
+    Amazon/API/SSM.pm.in
+
 APIMODULES = \
     Amazon/API/Error.pm.in \
     Amazon/API/Signature4.pm.in
 
 GPERLMODULES = $(PERLMODULES:.pm.in=.pm)
 GAPIMODULES = $(APIMODULES:.pm.in=.pm)
+GAPISTUBMODULES = $(APISTUBMODULES:.pm.in=.pm)
 
 amazon_DATA = $(GPERLMODULES)
-amazon_api_DATA = $(GAPIMODULES)
+amazon_api_DATA = \
+    $(GAPIMODULES) \
+    $(GAPISTUBMODULES)
 
-dist_noinst_DATA = $(PERLMODULES) $(APIMODULES)
+dist_noinst_DATA = \
+    $(PERLMODULES) \
+    $(APIMODULES) \
+    $(APISTUBMODULES)
 
 GALLMODULES = \
    $(GPERLMODULES) \
-   $(GAPIMODULES)
+   $(GAPIMODULES) \
+   $(GAPISTUBMODULES)
 
 POD2MAN = /usr/bin/pod2man
 
@@ -56,22 +71,14 @@ PERLINCLUDE = \
    -I $(perl5libdir) 
 
 $(GPERLMODULES): % : %.in  $(GAPIMODULES)
-	test -d "$$(dirname "$@")" || $(INSTALL) -d "$$(dirname "$@")"
-	$(do_subst) $< > $@
-	PERLINCLUDE="$(PERLINCLUDE)"; \
-	if test -n "$$PERL5LIB"; then \
-	  PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
-	fi; \
-	$(perlwc) $$PERLINCLUDE  $@ || { ret=$$?; rm $@ && exit $$ret; }
+include perl-build.inc
 
-$(GAPIMODULES): % : %.in 
-	test -d "$$(dirname "$@")" || $(INSTALL) -d "$$(dirname "$@")"
-	$(do_subst) $< > $@
-	PERLINCLUDE="$(PERLINCLUDE)"; \
-	if test -n "$$PERL5LIB"; then \
-	  PERLINCLUDE="$$PERLINCLUDE -I $$PERL5LIB"; \
-	fi; \
-	$(perlwc) $$PERLINCLUDE $@ || { ret=$$?; rm $@ && exit $$ret; }
+$(GAPIMODULES): % : %.in
+include perl-build.inc
+
+$(GAPISTUBMODULES): % : %.in
+include perl-build.inc
+
 all:
 
 $(G3MANPAGES): %.3man : %.pm

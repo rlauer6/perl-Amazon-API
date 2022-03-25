@@ -5,7 +5,7 @@ package Amazon::API;
 use strict;
 use warnings;
 
-use parent qw/Class::Accessor::Fast/;
+use parent qw/Class::Accessor::Fast Exporter/;
 
 use Amazon::API::Error;
 use Amazon::API::Signature4;
@@ -70,6 +70,9 @@ __PACKAGE__->mk_accessors(
 );
 
 our $VERSION = '@PACKAGE_VERSION@';
+use vars qw{ @EXPORT_OK };
+
+@EXPORT_OK = qw{ param_n };
 
 sub new {
   my ( $class, @options ) = @_;
@@ -133,7 +136,17 @@ sub decode_response {
 } ## end sub decode_response
 
 sub invoke_api {
-  my ( $self, $action, $parameters, $content_type ) = @_;
+  my ( $self, @args ) = @_;
+
+  my ( $action, $parameters, $content_type, $headers );
+
+  if ( ref $args[0] && reftype( $args[0] eq 'HASH' ) ) {
+    ( $action, $parameters, $content_type, $headers )
+      = @{ $args[0] }{qw{ action parameters content_type headers}};
+  }
+  else {
+    ( $action, $parameters, $content_type, $headers ) = @args;
+  }
 
   $self->set_action($action);
   $self->set_last_action($action);
@@ -141,7 +154,7 @@ sub invoke_api {
 
   my $decode_response = $self->get_decode_always;
 
-  my $content;
+  my $content              = $parameters;               # default
   my $default_content_type = $self->get_content_type;
 
   # guessing game...if you do not provide a content type
@@ -156,13 +169,11 @@ sub invoke_api {
         $content_type = 'application/x-www-form-url-encoded';
       }
 
-      # either { name => value } or "name=value"
+      # either [ name => value ] or "name=value"
       my @query_string;
       foreach my $p ( @{$parameters} ) {
         push @query_string, ref($p) ? sprintf( '%s=%s', %{$p} ) : $p;
       }
-
-      DEBUG( Dumper [ 'query string:', \@query_string ] );
 
       $content = join AMPERSAND, @query_string;
     } ## end elsif ( ref($parameters) ...)
@@ -170,19 +181,26 @@ sub invoke_api {
       if ( $self->get_http_method ne 'GET' && !$self->get_api ) {    # POST/PUT ?
         $content_type = 'application/x-www-form-url-encoded';
       }
+      else {
+        $content_type = $default_content_type;
+      }
 
-      $content = $parameters;
+      if ( $content_type =~ /json/xms && !defined $content ) {
+        $content = '{}';
+      }
     } ## end else [ if ( ref($parameters) ...)]
   } ## end if ( !$content_type )
   elsif ( $content_type =~ /json/xms ) {
     $content = encode_json( $parameters || {} );
   }
-  else {
-    $content = $parameters;
-  }
 
-  my $rsp
-    = $self->submit( content => $content, content_type => $content_type );
+  DEBUG( sub { return Dumper [ $content_type, $content, $headers ] } );
+
+  my $rsp = $self->submit(
+    content      => $content,
+    content_type => $content_type,
+    headers      => $headers
+  );
 
   $self->set_response($rsp);
 
@@ -207,7 +225,7 @@ sub invoke_api {
     }
 
     if ( $self->get_raise_error ) {
-      die $self->get_error;    ## no critic (ErrorHandling::RequireCarping)
+      die $self->get_error; ## no critic (ErrorHandling::RequireCarping)
     }
   } ## end if ( !$rsp->is_success)
 
@@ -241,11 +259,10 @@ sub print_error {
 sub submit {
   my ( $self, %options ) = @_;
 
-  DEBUG( Dumper $self);
+  my $method  = $self->get_http_method || 'POST';
+  my $headers = $options{headers}      || [];
 
-  my $method = $self->get_http_method || 'POST';
-
-  my $request = HTTP::Request->new( $method, $self->get_url );
+  my $request = HTTP::Request->new( $method, $self->get_url, $headers );
 
   # 1. set the header
   # 2. set the content
@@ -272,19 +289,20 @@ sub submit {
     region          => $self->get_region
   )->sign( $request, $self->get_region );
 
-  # make the request, return response object
   DEBUG( sub { Dumper( [$request] ) } );
 
+  # make the request, return response object
   return $self->get_user_agent->request($request);
 } ## end sub submit
 
 sub param_n {
   my ( $message, $prefix, $idx ) = @_;
 
-  if ( !defined $prefix ) {    # first call, check args
+  if ( !defined $idx ) {    # first call, check args
     croak "message argument must be reference\n"
       if !ref $message;
-  }
+
+  } ## end if ( !defined $idx )
 
   my @param_n;
 
@@ -304,8 +322,11 @@ sub param_n {
     } ## end else [ if ( reftype($message)...)]
   } ## end if ( ref $message )
   else {
+    croak "missing value\n"
+      if !defined $message || $message eq EMPTY;
+
     return "$prefix=$message";
-  }
+  } ## end else [ if ( ref $message ) ]
 
   return @param_n;
 } ## end sub param_n
@@ -403,7 +424,6 @@ sub _set_defaults {
   # setting to undef vs FALSE to indicate unfortunate legacy behavior
   $self->set_decode_always( $self->get_decode_always || undef );
 
-  # some APIs are GET only (I'm talkin' to you IAM!)
   $self->set_http_method( $self->get_http_method // 'POST' );
 
   $self->set_protocol( $self->get_protocol() // 'https' );
@@ -538,24 +558,25 @@ C<Amazon::API>
 
  package Amazon::CloudWatchEvents;
 
- use parent qw/Amazon::API/;
+ use parent qw{ Amazon::API };
 
- @API_METHODS = qw/
-		  DeleteRule
-		  DescribeEventBus
-		  DescribeRule
-		  DisableRule
-		  EnableRule
-		  ListRuleNamesByTarget
-		  ListRules
-		  ListTargetsByRule
-		  PutEvents
-		  PutPermission
-		  PutRule
-		  PutTargets
-		  RemovePermission
-		  RemoveTargets
-		  TestEventPattern/;
+ our @API_METHODS = qw{
+  DeleteRule
+  DescribeEventBus
+  DescribeRule
+  DisableRule
+  EnableRule
+  ListRuleNamesByTarget
+  ListRules
+  ListTargetsByRule
+  PutEvents
+  PutPermission
+  PutRule
+  PutTargets
+  RemovePermission
+  RemoveTargets
+  TestEventPattern
+ };
 
  sub new {
    my $class = shift;
@@ -572,7 +593,7 @@ C<Amazon::API>
 
 Then...
 
- my $rules = Amazon::CloudWatchEvents->new->ListRules;
+ my $rules = Amazon::CloudWatchEvents->new->ListRules({});
 
 =head1 DESCRIPTION
 
@@ -581,7 +602,7 @@ the parent class, but can be used directly.
 
 =over 5
 
-=item * See L<IMPLEMENTATION NOTES/> for using C<Amazon::API>
+=item * See L</IMPLEMENTATION NOTES> for using C<Amazon::API>
 directly to call AWS services.
 
 =item * See L<Amazon::CloudWatchEvents> for an example of how to use
@@ -680,7 +701,7 @@ Example: 'PutEvents'
 
 =item api
 
-The name of the AWS service. See L<IMPLEMENTATION NOTES/> for a
+The name of the AWS service. See L</IMPLEMENTATION NOTES> for a
 detailed explanation of when to set this value.
 
 Example: 'AWSEvents'
@@ -695,14 +716,17 @@ The methods that are created for you are nothing more than stubs that
 call C<invoke_api>. The stub is a convenience for calling the
 C<invoke_api> method as shown below.
 
-  Amazon::CloudWatch->new->PutEvents($events);
+  
+ my $api = Amazon::CloudWatch->new;
+
+ $api->PutEvents($events);
 
 ...is equivalent to:
 
  $api->invoke_api->('PutEvents', $events);
 
-Consult the API documentation for to determine what parameters each
-method requires.
+Consult the Amazon API documentation for the service to determine what
+parameters each action requires.
 
 =item aws_access_key_id
 
@@ -717,10 +741,11 @@ Your AWS secret access key.
 =item content_type
 
 Default content for parameters passed to the C<invoke_api()> method.
-The default is C<application/x-amz-json-1.1>.  If you are calling an
-API that does not expect parameters (or all of them are optional and
-you do not pass a parameter) the default is to pass an empty
-hash.
+The default is C<application/x-amz-json-1.1>.
+
+If you are calling an API that does not expect parameters (or all of
+them are optional and you do not pass a parameter) the default is to
+pass an empty hash.
 
   $cwe->ListRules();
 
@@ -739,33 +764,34 @@ module supports three ways that you can provide those credentials.
 
 =over 10
 
-=item 1. Pass the credentials (C<aws_access_key_id>,
-C<aws_secret_access_key>, C<token>) keys directly. A session token is
-typically required when you have assumed a role, you are using the
-EC2's instance role or a container's role.
+=item 1. Pass the credentials directly.
 
-Pass the values for the credential keys when you call the C<new> method.
+Pass the values for the credentials (C<aws_access_key_id>,
+C<aws_secaret_access_key>, C<token>) when you call the C<new> method.
+A session token is typically required when you have assumed
+a role, you are using the EC2's instance role or a container's role.
 
 =item 2. Pass a class that will provide the credential keys.
 
 Pass a reference to a class that has I<getters> for the credential
 keys. The class should supply I<getters> for all three credential keys.
 
-Pass the reference as C<credentials> in the constructor as shown here:
+Pass the reference to the class as C<credentials> in the constructor
+as shown here:
 
  my $api = Amazon::API->new(credentials => $credentials_class, ... );
 
 =item 3. Use the default C<Amazon::Credentials> class.
 
-If you do not explicitly pass credentials or do not pass a class that will
-supply credentials, the module will use the C<Amazon::Credentials>
-class that attempts to find credentials in the I<environment>, your
-I<credentials file(s)>, or the I<container or instance role>.  See
-L<Amazon::Credentials> for more details.
+If you do not explicitly pass credentials or do not pass a class that
+will supply credentials, the module will use the
+C<Amazon::Credentials> class that attempts to find credentials in the
+I<environment>, your I<credentials file(s)>, or the I<container or
+instance role>.  See L<Amazon::Credentials> for more details.
 
-I<NOTE: The latter method of obtaining credentials is probably the easiest to
-use and provides the most succinct and secure way of obtaining
-credentials.>
+I<NOTE: The latter method of obtaining credentials is probably the
+easiest to use and provides the most succinct and secure way of
+obtaining credentials.>
 
 =back
 
@@ -890,7 +916,11 @@ documentation for individual services.
 
 =head2 invoke_api
 
- invoke_api(action, [parameters, [content-type]]);
+ invoke_api(action, [parameters], [content-type], [headers]);
+
+or using named parameters...
+
+ invoke_api({ action => args, ... } )
 
 Invokes the API with the provided parameters.
 
@@ -907,6 +937,35 @@ reference or an array reference. See the discussion below regarding
 C<content-type> and how C<invoke_api()> formats parameters before
 sending them as a payload to the API.
 
+You can use the C<param_n()> method to format query string arguments
+that are required to be in the I<param.n> notation. This is about the
+best documentation I have seen for that format. From the AWS
+documentation...
+
+=over 10
+
+Some actions take lists of parameters. These lists are specified using
+the I<param.n> notation. Values of n are integers starting from 1. For
+example, a parameter list with two elements looks like this:
+
+&AttributeName.1=first
+
+&AttributeName.2=second
+
+=back
+
+An example of using this notation is to set queue attributes when
+creating an SQS queue.
+
+ my $attributes = { Attributes => [ { Name => 'VisibilityTimeout', Value => '100' } ] };
+ my @sqs_attributes= Amazon::API::param_n($attributes);
+
+ eval {
+   $sqs->CreateQueue([ 'QueueName=foo', @sqs_attributes ]);
+ };
+
+See L</param_n> for more details.
+
 =item content-type
 
 If you pass the C<content-type> parameter, it is assumed that the parameters are
@@ -920,35 +979,12 @@ To pass a query string, you should send an array of key/value
 pairs, or an array of scalars of the form C<Name=Value>.
 
  [ { Action => 'DescribeInstances' } ]
- [ "Action=DescribeInstances" ]
+ [ 'Action=DescribeInstances' ]
 
-You can also use the C<param_n()> method to format query string
-arguments that are required to be in the "param.n" notation. This is the
-about the best documentation I have seen for that format.
+=item headers
 
-=over 5
-
-Some actions take lists of parameters. These lists are specified using
-the param.n notation. Values of n are integers starting from 1. For
-example, a parameter list with two elements looks like this:
-
-&AttributeName.1=first
-
-&AttributeName.2=second
-
-=back
-
-An example of using this notation to set queue attributes when
-creating an SQS queue is shown below.
-
- my $attributes = { Attributes => [ { Name => 'VisibilityTimeout', Value => '100' } ] };
- my @sqs_attributes= Amazon::API->param_n($attributes);
-
- eval {
-   $sqs->CreateQueue([ "QueueName=foo", @sqs_attributes ]);
- };
-
-See L</param_n> for more details.
+Array reference of key/value pairs representing additional headers to
+send with the request.
 
 =back
 
@@ -1043,6 +1079,11 @@ Content types we have seen used to send values to AWS APIs:
 Check the documentation for the individual APIs for the correct
 content type.
 
+=item headers
+
+Array reference of key/value pairs that represent additional headers
+to send with the request.
+
 =back
 
 =head1 IMPLEMENTATION NOTES
@@ -1062,10 +1103,10 @@ as required by some APIs.
 
   if ( $self->get_api ) {
     if ( $self->get_version) {
-      $self->set_target(sprintf("%s_%s.%s", $self->get_api, $self->get_version, $self->get_action));
+      $self->set_target(sprintf('%s_%s.%s', $self->get_api, $self->get_version, $self->get_action));
     }
     else {
-      $self->set_target(sprintf("%s.%s", $self->get_api, $self->get_action));
+      $self->set_target(sprintf('%s.%s', $self->get_api, $self->get_action));
     }
 
     $request->header('X-Amz-Target', $self->get_target());
@@ -1262,15 +1303,27 @@ true value to enable diagnostics.
 
 =head1 DEPENDENCIES
 
- L<Amazon::Signature4>
- L<Amazon::Credentials>
- L<Date::Format>
- L<HTTP::Request>
- L<JSON::PP>
- L<LWP::UserAgent>
- L<Scalar::Util>
- L<Time::Local>
- L<XML::LibXML::Simple>
+=over 5
+
+=item * L<Amazon::Signature4>
+
+=item * L<Amazon::Credentials>
+
+=item * L<Date::Format>
+
+=item * L<HTTP::Request>
+
+=item * L<JSON::PP>
+
+=item * L<LWP::UserAgent>
+
+=item * L<Scalar::Util>
+
+=item * L<Time::Local>
+
+=item * L<XML::LibXML::Simple>
+
+=back
 
 ...and possibly others.
 

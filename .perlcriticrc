@@ -6,4 +6,6 @@ exclude_functions = print
 flowcontrol=carp cluck confess croak die exit goto warn LOGCROAK LOGCLUCK LOGCARP LOGCONFESS LOGDIE LOGEXIT LOGWARN
 
 [ValuesAndExpressions::ProhibitConstantPragma]
-
+[Documentation::RequirePodSections]
+lib_sections    = NAME | SYNOPSIS | DESCRIPTION | METHODS AND SUBROUTINES | AUTHOR
+script_sections = NAME | SYNOPSIS | DESCRIPTION | AUTHOR

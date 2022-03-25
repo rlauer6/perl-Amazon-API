@@ -5,37 +5,39 @@ use warnings;
 
 use Data::Dumper;
 
-use parent qw/ Amazon::API APIExample /;
+use Amazon::API qw{ param_n };
+
+use parent qw/ Amazon::API::EC2 APIExample /;
 
 our $DESCRIPTIONS = {
-                     DescribeInstances => "Executes the EC2 API 'DescribeInstances': run DescribeInstances"
+                     DescribeInstances => "Executes the EC2 API 'DescribeInstances': run DescribeInstances",
+                     DescribeVpcs => "Executes the EC2 API 'DescribeVpcs': run DescribeVpcs",
+                     DescribeSubnets => "Executes the EC2 API 'DescribeSubnets': run DescribeSubnets"
                     };
 
-our @API_METHODS = qw{ DescribeInstances };
-
 caller or __PACKAGE__->main;
-
-sub new {
-  my ($class, @options) = @_;
-  $class = ref($class) || $class;
-  
-  my %options = ref($options[0]) ? %{$options[0]} : @options;
-  
-  
-  $class->SUPER::new({
-		      service          => 'ec2',
-		      version          => '2016-11-15',
-		      api_methods      => \@API_METHODS,
-                      debug            => $ENV{DEBUG} // 0,
-                      %options
-		     });
-}
 
 sub _DescribeInstances {
   my ($package, $options, @args) = @_;
   
   my $ec2 = $package->new(url => $options->{'endpoint-url'});
   print Dumper $ec2->DescribeInstances;
+}
+
+sub _DescribeVpcs {
+  my ($package, $options, @args) = @_;
+  
+  my $ec2 = $package->new(url => $options->{'endpoint-url'});
+  print Dumper $ec2->DescribeVpcs;
+}
+
+sub _DescribeSubnets {
+  my ($package, $options, @args) = @_;
+  
+  my $ec2 = $package->new(url => $options->{'endpoint-url'});
+  my @filter = param_n({ Filter => [{ Name => 'vpc-id', Value => [$args[0]] }]});
+  
+  print Dumper $ec2->DescribeSubnets(\@filter);
 }
 
 1;

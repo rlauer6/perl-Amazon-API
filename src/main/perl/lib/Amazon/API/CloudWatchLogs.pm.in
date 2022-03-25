@@ -1,0 +1,69 @@
+package Amazon::API::CloudWatchLogs;
+
+use strict;
+use warnings;
+
+use parent qw/ Amazon::API /;
+
+our @API_METHODS = qw{
+  AssociateKmsKey
+  CancelExportTask
+  CreateExportTask
+  CreateLogGroup
+  CreateLogStream
+  DeleteDestination
+  DeleteLogGroup
+  DeleteLogStream
+  DeleteMetricFilter
+  DeleteQueryDefinition
+  DeleteResourcePolicy
+  DeleteRetentionPolicy
+  DeleteSubscriptionFilter
+  DescribeDestinations
+  DescribeExportTasks
+  DescribeLogGroups
+  DescribeLogStreams
+  DescribeMetricFilters
+  DescribeQueries
+  DescribeQueryDefinitions
+  DescribeResourcePolicies
+  DescribeSubscriptionFilters
+  DisassociateKmsKey
+  FilterLogEvents
+  GetLogEvents
+  GetLogGroupFields
+  GetLogRecord
+  GetQueryResults
+  ListTagsLogGroup
+  PutDestination
+  PutDestinationPolicy
+  PutLogEvents
+  PutMetricFilter
+  PutQueryDefinition
+  PutResourcePolicy
+  PutRetentionPolicy
+  PutSubscriptionFilter
+  StartQuery
+  StopQuery
+  TagLogGroup
+  TestMetricFilter
+  UntagLogGroup
+};
+
+sub new {
+  my ( $class, @options ) = @_;
+  $class = ref($class) || $class;
+
+  my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
+
+  $class->SUPER::new(
+    { service     => 'logs',
+      api         => 'Logs_20140328',
+      api_methods => \@API_METHODS,
+      debug       => $ENV{DEBUG} // 0,
+      %options
+    }
+  );
+} ## end sub new
+
+1;

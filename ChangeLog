@@ -1,3 +1,35 @@
+Fri Mar 25 17:12:49 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.2.3 - pass headers]:
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API.pm.in
+	- export param_n
+	- pod tweaks
+	(decode_response): unload arguments
+	(invoke_api)
+	- set default content to passed $parameters
+	- set content to {} if undefined
+	- added debugging statements
+	(submit)
+	- send optional headers too
+	(param_n): use $idx as indicator of first call
+	* .perlcritic: documentation exception
+	* cpan/Makefile.am: only set -x for DEBUG
+	* README.md: tweaks
+	* src/examples/README.me: tweaks
+	* src/examples/ec2.pm
+	- +DescribeVpcs, DescribeSubnets
+	* src/examples/secrets-manager.pm
+	- localize Data::Dumper vars
+	* src/main/perl/Amazon/API/EC2.pm.in: new
+	* src/main/perl/Amazon/API/ECS.pm.in: new
+	* src/main/perl/Amazon/API/SQS.pm.in: new
+	* src/main/perl/Amazon/API/SSM.pm.in: new
+	* src/main/perl/Amazon/API/CloudWatchLogs.pm.in: new
+	* src/main/perl/Amazon/API/SecretsManager.pm.in: new
+	* src/main/perl/lib/Makefile.am
+	- add above to build
+
 Fri Mar  4 12:42:35 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.2.2 - localize Data::Dumper parameters]:

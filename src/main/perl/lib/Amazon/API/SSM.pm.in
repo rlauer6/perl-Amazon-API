@@ -1,0 +1,165 @@
+package Amazon::SSM;
+
+use strict;
+use warnings;
+
+use parent qw/Amazon::API/;
+
+our @API_METHODS = qw{
+  AddTagsToResource
+  AssociateOpsItemRelatedItem
+  CancelCommand
+  CancelMaintenanceWindowExecution
+  CreateActivation
+  CreateAssociation
+  CreateAssociationBatch
+  CreateDocument
+  CreateMaintenanceWindow
+  CreateOpsItem
+  CreateOpsMetadata
+  CreatePatchBaseline
+  CreateResourceDataSync
+  DeleteActivation
+  DeleteAssociation
+  DeleteDocument
+  DeleteInventory
+  DeleteMaintenanceWindow
+  DeleteOpsMetadata
+  DeleteParameter
+  DeleteParameters
+  DeletePatchBaseline
+  DeleteResourceDataSync
+  DeregisterManagedInstance
+  DeregisterPatchBaselineForPatchGroup
+  DeregisterTargetFromMaintenanceWindow
+  DeregisterTaskFromMaintenanceWindow
+  DescribeActivations
+  DescribeAssociation
+  DescribeAssociationExecutions
+  DescribeAssociationExecutionTargets
+  DescribeAutomationExecutions
+  DescribeAutomationStepExecutions
+  DescribeAvailablePatches
+  DescribeDocument
+  DescribeDocumentPermission
+  DescribeEffectiveInstanceAssociations
+  DescribeEffectivePatchesForPatchBaseline
+  DescribeInstanceAssociationsStatus
+  DescribeInstanceInformation
+  DescribeInstancePatches
+  DescribeInstancePatchStates
+  DescribeInstancePatchStatesForPatchGroup
+  DescribeInventoryDeletions
+  DescribeMaintenanceWindowExecutions
+  DescribeMaintenanceWindowExecutionTaskInvocations
+  DescribeMaintenanceWindowExecutionTasks
+  DescribeMaintenanceWindows
+  DescribeMaintenanceWindowSchedule
+  DescribeMaintenanceWindowsForTarget
+  DescribeMaintenanceWindowTargets
+  DescribeMaintenanceWindowTasks
+  DescribeOpsItems
+  DescribeParameters
+  DescribePatchBaselines
+  DescribePatchGroups
+  DescribePatchGroupState
+  DescribePatchProperties
+  DescribeSessions
+  DisassociateOpsItemRelatedItem
+  GetAutomationExecution
+  GetCalendarState
+  GetCommandInvocation
+  GetConnectionStatus
+  GetDefaultPatchBaseline
+  GetDeployablePatchSnapshotForInstance
+  GetDocument
+  GetInventory
+  GetInventorySchema
+  GetMaintenanceWindow
+  GetMaintenanceWindowExecution
+  GetMaintenanceWindowExecutionTask
+  GetMaintenanceWindowExecutionTaskInvocation
+  GetMaintenanceWindowTask
+  GetOpsItem
+  GetOpsMetadata
+  GetOpsSummary
+  GetParameter
+  GetParameterHistory
+  GetParameters
+  GetParametersByPath
+  GetPatchBaseline
+  GetPatchBaselineForPatchGroup
+  GetServiceSetting
+  LabelParameterVersion
+  ListAssociations
+  ListAssociationVersions
+  ListCommandInvocations
+  ListCommands
+  ListComplianceItems
+  ListComplianceSummaries
+  ListDocumentMetadataHistory
+  ListDocuments
+  ListDocumentVersions
+  ListInventoryEntries
+  ListOpsItemEvents
+  ListOpsItemRelatedItems
+  ListOpsMetadata
+  ListResourceComplianceSummaries
+  ListResourceDataSync
+  ListTagsForResource
+  ModifyDocumentPermission
+  PutComplianceItems
+  PutInventory
+  PutParameter
+  RegisterDefaultPatchBaseline
+  RegisterPatchBaselineForPatchGroup
+  RegisterTargetWithMaintenanceWindow
+  RegisterTaskWithMaintenanceWindow
+  RemoveTagsFromResource
+  ResetServiceSetting
+  ResumeSession
+  SendAutomationSignal
+  SendCommand
+  StartAssociationsOnce
+  StartAutomationExecution
+  StartChangeRequestExecution
+  StartSession
+  StopAutomationExecution
+  TerminateSession
+  UnlabelParameterVersion
+  UpdateAssociation
+  UpdateAssociationStatus
+  UpdateDocument
+  UpdateDocumentDefaultVersion
+  UpdateDocumentMetadata
+  UpdateMaintenanceWindow
+  UpdateMaintenanceWindowTarget
+  UpdateMaintenanceWindowTask
+  UpdateManagedInstanceRole
+  UpdateOpsItem
+  UpdateOpsMetadata
+  UpdatePatchBaseline
+  UpdateResourceDataSync
+  UpdateServiceSetting
+};
+
+sub new {
+  my ( $class, @options ) = @_;
+  $class = ref($class) || $class;
+
+  my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
+
+  my $self = $class->SUPER::new(
+    { service      => 'ssm',
+      api          => 'AmazonSSM',
+      api_methods  => \@API_METHODS,
+      content_type => 'application/x-amz-json-1.1',
+      debug        => $ENV{DEBUG} // 0,
+      %options
+    }
+  );
+
+  return $self;
+} ## end sub new
+
+1;

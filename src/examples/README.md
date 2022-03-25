@@ -23,7 +23,7 @@ In order to exercise these examples:
   examples try:
   
   ```
-  perl service-name.pl --help
+  perl service-name.pm--help
   ```
 # Example Scripts
 
@@ -35,7 +35,7 @@ service.
 All of the examples are exercised in the same way:
 
 ```
-perl service-name.pl run API arguments
+perl service-name.pm run API arguments
 ```
 
 # Using LocalStack to Run Examples
