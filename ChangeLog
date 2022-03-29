@@ -1,3 +1,24 @@
+Tue Mar 29 11:52:53 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.2.4 - fix CPAN distribution]:
+	* cpan/Makefile.am
+	* cpan/buildspec.yml
+	* cpan/requires
+	* src/main/perl/lib/Amazon/API.pm.in: use () for parent
+	* src/main/perl/lib/Amazon/API/CloudWatchLogs.pm.in
+	- likewise
+	- use @PACKAGE_VERSION@ for versioning
+	* src/main/perl/lib/Amazon/API/ECS.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Error.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/SQS.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/SSM.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/SecretsManager.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/EC2.pm.in
+	- likewise
+	- remove use of %API_DEFINITION
+	* src/main/perl/lib/Makefile.am
+	- add stub modules to CLEANFILES
+
 Fri Mar 25 17:12:49 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.2.3 - pass headers]:

@@ -3,7 +3,9 @@ package Amazon::API::CloudWatchLogs;
 use strict;
 use warnings;
 
-use parent qw/ Amazon::API /;
+use parent qw( Amazon::API );
+
+our $VERSION = '@PACKAGE_VERSION@';
 
 our @API_METHODS = qw{
   AssociateKmsKey
@@ -58,9 +60,9 @@ sub new {
 
   $class->SUPER::new(
     { service     => 'logs',
-      api         => 'Logs_20140328',
+      api         => 'Logs',
+      version     => '20140328',
       api_methods => \@API_METHODS,
-      debug       => $ENV{DEBUG} // 0,
       %options
     }
   );

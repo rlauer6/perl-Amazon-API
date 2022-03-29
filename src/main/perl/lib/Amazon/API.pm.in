@@ -5,7 +5,7 @@ package Amazon::API;
 use strict;
 use warnings;
 
-use parent qw/Class::Accessor::Fast Exporter/;
+use parent qw( Class::Accessor::Fast Exporter );
 
 use Amazon::API::Error;
 use Amazon::API::Signature4;
@@ -17,11 +17,11 @@ use Data::Dumper;
 use Date::Format;
 use English qw{ -no_match_vars};
 use HTTP::Request;
-use JSON::PP qw/encode_json decode_json/;
+use JSON::PP qw{ encode_json decode_json };
 use LWP::UserAgent;
-use Scalar::Util qw/reftype/;
+use Scalar::Util qw{ reftype };
 use Time::Local;
-use XML::LibXML::Simple qw/XMLin/;
+use XML::LibXML::Simple qw{ XMLin };
 
 use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
   TRUE           => 1,
@@ -225,7 +225,7 @@ sub invoke_api {
     }
 
     if ( $self->get_raise_error ) {
-      die $self->get_error; ## no critic (ErrorHandling::RequireCarping)
+      die $self->get_error;    ## no critic (ErrorHandling::RequireCarping)
     }
   } ## end if ( !$rsp->is_success)
 
@@ -302,7 +302,7 @@ sub param_n {
     croak "message argument must be reference\n"
       if !ref $message;
 
-  } ## end if ( !defined $idx )
+  }
 
   my @param_n;
 

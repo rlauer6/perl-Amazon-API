@@ -120,5 +120,6 @@ uninstall-local:
 CLEANFILES = \
     $(GPERLMODULES) \
     $(GAPIMODULES) \
+    $(GAPISTUBMODULES) \
     $(G3MANPAGES)
 

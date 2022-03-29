@@ -3,7 +3,7 @@ package Amazon::API::Error;
 use strict;
 use warnings;
 
-use parent qw/Class::Accessor/;
+use parent qw( Class::Accessor );
 
 use English qw{ -no_match_vars };
 use JSON::PP qw{ decode_json };
@@ -76,7 +76,7 @@ __END__
 
 C<Amazon::API::Error>
 
-=head1 SYNOPIS
+=head1 SYNOPSIS
 
  my $result = eval {
    decode_json(

@@ -6,14 +6,14 @@ package_version=@PACKAGE_VERSION@
 package=@PACKAGE@
 
 # builds the distribution tarball and renames based on package version
-cpan: buildspec.yml requires
+cpan: buildspec.yml
 	test -n "$$DEBUG" && set -x; \
 	test -e requires && REQUIRES="-r requires"; \
-	test -n "$(NOCLEANUP)" && NOCLEANUP="--nocleanup"; \
+	test -n "$(NOCLEANUP)" && NOCLEANUP="--no-cleanup"; \
 	test -n "$(DRYRUN)" && DRYRUN="--dryrun"; \
 	test -n "$(SCANDEPS)" && SCANDEPS="-s"; \
 	test -n "$(NOVERSION)" && NOVERSION="-n"; \
-	$(CPAN_DIST_MAKER) $$REQUIRES $$DRYRUN $$SCANDEPS $$NOVERSION $$NOCLEANUP -b $<
+	$(CPAN_DIST_MAKER) $$REQUIRES $$DRYRUN $$SCANDEPS $$NOVERSION $$NOCLEANUP -b $< || echo "$$?"
 
 # handle n.m.r-b version format (but don't use this anymore!)
 	if test -n "$$(echo $(package_version) | grep '\-')"; then \
@@ -35,3 +35,4 @@ clean-local:
 	  rm -f $$a || true; \
 	done
 	rm -f *.tar.gz
+	rm -f *.tmp

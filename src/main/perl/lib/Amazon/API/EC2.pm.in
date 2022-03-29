@@ -3,7 +3,9 @@ package Amazon::API::EC2;
 use strict;
 use warnings;
 
-use parent qw/ Amazon::API /;
+use parent qw( Amazon::API );
+
+our $VERSION = '@PACKAGE_VERSION@';
 
 our @API_METHODS = qw{
   AcceptReservedInstancesExchangeQuote
@@ -529,14 +531,6 @@ our @API_METHODS = qw{
   WithdrawByoipCidr
 };
 
-our %API_DEFINITION = (
-  service     => 'ec2',
-  version     => '2016-11-15',
-  api_methods => \@API_METHODS,
-);
-
-our $VERSION = '0.01';
-
 sub new {
   my ( $class, @options ) = @_;
   $class = ref($class) || $class;
@@ -544,8 +538,9 @@ sub new {
   my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
 
   $class->SUPER::new(
-    { %API_DEFINITION,
-      debug => $ENV{DEBUG} // 0,
+    { service     => 'ec2',
+      version     => '2016-11-15',
+      api_methods => \@API_METHODS,
       %options,
     }
   );
