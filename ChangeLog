@@ -1,3 +1,8 @@
+Tue Mar 29 15:01:43 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.2.5 - bump version]:
+	* VERSION: bump
+
 Tue Mar 29 11:52:53 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.2.4 - fix CPAN distribution]:
