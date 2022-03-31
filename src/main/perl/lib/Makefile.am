@@ -22,6 +22,7 @@ APISTUBMODULES = \
     Amazon/API/CloudWatchLogs.pm.in \
     Amazon/API/EC2.pm.in \
     Amazon/API/ECS.pm.in \
+    Amazon/API/ECR.pm.in \
     Amazon/API/SecretsManager.pm.in \
     Amazon/API/SQS.pm.in \
     Amazon/API/SSM.pm.in

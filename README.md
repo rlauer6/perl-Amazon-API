@@ -65,9 +65,9 @@ using for a complete description of the parameters for each service.
 
 ## Using the Stubs
 
-Typically you use the base classes to higher level methods that
-provide more useful by utilizing one or more of the API methods
-calls. For example, you might want to fetch all of the subnets for a
+Typically you might use the base classes to create more robust classes
+that provide additional capabilities on top of the basis API
+methods. For example, you might want to fetch all of the subnets for a
 given VPC.
 
 ```

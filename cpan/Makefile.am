@@ -7,6 +7,9 @@ package=@PACKAGE@
 
 # builds the distribution tarball and renames based on package version
 cpan: buildspec.yml
+	cd ..; \
+	$(MAKE)
+
 	test -n "$$DEBUG" && set -x; \
 	test -e requires && REQUIRES="-r requires"; \
 	test -n "$(NOCLEANUP)" && NOCLEANUP="--no-cleanup"; \
@@ -28,6 +31,8 @@ cpan: buildspec.yml
 CLEANFILES = \
     extra-files \
     provides \
+    resources \
+    requires \
     test-requires
 
 clean-local:

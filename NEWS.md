@@ -6,14 +6,16 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
-_Note that a release date of YYYY-??-?? indicates that this version has
-not yet been tagged for release and is a work-in-progress._
+# perl-Amazon-API 1.2.6 (2022-03-31)
 
-# perl-Amazon-API 1.1.3 (2018-??-??)
+This version does not provide any fixes or significant
+improvements. It contains slighly better documentation. 
 
 ## Enhancements
 
-_None_
+* added `Amazon::API::ECR` stub to distribution
+* minor pod updates
+* refactoring of `invoke_api()` method to reduce complexity
 
 ## Fixes
 

@@ -1,3 +1,21 @@
+Thu Mar 31 11:21:11 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.2.6 - pod updates, refactoring]:
+	* VERSION: bump
+	* NEWS.md: updated
+	* README.md: tweaks
+	* src/main/perl/lib/Amazon/API.pm.in
+	- refactoring
+	- pod updates
+	(_create_query_string): new
+	(_format_content): new
+	(invoke_api): use above to reduce complexity
+	(submit): DEBUG
+	* src/main/perl/lib/Amazon/API/ECR.pm.in: new
+	* src/main/perl/lib/Makefile.am: add above to build
+	* cpan/README.md: new
+	* .gitignore: add cpan/* files
+
 Tue Mar 29 15:01:43 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.2.5 - bump version]:

@@ -1,3 +1,7 @@
+cpan/extra-files
+cpan/provides
+cpan/requires
+cpan/test-requires
 **/Makefile
 **/Makefile.in
 src/main/perl/lib/**/*.pm

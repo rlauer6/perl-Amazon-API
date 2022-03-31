@@ -135,6 +135,45 @@ sub decode_response {
   return $decoded_content || $content;
 } ## end sub decode_response
 
+sub _create_query_string {
+  my ($parameters) = @_;
+
+  # either [ name => value ] or "name=value"
+  my @query_string;
+
+  foreach my $p ( @{$parameters} ) {
+    push @query_string, ref($p) ? sprintf( '%s=%s', %{$p} ) : $p;
+  }
+
+  return join AMPERSAND, @query_string;
+} ## end sub _create_query_string
+
+sub _format_content {
+  my ( $self, $parameters ) = @_;
+
+  my $content_type = $self->get_content_type;
+
+  my $content = $parameters;
+
+  if ( ref $parameters ) {
+    if ( reftype($parameters) eq 'HASH' ) {
+      $content = encode_json($parameters);
+    }
+    else {    # array
+      if ( $self->get_http_method ne 'GET' ) {    # POST/PUT ?
+        $content_type = 'application/x-www-form-url-encoded';
+      }
+
+      $content = _create_query_string($parameters);
+    } ## end else [ if ( reftype($parameters...))]
+  } ## end if ( ref $parameters )
+  elsif ( $self->get_http_method ne 'GET' && !$self->get_api ) {    # POST/PUT ?
+    $content_type = 'application/x-www-form-url-encoded';
+  }
+
+  return ( $content_type, $content );
+} ## end sub _format_content
+
 sub invoke_api {
   my ( $self, @args ) = @_;
 
@@ -154,47 +193,15 @@ sub invoke_api {
 
   my $decode_response = $self->get_decode_always;
 
-  my $content              = $parameters;               # default
-  my $default_content_type = $self->get_content_type;
+  my $content = $parameters;    # default
 
-  # guessing game...if you do not provide a content type
   if ( !$content_type ) {
-
-    if ( ref($parameters) && reftype($parameters) eq 'HASH' ) {
-      $content_type = $default_content_type;
-      $content      = encode_json($parameters);
-    }
-    elsif ( ref($parameters) && reftype($parameters) eq 'ARRAY' ) {
-      if ( $self->get_http_method ne 'GET' ) {    # POST/PUT ?
-        $content_type = 'application/x-www-form-url-encoded';
-      }
-
-      # either [ name => value ] or "name=value"
-      my @query_string;
-      foreach my $p ( @{$parameters} ) {
-        push @query_string, ref($p) ? sprintf( '%s=%s', %{$p} ) : $p;
-      }
-
-      $content = join AMPERSAND, @query_string;
-    } ## end elsif ( ref($parameters) ...)
-    else {    # scalar
-      if ( $self->get_http_method ne 'GET' && !$self->get_api ) {    # POST/PUT ?
-        $content_type = 'application/x-www-form-url-encoded';
-      }
-      else {
-        $content_type = $default_content_type;
-      }
-
-      if ( $content_type =~ /json/xms && !defined $content ) {
-        $content = '{}';
-      }
-    } ## end else [ if ( ref($parameters) ...)]
-  } ## end if ( !$content_type )
-  elsif ( $content_type =~ /json/xms ) {
-    $content = encode_json( $parameters || {} );
+    ( $content_type, $content ) = $self->_format_content($parameters);
   }
 
-  DEBUG( sub { return Dumper [ $content_type, $content, $headers ] } );
+  if ( $content_type =~ /json/xms ) {
+    $content = encode_json( $parameters || {} );
+  }
 
   my $rsp = $self->submit(
     content      => $content,
@@ -203,8 +210,6 @@ sub invoke_api {
   );
 
   $self->set_response($rsp);
-
-  DEBUG( sub { Dumper( [$rsp] ); } );
 
   if ( !$rsp->is_success ) {
 
@@ -259,6 +264,8 @@ sub print_error {
 sub submit {
   my ( $self, %options ) = @_;
 
+  DEBUG( sub { return Dumper [ \%options ] } );
+
   my $method  = $self->get_http_method || 'POST';
   my $headers = $options{headers}      || [];
 
@@ -289,10 +296,14 @@ sub submit {
     region          => $self->get_region
   )->sign( $request, $self->get_region );
 
-  DEBUG( sub { Dumper( [$request] ) } );
+  DEBUG( sub { return Dumper( [$request] ) } );
 
   # make the request, return response object
-  return $self->get_user_agent->request($request);
+  my $rsp = $self->get_user_agent->request($request);
+
+  DEBUG( sub { return Dumper [$rsp] } );
+
+  return $rsp;
 } ## end sub submit
 
 sub param_n {
@@ -552,7 +563,7 @@ __END__
 
 =head1 NAME
 
-C<Amazon::API>
+Amazon::API - A generic base class for AWS Services
 
 =head1 SYNOPSIS
 
@@ -597,7 +608,7 @@ Then...
 
 =head1 DESCRIPTION
 
-Generic class for constructing AWS API interfaces.  Typically used as
+Generic class for constructing AWS API interfaces. Typically used as
 the parent class, but can be used directly.
 
 =over 5
@@ -680,13 +691,14 @@ C<print_error> is set to true.
 
 See L<Amazon::API::Error> for more details.
 
-=head1 SUBROUTINES/METHODS
+=head1 METHODS AND SUBROUTINES
 
 =head2 new
 
  new(options)
 
-All options are described below. C<options> can be a list or hash reference.
+All options are described below. C<options> can be a list of
+key/values or hash reference.
 
 =over 5
 
@@ -732,7 +744,9 @@ parameters each action requires.
 
 Your AWS access key. Both the access key and secret access key are
 required if either is passed. If no credentials are passed, an attempt
-will be made to find credentials using L<Amazon::Credentials>.
+will be made to find credentials using L<Amazon::Credentials>. Note
+that you may need to pass C<token> as well if you are using temporary
+credentials.
 
 =item aws_secret_access_key
 
@@ -1010,7 +1024,8 @@ Format parameters in the "param.n" notation.
 
 C<parameters> should be a hash or array reference.
 
-A good example of a service that uses this notation is the I<SendMessageBatch> SQS API call.
+A good example of a service that uses this notation is the
+I<SendMessageBatch> SQS API call.
 
 The sample request can be found here:
 
@@ -1059,7 +1074,7 @@ To produce this message you would pass the Perl object below to C<param_n()>:
 I<This method is used internally by C<invoke_api> and normally should
 not be called by your applications.>
 
-C<options> is hash of options:
+C<options> is a reference to a hash of options:
 
 =over 5
 
@@ -1091,12 +1106,12 @@ to send with the request.
 =head2 X-Amz-Target
 
 Most of the newer AWS APIs are invoked as HTTP POST operations and
-accept a header (X-Amz-Target) in lieu of the CGI parameter I<Action>
+accept a header C<X-Amz-Target> in lieu of the CGI parameter C<Action>
 to specify the specific API action. Some APIs also want the version in
 the target, some don't. There is sparse documentation about the
 nuances of using the REST interface directly to call AWS APIs.
 
-When invoking an API the class uses the C<api> value as to indicate
+When invoking an API, the class uses the C<api> value to indicate
 that the action should be set in the C<X-Amz-Target> header.  We also
 check to see if the version needs to be attached to the action value
 as required by some APIs.
@@ -1114,13 +1129,13 @@ as required by some APIs.
 
 DynamoDB and KMS seem to be able to use this in lieu of query
 variables C<Action> and C<Version>, although again, there seems to be
-a lot of inconsisitency in the APIs.  DynamoDB uses
-DynamoDB_YYYYMMDD.Action while KMS does not require the version that
-way and prefers TrentService.Action (with no version).  There is no
-explanation in any of the documentations I have been able to find as
-to what "TrentService" might actually mean.  Again, your best approach
-is to read Amazon's documentation and look at their sample requests
-for guidance.
+a lot of inconsisitency (and sometimes flexibility) in the APIs.
+DynamoDB uses DynamoDB_YYYYMMDD.Action while KMS does not require the
+version that way and prefers TrentService.Action (with no version).
+There is no explanation in any of the documentations I have been able
+to find as to what "TrentService" might actually mean.  Again, your
+best approach is to read Amazon's documentation and look at their
+sample requests for guidance.
 
 In general, the AWS API ecosystem is very organic. Each service seems
 to have its own rules and protocol regarding what the content of the
@@ -1142,7 +1157,7 @@ invoked with relatively little fanfare.
    )->invoke_api('DescribeInstances')
  );
 
-Note that for this invoking the API in this fashion, C<version> is
+Note that invoking the API in this fashion, C<version> is
 required.
 
 For more hints regarding how to call a particular service, you can use
@@ -1157,7 +1172,7 @@ API method names.  The stub is equivalent to:
  sub some_api {
    my $self = shift;
 
-   $self ->invoke_api('SomeApi', @_);
+   $self->invoke_api('SomeApi', @_);
  }
 
 Some will also be happy to know that the class will create an
@@ -1217,7 +1232,7 @@ class.
 =head2 Content-Type
 
 Yet another piece of evidence that suggests the I<organic> nature of
-the Amazon API ecosystem is their use of different Content-Type
+the Amazon API ecosystem is their use of different C<Content-Type>
 headers.  Some of the variations include:
 
  application/json
@@ -1226,8 +1241,8 @@ headers.  Some of the variations include:
  application/x-www-form-urlencoded
 
 Accordingly, the C<invoke_api()> method can be passed the
-I<Content-Type> or will try to make its I<best guess> based on the
-input parameters you passed.  It guesses using the following algorithm:
+C<Content-Type> or will try to make its I<best guess> based on the
+input parameters you passed. It guesses using the following decision tree:
 
 =over 5
 
@@ -1263,7 +1278,7 @@ C<content_type> option to the constructor. The default is
 If you send the wrong headers or payload you're liable to get a 400
 Bad Request. You may also get other errors that can be misleading when
 you send incorrect parameters. When in doubt compare your requests to
-requests from the AWS CLI.
+requests from the AWS CLI using the C<--debug> option.
 
 =over 10 
 
