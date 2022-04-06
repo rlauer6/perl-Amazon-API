@@ -1,0 +1,52 @@
+package Amazon::STS;
+
+use strict;
+use warnings;
+
+use parent qw{ Amazon::API };
+
+our @API_METHODS = qw{
+  AssumeRole
+  AssumeRoleWithSAML
+  AssumeRoleWithWebIdentity
+  DecodeAuthorizationMessage
+  GetAccessKeyInfo
+  GetCallerIdentity
+  GetFederationToken
+  GetSessionToken
+};
+
+our $VERSION = '@PACKAGE_VERSION@';
+
+caller or __PACKAGE__->main();
+
+sub new {
+  my ( $class, @options ) = @_;
+
+  $class = ref($class) || $class;
+
+  my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
+
+  my $self = $class->SUPER::new(
+    { service     => 'sts',
+      version     => '2011-06-15',
+      api_methods => \@API_METHODS,
+      %options,
+    }
+  );
+
+  return $self;
+} ## end sub new
+
+sub main {
+  my $sts = Amazon::STS->new;
+
+  print Dumper $sts->AssumeRole(
+    [ 'RoleArn=arn:aws:iam::106518701080:role/sandbox-code-commit-role',
+      'RoleSessionName=code-commit-role'
+    ]
+  );
+
+} ## end sub main
+
+1;

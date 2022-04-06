@@ -6,6 +6,21 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 1.2.6 (2022-04-06)
+
+## Enhancements
+
+* new stub Amazon::API::STS
+
+## Fixes
+
+* unless region was passed, service URL may be set incorrectly, set
+  service URL after region
+* incorrect content header was sent for 
+  application/x-www-form-urlencode content
+* XML error reponses with new lines caused spurious error message
+  regarding stat'ing a file
+
 # perl-Amazon-API 1.2.6 (2022-03-31)
 
 This version does not provide any fixes or significant

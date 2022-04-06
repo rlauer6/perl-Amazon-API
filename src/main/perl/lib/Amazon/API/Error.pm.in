@@ -34,7 +34,7 @@ sub _set_message {
   if ($raw_message) {
 
     if ( $self->get_content_type =~ /xml/xmsi ) {
-      $message = eval { return XMLin($raw_message); };
+      $message = eval { return XMLin( chomp $raw_message ); };
     }
     elsif ( $self->get_content_type =~ /json/xmsi ) {
       $message = eval { return decode_json($raw_message); };
@@ -45,7 +45,7 @@ sub _set_message {
       $message = eval { return decode_json($raw_message); };
 
       if ($EVAL_ERROR) {
-        $message = eval { return XMLin($raw_message); };
+        $message = eval { return XMLin( chomp $raw_message ); };
       }
     } ## end if ( !$message || $EVAL_ERROR)
 

@@ -25,7 +25,8 @@ APISTUBMODULES = \
     Amazon/API/ECR.pm.in \
     Amazon/API/SecretsManager.pm.in \
     Amazon/API/SQS.pm.in \
-    Amazon/API/SSM.pm.in
+    Amazon/API/SSM.pm.in \
+    Amazon/API/STS.pm.in
 
 APIMODULES = \
     Amazon/API/Error.pm.in \

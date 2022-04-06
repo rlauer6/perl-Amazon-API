@@ -1,3 +1,18 @@
+Wed Apr  6 14:47:48 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.2.7 - set region]:
+	* VERSION: bump
+	* NEWS.md: updated info
+	* src/main/perl/lib/Amazon/API/STS.pm.in: new
+	* src/main/perl/lib/Makefile.am: add above to build
+	* src/main/perl/lib/Amazon/API.pm.in
+	(_format_content): application/x-www-form-urlencoded
+	(_set_request_content): likewise
+	(_set_defaults): set url after setting region
+	* src/main/perl/lib/Amazon/Error.pm.in
+	(_set_message): chomp XML content
+	* src/examples/ecr.pm: new
+
 Thu Mar 31 11:21:11 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.2.6 - pod updates, refactoring]:

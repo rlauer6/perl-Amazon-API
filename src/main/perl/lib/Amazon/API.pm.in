@@ -161,14 +161,14 @@ sub _format_content {
     }
     else {    # array
       if ( $self->get_http_method ne 'GET' ) {    # POST/PUT ?
-        $content_type = 'application/x-www-form-url-encoded';
+        $content_type = 'application/x-www-form-urlencoded';
       }
 
       $content = _create_query_string($parameters);
     } ## end else [ if ( reftype($parameters...))]
   } ## end if ( ref $parameters )
   elsif ( $self->get_http_method ne 'GET' && !$self->get_api ) {    # POST/PUT ?
-    $content_type = 'application/x-www-form-url-encoded';
+    $content_type = 'application/x-www-form-urlencoded';
   }
 
   return ( $content_type, $content );
@@ -299,7 +299,8 @@ sub submit {
   DEBUG( sub { return Dumper( [$request] ) } );
 
   # make the request, return response object
-  my $rsp = $self->get_user_agent->request($request);
+  my $ua  = $self->get_user_agent;
+  my $rsp = $ua->request($request);
 
   DEBUG( sub { return Dumper [$rsp] } );
 
@@ -447,8 +448,6 @@ sub _set_defaults {
         || DEFAULT_REGION );
   } ## end if ( !defined $self->get_region)
 
-  $self->_set_url;
-
   if ( !$self->get_credentials ) {
     if ( $self->get_aws_secret_access_key && $self->aws_access_key_id ) {
 
@@ -456,7 +455,8 @@ sub _set_defaults {
         Amazon::Credentials->new(
           { aws_secret_access_key => $self->get_aws_secret_access_key,
             aws_access_key_id     => $self->get_aws_access_key_id,
-            token                 => $self->get_token
+            token                 => $self->get_token,
+            region                => $self->get_region,
           }
         )
       );
@@ -467,8 +467,12 @@ sub _set_defaults {
       }
 
       $self->set_credentials( Amazon::Credentials->new(%options) );
+      $self->set_region( $self->get_credentials->get_region );
     } ## end else [ if ( $self->get_aws_secret_access_key...)]
   } ## end if ( !$self->get_credentials)
+
+  # set URL last since it contains region
+  $self->_set_url;
 
   return $self;
 } ## end sub _set_defaults
@@ -538,7 +542,7 @@ sub _set_request_content {
   if ( $self->get_http_method ne 'GET' ) {
     $request->content_type($content_type);
 
-    if ( $content_type eq 'application/x-www-form-url-encoded' ) {
+    if ( $content_type eq 'application/x-www-form-urlencoded' ) {
       $content
         = $self->_set_form_url_encoded_string( $content ? $content : () );
     }
