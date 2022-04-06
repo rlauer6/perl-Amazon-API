@@ -6,7 +6,7 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
-# perl-Amazon-API 1.2.6 (2022-04-06)
+# perl-Amazon-API 1.2.7 (2022-04-06)
 
 ## Enhancements
 
