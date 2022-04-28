@@ -1,3 +1,6 @@
+src/main/perl/lib/botocore
+src/main/perl/prove.*
+src/main/perl/test-suite.log
 cpan/extra-files
 cpan/provides
 cpan/requires
@@ -5,6 +8,7 @@ cpan/test-requires
 **/Makefile
 **/Makefile.in
 src/main/perl/lib/**/*.pm
+src/main/perl/lib/**/*.pc
 src/main/perl/t/*.log
 src/main/perl/t/*.trs
 **/*.3man

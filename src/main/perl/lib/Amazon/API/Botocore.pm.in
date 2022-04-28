@@ -1,0 +1,593 @@
+#!/usr/bin/env perl
+
+package Amazon::API::Botocore;
+
+use strict;
+use warnings;
+
+use parent qw{ Exporter };
+
+use Carp;
+use Data::Dumper;
+use English qw{ -no_match_vars };
+use Fcntl qw{ :seek };
+use File::Find;
+use Getopt::Long;
+use JSON::PP;
+use List::MoreUtils qw{ first_index };
+use Pod::HTML2Pod;
+use Pod::Usage;
+use charnames qw{:full};
+use ReadonlyX;
+
+# package constants
+Readonly our $BOTO_PATH_OFFSET => 3;
+
+use Amazon::API::Constants qw{ :all };
+use Amazon::API::Botocore::Pod qw{ pod };
+
+our @EXPORT_OK = qw{ to_template_var };
+
+our $VERSION = '@PACKAGE_VERSION@';
+
+our %BOTO_SERVICES;
+
+our $TEMPLATE_START = tell DATA;
+
+caller or __PACKAGE__->main;
+
+########################################################################
+sub parse_request_uri {
+########################################################################
+  my ($uri) = @_;
+
+  my ( $path, $query_string ) = split /\N{QUESTION MARK}/xsm, $uri;
+
+  my @path_parts = split /\N{SOLIDUS}/xsm, $path;
+
+  my @path_args;
+
+  foreach my $idx ( 1 .. $#path_parts + 1 ) {
+    if ( $path_parts[$idx] && $path_parts[$idx] =~ /^[{](.*)[}]$/xsm ) {
+      push @path_args, ucfirst $1;
+      $path_parts[$idx] = '%s';
+    }
+  } ## end foreach my $idx ( 1 .. $#path_parts...)
+
+  my $request_uri = join $SLASH, @path_parts;
+
+  if ($query_string) {
+    $request_uri .= $QUESTION_MARK . $query_string;
+  }
+
+  return ( $request_uri || $uri, \@path_args );
+} ## end sub parse_request_uri
+
+########################################################################
+sub to_template_var {
+########################################################################
+  my (@vars) = @_;
+
+  my @template_vars
+    = map { $TEMPLATE_DELIMITER . $_ . $TEMPLATE_DELIMITER } @vars;
+
+  return wantarray ? @template_vars : $template_vars[0];
+} ## end sub to_template_var
+
+########################################################################
+sub fetch_template {
+########################################################################
+  seek DATA, $TEMPLATE_START, SEEK_SET;
+  my $template;
+
+  {
+    local $RS = undef;
+    $template = <DATA>;
+  }
+
+  return $template;
+} ## end sub fetch_template
+
+########################################################################
+sub fetch_service_description {
+########################################################################
+  my ($service_path) = @_;
+
+  my $json;
+
+  open my $fh, '<', $service_path
+    or croak 'could not open ' . $service_path;
+
+  {
+    local $RS = undef;
+    $json = decode_json(<$fh>);
+  }
+
+  close $fh
+    or croak 'could not close ' . $service_path;
+
+  return $json;
+} ## end sub fetch_service_description
+
+# File::Find callback - collect paths to most recent service-2.json
+# files for all AWS services
+########################################################################
+sub find_latest_services {
+########################################################################
+  my $file = $_;
+  my $dir  = $File::Find::name;
+
+  return if $dir  !~ qr/botocore\N{SOLIDUS}botocore/xsm;
+  return if $file !~ qr/service\N{HYPHEN-MINUS}2\N{FULL STOP}json/xsm;
+
+  my (@path) = split /\N{SOLIDUS}/xsm, $dir;
+
+  my $boto_path = first_index {/botocore/xsm} @path;
+
+  # this should not happen...
+  if ( $boto_path < 0 ) {
+    croak 'no botocore in path ' . $dir;
+  }
+
+  $boto_path += $BOTO_PATH_OFFSET;
+
+  my ( $service, $date ) = @path[ $boto_path, $boto_path + 1, ];
+
+  $BOTO_SERVICES{$service}->{date} = $BOTO_SERVICES{$service}->{date}
+    // $EMPTY;
+
+  if ( $date gt $BOTO_SERVICES{$service}->{date} ) {
+    $BOTO_SERVICES{$service} = {
+      date => $date,
+      path => \@path
+    };
+  } ## end if ( $date gt $BOTO_SERVICES...)
+
+  return $file;
+} ## end sub find_latest_services
+
+########################################################################
+sub render_stub {
+########################################################################
+  my (%args) = @_;
+
+  my $service    = $args{service};
+  my $template   = $args{template};
+  my $parameters = $args{parameters};
+  my $operations = $parameters->{operations};
+  my $shapes     = $parameters->{shapes};
+  my $metadata   = $parameters->{metadata};
+
+  $parameters->{ to_template_var('program_name') }    = $PROGRAM_NAME;
+  $parameters->{ to_template_var('program_version') } = $VERSION;
+  $parameters->{ to_template_var('timestamp') }       = scalar localtime;
+  $parameters->{ to_template_var('end') }             = '__END__';
+  $parameters->{ to_template_var('description') }
+    = $metadata->{serviceFullName};
+
+  local $Data::Dumper::Terse = $TRUE;
+
+  $parameters->{ to_template_var('metadata') }
+    = Dumper $parameters->{metadata};
+
+  my %methods;
+
+  foreach my $m ( keys %{$operations} ) {
+    my %operation = %{ $operations->{$m} };
+
+    my $documentation = $operation{documentation} // $EMPTY;
+
+    $documentation = Pod::HTML2Pod::convert(
+      a_href  => $TRUE,
+      a_name  => $TRUE,
+      content => $documentation
+    );
+
+    my @errors = map { $_->{shape} } @{ $operation{errors} };
+
+    $methods{$m} = {
+      documentation => $documentation,
+      input         => $operation{input}->{shape},
+      output        => $operation{output}->{shape},
+      http          => $operation{http},
+      errors        => ( $SPACE x 2 ) . ( join "\n  ", @errors ),
+    };
+
+    delete $operations->{$m}->{documentation};
+  } ## end foreach my $m ( keys %{$operations...})
+
+  my @pod;
+
+  foreach my $method ( sort keys %methods ) {
+    my $input         = $methods{$method}->{input}         // 'None';
+    my $output        = $methods{$method}->{output}        // 'None';
+    my $errors        = $methods{$method}->{errors}        // 'None';
+    my $documentation = $methods{$method}->{documentation} // 'None';
+
+    my $method_pod = <<"END_OF_POD";
+
+=head2 $method
+
+$documentation
+
+=over 5
+
+=item Input
+
+$input
+
+=item Output
+
+$output
+
+=item Errors
+
+$errors
+
+END_OF_POD
+
+    my $http = $methods{$method}->{http};
+
+    if ($http) {
+      my $http_method = $http->{method}     // $EMPTY;
+      my $request_uri = $http->{requestUri} // $EMPTY;
+
+      my ( $request_uri_tpl, $args ) = parse_request_uri($request_uri);
+
+      $parameters->{operations}->{$method}->{http}->{parsed_request_uri}
+        = { request_uri_tpl => $request_uri_tpl, parameters => $args };
+
+      $method_pod .= <<"END_OF_POD";
+=item Method
+
+$http_method
+
+=item Request URI
+
+$request_uri
+END_OF_POD
+    } ## end if ($http)
+
+    $method_pod .= <<'END_OF_POD';
+
+=back
+
+END_OF_POD
+
+    push @pod, $method_pod;
+  } ## end foreach my $method ( sort keys...)
+
+  $parameters->{ to_template_var('methods') } = join "\n", @pod;
+
+  $parameters->{ to_template_var('operations') }
+    = Dumper $parameters->{operations};
+
+  foreach my $p ( keys %{$parameters} ) {
+    next if $p !~ /^$TEMPLATE_DELIMITER/xsm;
+
+    my $val = $parameters->{$p} || $EMPTY;
+
+    $template =~ s/$p/$val/xgsm;
+  } ## end foreach my $p ( keys %{$parameters...})
+
+  return $template;
+} ## end sub render_stub
+
+########################################################################
+sub get_api_descriptions {
+########################################################################
+  my @services = @_;
+
+  my @descriptions;
+
+  if ( !@services ) {
+    @services = sort keys %BOTO_SERVICES;
+  }
+
+  foreach my $s (@services) {
+
+    my @path      = @{ $BOTO_SERVICES{$s}->{path} };
+    my $boto_path = first_index {/botocore/xsm} @path;
+
+    if ( $boto_path < 0 ) {
+      croak 'no botocore in path ' . $BOTO_SERVICES{$s}->{path};
+    }
+
+    my $service_path = join $SLASH, @path[ 0 .. $boto_path + 2 ], $s,
+      $BOTO_SERVICES{$s}->{date};
+
+    my $service_file = "$service_path/service-2.json";
+
+    my $service_description = fetch_service_description($service_file);
+
+    if ( $service_description->{operations} ) {
+      my $operations = $service_description->{operations};
+      my $shapes     = $service_description->{shapes};
+      my $metadata   = $service_description->{metadata};
+      my $service_name
+        = $metadata->{signingName} || $metadata->{endpointPrefix};
+
+      push @descriptions,
+        {
+        $s => {
+          actions         => [ keys %{$operations} ],
+          endpoint_prefix => $metadata->{endpointPrefix},
+          json_version    => $metadata->{jsonVersion},
+          metadata_keys   => [ keys %{$metadata} ],
+          metadata        => $metadata,
+          operations      => $operations,
+          shapes          => $shapes,
+          protocol        => $metadata->{protocol},
+          service_name    => $service_name,
+          target_prefix   => $metadata->{targetPrefix},
+          version         => $BOTO_SERVICES{$s}->{date},
+        }
+        };
+    } ## end if ( $service_description...)
+  } ## end foreach my $s (@services)
+
+  return \@descriptions;
+} ## end sub get_api_descriptions
+
+########################################################################
+sub fetch_boto_services {
+########################################################################
+  my ($path) = @_;
+
+  if ( !-d $path ) {
+    croak 'no such path ' . $path;
+  }
+
+  find( \&find_latest_services, $path );
+
+  if ( !keys %BOTO_SERVICES ) {
+    croak 'no services found in path ' . $path;
+  }
+
+  return keys %BOTO_SERVICES;
+} ## end sub fetch_boto_services
+
+########################################################################
+sub extra_args {
+########################################################################
+  my (%options) = @_;
+
+  return shift @{ $options{'extra-args'} };
+} ## end sub extra_args
+
+########################################################################
+sub describe {
+########################################################################
+  my (%options) = @_;
+
+  my $service = extra_args(%options) // $options{'service'};
+
+  croak 'no service specified'
+    if !$service;
+
+  my @services = $service eq 'all' ? keys %BOTO_SERVICES : $service;
+
+  print JSON::PP->new->pretty->encode( get_api_descriptions(@services) );
+
+  return $TRUE;
+} ## end sub describe
+
+########################################################################
+sub create_stub {
+########################################################################
+  my (%options) = @_;
+
+  my $service      = extra_args(%options) // $options{'service'};
+  my $package_name = $options{'module-name'};
+
+  croak 'no service specified'
+    if !$service;
+
+  $package_name = $package_name || 'Amazon::API::' . uc $service;
+
+  my $description = get_api_descriptions($service);
+
+  my $parameters = $description->[0]->{$service};
+  $parameters->{'package_name'} = $package_name;
+
+  my @actions = @{ $parameters->{'actions'} };
+
+  $parameters->{'actions'} = $PADDING . join "\n    ", sort @actions;
+
+  if ( $parameters->{'protocol'} eq 'rest-json' ) {
+    foreach (@actions) {
+    }
+  }
+
+  $parameters->{'service'}
+    = $parameters->{'service_name'} || $parameters->{'endpoint_prefix'};
+
+  if ( $parameters->{'protocol'} eq 'query' ) {
+    $parameters->{'content_type'} = 'application/x-www-form-urlencoded';
+  }
+
+  if ( $parameters->{'protocol'} eq 'json' ) {
+    $parameters->{'content_type'}
+      = 'application/x-amz-json-' . $parameters->{'json_version'};
+  }
+
+  # for rest-json protocol we need a method and and a query uri in
+  # addition to the payload
+  if ( $parameters->{'protocol'} eq 'rest-json' ) {
+    $parameters->{'content_type'} = 'application/json';
+  }
+
+  my @template_vars = qw{
+    actions
+    botocore_metadata
+    botocore_operation
+    content_type
+    endpoint_prefix
+    package_name
+    protocol
+    service
+    target_prefix
+    version
+  };
+
+  foreach my $var (@template_vars) {
+    $parameters->{ to_template_var($var) } = $parameters->{$var};
+  }
+
+  my $module = render_stub(
+    service    => $service,
+    template   => fetch_template(),
+    parameters => $parameters
+  );
+
+  if ( $options{'tidy'} && eval { require Perl::Tidy; } ) {
+
+    my $tidy_module = $EMPTY;
+
+    if (
+      Perl::Tidy::perltidy(
+        argv        => [],
+        source      => \$module,
+        destination => \$tidy_module,
+      )
+    ) {
+      croak 'could not tidy module!';
+    } ## end if ( Perl::Tidy::perltidy...)
+
+    $module = $tidy_module;
+  } ## end if ( $options{'tidy'} ...)
+
+  my $fh = eval {
+    if ( $options{'file'} ) {
+      open my $handle, '>', $options{'file'}
+        or croak 'could not open ' . $options{'file'};
+      return $handle;
+    }
+
+    return *STDOUT;
+  };
+
+  print {$fh} $module;
+
+  close $fh
+    or croak 'could close file';
+
+  return $TRUE;
+} ## end sub create_stub
+
+########################################################################
+sub help {
+########################################################################
+
+  return pod;
+}
+
+########################################################################
+sub main {
+########################################################################
+  my %options;
+
+  GetOptions( \%options, 'help|h',
+    'module-name|m=s', 'botocore-path|b=s', 'service|s=s', 'file|f=s',
+    'tidy|t!' );
+
+  $options{'tidy'} //= $TRUE;
+
+  my %handlers = (
+    'describe'    => \&describe,
+    'create-stub' => \&create_stub,
+    'help'        => \&help,
+  );
+
+  my $command = shift @ARGV;
+
+  if ( $options{'help'} ) {
+    $command = 'help';
+  }
+
+  $options{'command'}    = $command;
+  $options{'extra-args'} = \@ARGV;
+
+  fetch_boto_services( $options{'botocore-path'} || $PERIOD );
+
+  croak "not a valid command [$command]"
+    if !$handlers{$command};
+
+  exit !$handlers{$command}->(%options);
+} ## end sub main
+
+1;
+
+__DATA__
+
+package @package_name@;
+
+# Autogenerated by @program_name@ @program_version@ at @timestamp@
+
+use strict;
+use warnings;
+
+use parent qw{ Amazon::API };
+
+our @API_METHODS = qw{
+@actions@
+};
+
+our $VERSION = '@PACKAGE_VERSION@';
+
+sub new {
+  my ( $class, @options ) = @_;
+  $class = ref($class) || $class;
+
+  my %options = ref $options[0] ? %{ $options[0] } : @options;
+
+  my $self = $class->SUPER::new(
+    { service             => '@service@',
+      endpoint_prefix     => '@endpoint_prefix@',
+      version             => '@version@',
+      target_prefix       => '@target_prefix@',
+      api_methods         => \@API_METHODS,
+      content_type        => '@content_type@',
+      botocore_metadata   => @metadata@,
+      botocore_operations => @operations@,
+      debug               => $ENV{DEBUG} // 0,
+      decode_always       => 1,
+      %options
+    }
+  ); ## no critic (ValuesAndExpressions::ProhibitNoisyQuotes)
+
+  return $self;
+} ## end sub new
+
+1;
+
+@end@
+
+=pod
+
+=head1 NAME
+
+@package_name@
+
+=head1 DESCRIPTION
+
+@description@
+
+=head1 VERSION
+
+Version @program_version@
+
+=head1 METHODS
+
+@methods@
+
+=head1 NOTE
+
+Autogenerated by @program_name@ at @timestamp@
+
+=head1 LICENSE AND COPYRIGHT
+
+This module is free software it may be used, redistributed and/or
+modified under the same terms as Perl itself.
+
+=cut  

@@ -1,0 +1,75 @@
+package Amazon::API::Constants;
+
+use strict;
+use warnings;
+
+use parent qw{ Exporter };
+
+use ReadonlyX;
+
+our @EXPORT_OK = ();
+
+our %EXPORT_TAGS = (
+  'booleans' => [
+    qw{
+      $TRUE
+      $FALSE
+    }
+  ],
+
+  'chars' => [
+    qw{
+      $AMPERSAND
+      $COLON
+      $COLOR
+      $DOUBLE_COLON
+      $DOT
+      $EMPTY
+      $EQUALS_SIGN
+      $PERIOD
+      $QUESTION_MARK
+      $SLASH
+      $SPACE
+      $TEMPLATE_DELIMITER
+      $UNDERSCORE
+    }
+  ],
+  'strings' => [
+    qw{
+      $PADDING
+    }
+  ],
+);
+
+our $VERSION = '@PACKAGE_VERSION@';
+
+# chars
+Readonly our $AMPERSAND          => q{&};
+Readonly our $COLON              => q{:};
+Readonly our $DOUBLE_COLON       => q{::};
+Readonly our $DOT                => q{.};
+Readonly our $EMPTY              => q{};
+Readonly our $EQUALS_SIGN        => q{=};
+Readonly our $PERIOD             => q{.};
+Readonly our $QUESTION_MARK      => q{?};
+Readonly our $SLASH              => q{/};
+Readonly our $SPACE              => q{ };
+Readonly our $TEMPLATE_DELIMITER => q{@};
+Readonly our $UNDERSCORE         => q{_};
+
+# strings
+Readonly our $PADDING => $SPACE x 4;
+
+# booleans
+Readonly our $TRUE  => 1;
+Readonly our $FALSE => 0;
+
+foreach my $k ( keys %EXPORT_TAGS ) {
+  push @EXPORT_OK, @{ $EXPORT_TAGS{$k} };
+}
+
+$EXPORT_TAGS{'all'} = [@EXPORT_OK];
+
+1;
+
+__END__

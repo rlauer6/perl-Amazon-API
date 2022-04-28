@@ -537,7 +537,7 @@ sub new {
 
   my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
 
-  $class->SUPER::new(
+  return $class->SUPER::new(
     { service     => 'ec2',
       version     => '2016-11-15',
       api_methods => \@API_METHODS,

@@ -13,6 +13,9 @@ extra-files:
   - ../ChangeLog
   -
     examples: ../src/examples
+dependencies:
+  path: requires
+  core_modules: no
 resources:
   homepage: 'http://github.com/rlauer6/perl-Amazon-API'
   bugtracker:

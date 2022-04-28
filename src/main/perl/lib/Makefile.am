@@ -1,6 +1,10 @@
 SUBDIRS = .
 
+include directories.inc
+include modules.inc
+
 perlrun = @PERL@
+POD2MAN = @POD2MAN@
 
 if RPMBUILD_ENABLED
 perlwc = \#
@@ -8,58 +12,18 @@ else
 perlwc = @PERL@ -wc
 endif
 
-perl5libdir = @perl5libdir@
+@do_subst_command@
+
 ax_perl5_extra_includes_opt = @ax_perl5_extra_includes_opt@
 
-# this is where we will install these perl modules
-amazondir = @perl5libdir@/Amazon
-amazon_apidir = $(amazondir)/API
-
-PERLMODULES = \
-    Amazon/API.pm.in
-
-APISTUBMODULES = \
-    Amazon/API/CloudWatchLogs.pm.in \
-    Amazon/API/EC2.pm.in \
-    Amazon/API/ECS.pm.in \
-    Amazon/API/ECR.pm.in \
-    Amazon/API/SecretsManager.pm.in \
-    Amazon/API/SQS.pm.in \
-    Amazon/API/SSM.pm.in \
-    Amazon/API/STS.pm.in
-
-APIMODULES = \
-    Amazon/API/Error.pm.in \
-    Amazon/API/Signature4.pm.in
-
-GPERLMODULES = $(PERLMODULES:.pm.in=.pm)
-GAPIMODULES = $(APIMODULES:.pm.in=.pm)
-GAPISTUBMODULES = $(APISTUBMODULES:.pm.in=.pm)
-
-amazon_DATA = $(GPERLMODULES)
-amazon_api_DATA = \
-    $(GAPIMODULES) \
-    $(GAPISTUBMODULES)
-
-dist_noinst_DATA = \
-    $(PERLMODULES) \
-    $(APIMODULES) \
-    $(APISTUBMODULES)
-
-GALLMODULES = \
-   $(GPERLMODULES) \
-   $(GAPIMODULES) \
-   $(GAPISTUBMODULES)
-
-POD2MAN = /usr/bin/pod2man
-
-G3MANPAGES = $(GALLMODULES:.pm=.3man)
+GAMAZON_PERLMODULES              = $(AMAZON_PERLMODULES:.pm.in=.pm)
+GAMAZON_API_PERLMODULES          = $(AMAZON_API_PERLMODULES:.pm.in=.pm)
+GAMAZON_API_BOTOCORE_PERLMODULES = $(AMAZON_API_BOTOCORE_PERLMODULES:.pm.in=.pm)
+G3MANPAGES                       = $(GALLMODULES:.pm=.3man)
 
 AUTOMAKE_OPTIONS = -Wno-portability
 
 man3_MANS = $(G3MANPAGES)
-
-@do_subst_command@
 
 if USING_PERL5_EXTRA_INCLUDES
 PERL5_EXTRA_INCLUDES = $(ax_perl5_extra_includes_opt)
@@ -72,14 +36,39 @@ PERLINCLUDE = \
    $(PERL5_EXTRA_INCLUDES) \
    -I $(perl5libdir) 
 
-$(GPERLMODULES): % : %.in  $(GAPIMODULES)
+%.pm: %.pm.in
 include perl-build.inc
 
-$(GAPIMODULES): % : %.in
+$(GAMAZON_PERLMODULES): % : %.in \
+    Amazon/API/Constants.pm \
+    Amazon/API/Error.pm \
+    Amazon/API/Signature4.pm
 include perl-build.inc
 
-$(GAPISTUBMODULES): % : %.in
+$(GAMAZON_API_PERLMODULES): % : %.in \
+    $(GAMAZON_PERLMODULES) \
+    $(GAMAZON_API_BOTOCORE_PERLMODULES)
 include perl-build.inc
+
+$(GAMAZON_API_BOTOCORE_PERLMODULES): % : %.in
+include perl-build.inc
+
+amazon_DATA = \
+    $(GAMAZON_PERLMODULES)
+
+amazon_api_DATA = \
+    $(GAMAZON_API_PERLMODULES)
+
+amazon_api_botocore_DATA = \
+    $(GAMAZON_API_BOTOCORE_PERLMODULES)
+
+dist_noinst_DATA = \
+    Amazon/API/Constants.pm.in \
+    Amazon/API/Error.pm.in \
+    Amazon/API/Signature4.pm.in \
+    $(AMAZON_PERLMODULES) \
+    $(AMAZON_API_PERLMODULES) \
+    $(AMAZON_API_BOTOCORE_PERLMODULES)
 
 all:
 
@@ -94,10 +83,23 @@ $(G3MANPAGES): %.3man : %.pm
 	--release=$(PACKAGE)-$(VERSION) \
 	--section=3man $< "$${target_name}" || touch "$${target_name}"
 
+CRITIC_REPORTS=$(GALLMODULES:.pm=.pc)
+
+check: $(GALLMODULES) $(CRITIC_REPORTS)
+
+%.pc: %.pm
+	VERBOSE="--verbose $${VERBOSE:-8}"; \
+	set -e;set -o pipefail; \
+	if ! perlcritic -1 $< $$VERBOSE | tee $@; then \
+	  mv $@ perlcritic.log; \
+	  false; \
+	fi
+
 .PHONY: clean-local
 clean-local:
-	$(MAKE) clean-generated-man-pages
 	find . -name '*.log' -exec rm {} \; || true
+	find . -name '*.pc' -exec rm {} \; || true
+	$(MAKE) clean-generated-man-pages
 
 .PHONY: clean-generated-man-pages
 clean-generated-man-pages:
@@ -120,8 +122,10 @@ uninstall-local:
 	done
 
 CLEANFILES = \
-    $(GPERLMODULES) \
-    $(GAPIMODULES) \
-    $(GAPISTUBMODULES) \
+    Amazon/API/Constants.pm \
+    Amazon/API/Error.pm \
+    Amazon/API/Signature4.pm \
+    $(GAMAZON_PERLMODULES) \
+    $(GAMAZON_API_PERLMODULES) \
+    $(GAMAZON_API_BOTOCORE_PERLMODULES) \
     $(G3MANPAGES)
-

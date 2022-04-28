@@ -3,7 +3,7 @@ package Amazon::API::Error;
 use strict;
 use warnings;
 
-use parent qw( Class::Accessor );
+use parent qw( Class::Accessor::Fast );
 
 use English qw{ -no_match_vars };
 use JSON::PP qw{ decode_json };
@@ -15,7 +15,9 @@ __PACKAGE__->mk_accessors(qw/error api message_raw response content_type/);
 
 our $VERSION = '@PACKAGE_VERSION@';
 
+########################################################################
 sub new {
+########################################################################
   my ( $class, @options ) = @_;
 
   my $self = $class->SUPER::new(@options);
@@ -25,7 +27,9 @@ sub new {
   return $self;
 } ## end sub new
 
+###############################################################
 sub _set_message {
+###############################################################
   my ($self) = @_;
 
   my $raw_message = $self->get_message_raw;
@@ -58,7 +62,9 @@ sub _set_message {
   return $message;
 } ## end sub _set_message
 
+###############################################################
 sub get_aws_api {
+###############################################################
   my ($self) = @_;
 
   my $api = eval { return $self->get_api->get_api || ref( $self->get_api ); };
@@ -96,7 +102,7 @@ C<Amazon::API::Error>
 Error object that contains that status code and the error message
 contained in the body of the response to the API call.
 
-=head1 SUBROUTINES/METHODS
+=head1 METHODS AND SUBROUTINEs
 
 =head2 get_error
 

@@ -4,12 +4,13 @@ package Amazon::API;
 
 use strict;
 use warnings;
+use 5.010;
 
 use parent qw( Class::Accessor::Fast Exporter );
 
 use Amazon::API::Error;
 use Amazon::API::Signature4;
-
+use Amazon::API::Constants qw{ :all };
 use Amazon::Credentials;
 
 use Carp;
@@ -19,37 +20,33 @@ use English qw{ -no_match_vars};
 use HTTP::Request;
 use JSON::PP qw{ encode_json decode_json };
 use LWP::UserAgent;
+use List::Util qw{any all pairs none};
+use ReadonlyX;
 use Scalar::Util qw{ reftype };
 use Time::Local;
 use XML::LibXML::Simple qw{ XMLin };
 
-use constant {    ## no critic (ValuesAndExpressions::ProhibitConstantPragma)
-  TRUE           => 1,
-  FALSE          => 0,
-  EMPTY          => q{},
-  DOUBLE_COLON   => q{::},
-  AMPERSAND      => q{&},
-  COLON          => q{:},
-  DEFAULT_REGION => 'us-east-1'
-};                ## end constant
+Readonly my $DEFAULT_REGION => 'us-east-1';
+Readonly my $URL_FMT        => '%s://%s.%s.amazonaws.com';
 
-local $Data::Dumper::Pair  = COLON;
-local $Data::Dumper::Useqq = TRUE;
-local $Data::Dumper::Terse = TRUE;
+local $Data::Dumper::Pair  = $COLON;
+local $Data::Dumper::Useqq = $TRUE;
+local $Data::Dumper::Terse = $TRUE;
 
 __PACKAGE__->follow_best_practice;
 
 __PACKAGE__->mk_accessors(
-  qw/
+  qw{
     action
     api
     api_methods
-    aws_access_key_id
-    aws_secret_access_key
+    botocore_metadata
+    botocore_operations
     content_type
     credentials
     debug
     decode_always
+    endpoint_prefix
     error
     http_method
     last_action
@@ -58,27 +55,32 @@ __PACKAGE__->mk_accessors(
     protocol
     raise_error
     region
+    request_uri
     response
     service
     service_url_base
     target
-    token
+    target_prefix
     url
     user_agent
     version
-    /
+  }
 );
 
 our $VERSION = '@PACKAGE_VERSION@';
-use vars qw{ @EXPORT_OK };
 
-@EXPORT_OK = qw{ param_n };
+our @EXPORT_OK = qw{ param_n create_urlencoded_content };
 
+our @REQUIRED_KEYS = qw{ aws_access_key_id aws_secret_access_key };
+
+########################################################################
 sub new {
+########################################################################
   my ( $class, @options ) = @_;
-  $class = ref($class) || $class;
 
-  my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
+  $class = ref $class || $class;
+
+  my %options = ref $options[0] ? %{ $options[0] } : @options;
 
   my $self = $class->SUPER::new( \%options );
 
@@ -86,7 +88,7 @@ sub new {
     $self->set_service( $self->get_service_url_base );
   }
 
-  croak "service is required\n"
+  croak 'service is required'
     if !$self->get_service;
 
   $self->_set_defaults(%options);
@@ -98,13 +100,15 @@ sub new {
   return $self;
 } ## end sub new
 
+########################################################################
 sub decode_response {
+########################################################################
   my ( $self, $response ) = @_;
 
   $response = $response || $self->get_response;
 
-  if ( !ref($response) =~ /HTTP::Response/xms ) {
-    croak "can't decode response - not a response object\n";
+  if ( !ref $response =~ /HTTP::Response/xms ) {
+    croak q{can't decode response - not a response object};
   }
 
   my $decoded_content;
@@ -123,7 +127,8 @@ sub decode_response {
       }
     };
 
-    if ( !$decoded_content || $EVAL_ERROR ) {    # disregard content_type (it might be misleading)
+    # disregard content_type (it might be misleading)
+    if ( !$decoded_content || $EVAL_ERROR ) {
       $decoded_content = eval { return decode_json($content); };
 
       if ( !$decoded_content || $EVAL_ERROR ) {
@@ -135,51 +140,54 @@ sub decode_response {
   return $decoded_content || $content;
 } ## end sub decode_response
 
-sub _create_query_string {
-  my ($parameters) = @_;
+########################################################################
+sub init_botocore_request {
+########################################################################
+  my ( $self, $botocore_def, %parameters ) = @_;
 
-  # either [ name => value ] or "name=value"
-  my @query_string;
+  my $json_version = $self->get_botocore_metadata->{'jsonVersion'} // '1.0';
 
-  foreach my $p ( @{$parameters} ) {
-    push @query_string, ref($p) ? sprintf( '%s=%s', %{$p} ) : $p;
-  }
+  my %content_types = (
+    'ec2'       => 'application/x-www-form-urlencoded',
+    'query'     => 'application/x-www-form-urlencoded',
+    'rest-json' => 'application/json',
+    'json'      => 'application/x-amz-json-' . $json_version,
+  );
 
-  return join AMPERSAND, @query_string;
-} ## end sub _create_query_string
+  my $protocol = $self->get_botocore_metadata->{'protocol'};
 
-sub _format_content {
-  my ( $self, $parameters ) = @_;
+  my $http   = $botocore_def->{'http'};
+  my $method = $http->{'method'};
 
-  my $content_type = $self->get_content_type;
+  $self->set_http_method($method);
+  $self->set_content_type( $content_types{$protocol} );
 
-  my $content = $parameters;
+  if ( $protocol eq 'rest-json' ) {
+    my @args            = $http->{'parsed_request_uri'}->{'parameters'};
+    my $request_uri_tpl = $http->{'parsed_request_uri'}->{'request_uri_tpl'};
 
-  if ( ref $parameters ) {
-    if ( reftype($parameters) eq 'HASH' ) {
-      $content = encode_json($parameters);
+    foreach my $p (@args) {
+      croak 'required parameter ' . $p . ' not found.'
+        if !exists $parameters{$p};
     }
-    else {    # array
-      if ( $self->get_http_method ne 'GET' ) {    # POST/PUT ?
-        $content_type = 'application/x-www-form-urlencoded';
-      }
 
-      $content = _create_query_string($parameters);
-    } ## end else [ if ( reftype($parameters...))]
-  } ## end if ( ref $parameters )
-  elsif ( $self->get_http_method ne 'GET' && !$self->get_api ) {    # POST/PUT ?
-    $content_type = 'application/x-www-form-urlencoded';
-  }
+    $self->set_request_uri( sprintf $request_uri_tpl, @parameters{@args} );
 
-  return ( $content_type, $content );
-} ## end sub _format_content
+    delete @parameters{@args};
 
+    DEBUG( sub { return Dumper [ \%parameters, $self->get_request_uri ]; } );
+  } ## end if ( $protocol eq 'rest-json')
+
+  return \%parameters;
+} ## end sub init_botocore_request
+
+########################################################################
 sub invoke_api {
+########################################################################
   my ( $self, @args ) = @_;
-
   my ( $action, $parameters, $content_type, $headers );
 
-  if ( ref $args[0] && reftype( $args[0] eq 'HASH' ) ) {
+  if ( ref $args[0] && reftype( $args[0] ) eq 'HASH' ) {
     ( $action, $parameters, $content_type, $headers )
       = @{ $args[0] }{qw{ action parameters content_type headers}};
   }
@@ -191,22 +199,36 @@ sub invoke_api {
   $self->set_last_action($action);
   $self->set_error(undef);
 
+  my $content         = $parameters;                # default
   my $decode_response = $self->get_decode_always;
 
-  my $content = $parameters;    # default
+  # Botocore definition?
+  my $botocore_def = eval { $self->get_botocore_operations->{$action}; };
 
-  if ( !$content_type ) {
-    ( $content_type, $content ) = $self->_format_content($parameters);
+  if ($botocore_def) {
+    $content = $self->init_botocore_request( $botocore_def, %{$parameters} );
+    $content_type = $self->get_content_type;
+  }
+  elsif ( !$content_type ) {
+    $content_type = $self->_set_content_type($parameters);
   }
 
-  if ( $content_type =~ /json/xms ) {
-    $content = encode_json( $parameters || {} );
+  DEBUG( sub { Dumper [ $content_type, $parameters, $content ] } );
+
+  if ( $content_type =~ /urlencoded/xms && !$self->get_api ) {
+    my $version = $self->get_version;
+    $content = create_urlencoded_content( $parameters, $action, $version );
   }
+  elsif ( ref $content && reftype($content) eq 'HASH' ) {
+    $content = encode_json($parameters);
+  }
+
+  DEBUG( sub { Dumper [ $content_type, $content ] } );
 
   my $rsp = $self->submit(
     content      => $content,
     content_type => $content_type,
-    headers      => $headers
+    headers      => $headers,
   );
 
   $self->set_response($rsp);
@@ -217,10 +239,10 @@ sub invoke_api {
       Amazon::API::Error->new(
         { error        => $rsp->code,
           message_raw  => $rsp->content,
-          content_type => join EMPTY,
+          content_type => join $EMPTY,
           $rsp->content_type,
-          api      => ref($self),
-          response => $rsp
+          api      => ref $self,
+          response => $rsp,
         }
       )
     );
@@ -240,20 +262,25 @@ sub invoke_api {
   return $decode_response ? $self->decode_response : $rsp->content;
 } ## end sub invoke_api
 
+########################################################################
 sub print_error {
-  my $self = shift;
+########################################################################
+  my ($self) = @_;
 
   my $error = $self->get_error;
 
   my $err_str = 'API ERROR (' . $self->get_last_action . '): ';
 
-  if ( $error && ref($error) =~ /Amazon::API::Error/xms ) {
+  if ( $error && ref $error =~ /Amazon::API::Error/xms ) {
     my $response = $error->get_response;
 
-    $err_str .= sprintf "[%s], %s,%s\n",
-      $error->get_error, Dumper( ref($response) ? $response : [$response] ),
-      $error->get_message_raw;
-  } ## end if ( $error && ref($error...))
+    local $Data::Dumper::Terse = 1;
+    local $Data::Dumper::Pair  = $COLON;
+    local $Data::Dumper::Useqq = 1;
+
+    $err_str .= sprintf q{[%s], %s},
+      $error->get_error, Dumper( ref $response ? $response : [$response] );
+  } ## end if ( $error && ref $error...)
   else {
     $err_str .= '[' . $error . ']';
   }
@@ -261,15 +288,49 @@ sub print_error {
   return $err_str;
 } ## end sub print_error
 
+########################################################################
+sub get_valid_token {
+########################################################################
+  my ($self) = @_;
+
+  my $credentials = $self->get_credentials;
+
+  if ( $credentials->can('is_token_expired') ) {
+    if ( $credentials->is_token_expired ) {
+      if ( !$self->can('refresh_token') || !$credentials->refresh_token ) {
+        croak 'token expired';
+      }
+    }
+  } ## end if ( $credentials->can...)
+
+  return $credentials->get_token;
+} ## end sub get_valid_token
+
+########################################################################
 sub submit {
+########################################################################
   my ( $self, %options ) = @_;
 
   DEBUG( sub { return Dumper [ \%options ] } );
 
   my $method  = $self->get_http_method || 'POST';
-  my $headers = $options{headers}      || [];
+  my $headers = $options{'headers'}    || [];
 
-  my $request = HTTP::Request->new( $method, $self->get_url, $headers );
+  my $url = $self->get_url;
+
+  my $botocore_protocol
+    = eval { $self->get_botocore_metadata->{'protocol'} } // $EMPTY;
+
+  if ( $botocore_protocol eq 'rest-json' ) {
+    croak 'no request URI provided for rest-json call'
+      if !$self->get_request_uri;
+
+    $url .= $self->get_request_uri;
+  } ## end if ( $botocore_protocol...)
+
+  DEBUG( sub { return Dumper [ $method, $url, $headers ] } );
+
+  my $request = HTTP::Request->new( $method, $url, $headers );
 
   # 1. set the header
   # 2. set the content
@@ -277,13 +338,14 @@ sub submit {
   # 4. send the request & return result
 
   # see IMPLEMENTATION NOTES for an explanation
-  if ( $self->get_api ) {
+  if ( $self->get_api || $self->get_target_prefix ) {
     $request = $self->_set_x_amz_target($request);
   }
 
   $self->_set_request_content( request => $request, %options );
+  my $credentials = $self->get_credentials;
 
-  if ( my $token = $self->get_credentials->get_token ) {
+  if ( my $token = $self->get_valid_token ) {
     $request->header( 'X-Amz-Security-Token', $token );
   }
 
@@ -307,13 +369,18 @@ sub submit {
   return $rsp;
 } ## end sub submit
 
+# +------------------+
+# | EXPORTED METHODS |
+# +------------------+
+
+########################################################################
 sub param_n {
+########################################################################
   my ( $message, $prefix, $idx ) = @_;
 
   if ( !defined $idx ) {    # first call, check args
-    croak "message argument must be reference\n"
+    croak 'message argument must be reference'
       if !ref $message;
-
   }
 
   my @param_n;
@@ -322,20 +389,20 @@ sub param_n {
     if ( reftype($message) eq 'HASH' ) {
       foreach my $k ( keys %{$message} ) {
         push @param_n,
-          param_n( $message->{$k}, $prefix ? "$prefix.$k" : "$k", $idx );
+          param_n( $message->{$k}, $prefix ? "$prefix.$k" : $k, $idx );
       }
     } ## end if ( reftype($message)...)
     else {
       $idx = 1;
       foreach my $e ( @{$message} ) {
         push @param_n,
-          param_n( $e, $prefix ? "$prefix.$idx" : EMPTY, $idx++ );
+          param_n( $e, $prefix ? "$prefix.$idx" : $EMPTY, $idx++ );
       }
     } ## end else [ if ( reftype($message)...)]
   } ## end if ( ref $message )
   else {
-    croak "missing value\n"
-      if !defined $message || $message eq EMPTY;
+    croak 'missing value'
+      if !defined $message || $message eq $EMPTY;
 
     return "$prefix=$message";
   } ## end else [ if ( ref $message ) ]
@@ -343,20 +410,93 @@ sub param_n {
   return @param_n;
 } ## end sub param_n
 
+########################################################################
+sub create_urlencoded_content {
+########################################################################
+  my ( $parameters, $action, $version ) = @_;
+
+  my @args;
+
+  if ( $parameters && !ref $parameters ) {
+    @args = map { split /=/xsm } split /&/xsm, $parameters;
+  }
+  elsif ( $parameters && reftype($parameters) eq 'HASH' ) {
+    @args = map { ( $_ => $parameters->{$_} ) } keys %{$parameters};
+  }
+  elsif ( $parameters && reftype($parameters) eq 'ARRAY' ) {
+    if ( any {ref} @{$parameters} ) {
+      @args = map { %{$_} } @{$parameters};    # list of hashes
+    }
+    elsif ( any {/=/xsm} @{$parameters} ) {
+      @args = map { split /=/xsm } @{$parameters};    # formatted list
+    }
+    else {
+      @args = @{$parameters};                         # simple list
+    }
+  } ## end elsif ( $parameters && reftype...)
+
+  my $content;
+
+  if ( $action && !any {/Action/xsm} @args ) {
+    push @args, 'Action', $action;
+  }
+
+  if ( $version && !any {/Version/xsm} @args ) {
+    push @args, 'Version', $version;
+  }
+
+  return join $AMPERSAND, map { sprintf '%s=%s', @{$_} } pairs @args;
+} ## end sub create_urlencoded_content
+
+########################################################################
+sub has_keys {
+########################################################################
+  my ( $self, %options ) = @_;
+
+  my %creds = keys %options ? %options : @{$self}{@REQUIRED_KEYS};
+
+  return $creds{'aws_secret_access_key'} && $creds{'aws_access_key_id'};
+} ## end sub has_keys
+
 # +-----------------+
 # | PRIVATE METHODS |
 # +-----------------+
 
+# should not be called if we have botocore definition
+########################################################################
+sub _set_content_type {
+########################################################################
+  my ( $self, $parameters ) = @_;
+
+  # default content-type
+  my $content_type = $self->get_content_type;
+
+  if ( ref $parameters && reftype($parameters) eq 'ARRAY' ) {
+    if ( $self->get_http_method ne 'GET' ) {
+      $content_type = 'application/x-www-form-urlencoded';
+    }
+  }
+  elsif ( !ref $parameters ) {
+    if ( $self->get_http_method ne 'GET' && !$self->get_api ) {
+      $content_type = 'application/x-www-form-urlencoded';
+    }
+  }
+
+  return $content_type;
+} ## end sub _set_content_type
+
+########################################################################
 sub _create_methods {
+########################################################################
   my ($self) = @_;
 
-  my $class = ref($self) || $self;
+  my $class = ref $self || $self;
 
   if ( $self->get_api_methods ) {
     no strict 'refs';          ## no critic (TestingAndDebugging::ProhibitNoStrict)
     no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings)
 
-    my $stash = \%{ __PACKAGE__ . DOUBLE_COLON };
+    my $stash = \%{ __PACKAGE__ . $DOUBLE_COLON };
 
     foreach my $api ( @{ $self->get_api_methods } ) {
 
@@ -365,20 +505,27 @@ sub _create_methods {
       $method =~ s/([[:lower:]])([[:upper:]])/$1_$2/xmsg;
       $method = lc $method;
 
-      my $snake_case_method = $class . DOUBLE_COLON . $method;
-      my $camel_case_method = $class . DOUBLE_COLON . $api;
+      my $snake_case_method = $class . $DOUBLE_COLON . $method;
+      my $camel_case_method = $class . $DOUBLE_COLON . $api;
 
       # snake case rules the day
 
       if ( !$stash->{$method} ) {
-        *{$snake_case_method}
-          = sub { my $self = shift; $self->invoke_api( $api, @_ ) };
-      }
+        *{$snake_case_method} = sub {
+          my $self = shift;
+
+          $self->invoke_api( $api, @_ );
+        };
+      } ## end if ( !$stash->{$method...})
 
       # ...but some prefer camels
       if ( !$stash->{$api} ) {
-        *{$camel_case_method} = sub { my $self = shift; $self->$method(@_) };
-      }
+        *{$camel_case_method} = sub {
+          my $self = shift;
+
+          $self->$method(@_);
+        };
+      } ## end if ( !$stash->{$api} )
     } ## end foreach my $api ( @{ $self->...})
 
   } ## end if ( $self->get_api_methods)
@@ -386,43 +533,47 @@ sub _create_methods {
   return $self;
 } ## end sub _create_methods
 
+########################################################################
 sub _set_default_logger {
+########################################################################
   my ($self) = @_;
 
   {
     no strict 'refs';          ## no critic (TestingAndDebugging::ProhibitNoStrict)
     no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings)
 
-    *{ __PACKAGE__ . DOUBLE_COLON . 'DEBUG' } = sub {
-      return TRUE if !$self->get_debug;
+    *{ __PACKAGE__ . $DOUBLE_COLON . 'DEBUG' } = sub {
+      return $TRUE if !$self->get_debug;
 
       my @message = @_;
 
       my @tm = localtime time;
       my $err_msg;
 
-      if ( ref( $message[0] ) && reftype( $message[0] ) eq 'CODE' ) {
+      if ( ref $message[0] && reftype( $message[0] ) eq 'CODE' ) {
         $err_msg = $message[0]->();
       }
       else {
-        $err_msg = join EMPTY, @message;
+        $err_msg = join $EMPTY, @message;
       }
 
-      print {*STDERR} sprintf " %s [%s] %s\n", strftime( '%c', @tm ),
+      print {*STDERR} sprintf "%s [%s] %s\n", strftime( '%c', @tm ),
         $PROCESS_ID, $err_msg;
 
-      return TRUE;
+      return $TRUE;
     };
   }
 
   return $self;
 } ## end sub _set_default_logger
 
+########################################################################
 sub _set_defaults {
+########################################################################
   my ( $self, %options ) = @_;
 
-  $self->set_raise_error( $self->get_raise_error // TRUE );
-  $self->set_print_error( $self->get_print_error // TRUE );
+  $self->set_raise_error( $self->get_raise_error // $TRUE );
+  $self->set_print_error( $self->get_print_error // $TRUE );
 
   if ( !$self->get_content_type ) {
     $self->set_content_type('application/x-amz-json-1.1');
@@ -434,7 +585,7 @@ sub _set_defaults {
 
   # legacy behavior is to never decode... :-(
   # setting to undef vs FALSE to indicate unfortunate legacy behavior
-  $self->set_decode_always( $self->get_decode_always || undef );
+  $self->set_decode_always( $self->get_decode_always || $TRUE );
 
   $self->set_http_method( $self->get_http_method // 'POST' );
 
@@ -443,32 +594,33 @@ sub _set_defaults {
   # note some APIs are global, hence an API may send '' to indicate global
   if ( !defined $self->get_region ) {
     $self->set_region( $self->get_region
-        || $ENV{AWS_REGION}
-        || $ENV{AWS_DEFAULT_REGION}
-        || DEFAULT_REGION );
+        || $ENV{'AWS_REGION'}
+        || $ENV{'AWS_DEFAULT_REGION'}
+        || $DEFAULT_REGION );
   } ## end if ( !defined $self->get_region)
 
   if ( !$self->get_credentials ) {
-    if ( $self->get_aws_secret_access_key && $self->aws_access_key_id ) {
-
+    if ( $self->has_keys(%options) ) {
       $self->set_credentials(
         Amazon::Credentials->new(
-          { aws_secret_access_key => $self->get_aws_secret_access_key,
-            aws_access_key_id     => $self->get_aws_access_key_id,
-            token                 => $self->get_token,
+          { aws_secret_access_key => $options{'aws_secret_access_key'},
+            aws_access_key_id     => $options{'aws_access_key_id'},
+            token                 => $options{'token'},
             region                => $self->get_region,
           }
         )
       );
-    } ## end if ( $self->get_aws_secret_access_key...)
+    } ## end if ( $self->has_keys(%options...))
     else {
-      if ( $self->get_debug && $self->get_debug !~ /^2|insecure$/xms ) {
-        delete $options{debug};
-      }
+      $self->set_credentials(
+        Amazon::Credentials->new(
+          order  => $options{'order'},
+          region => $options{'region'},
+        )
+      );
 
-      $self->set_credentials( Amazon::Credentials->new(%options) );
       $self->set_region( $self->get_credentials->get_region );
-    } ## end else [ if ( $self->get_aws_secret_access_key...)]
+    } ## end else [ if ( $self->has_keys(%options...))]
   } ## end if ( !$self->get_credentials)
 
   # set URL last since it contains region
@@ -477,20 +629,27 @@ sub _set_defaults {
   return $self;
 } ## end sub _set_defaults
 
+########################################################################
+sub _create_service_url {
+########################################################################
+  my ($self) = @_;
+
+  my $endpoint = $self->get_endpoint_prefix || $self->get_service;
+
+  return sprintf $URL_FMT, $self->get_protocol, $endpoint, $self->get_region;
+} ## end sub _create_service_url
+
+########################################################################
 sub _set_url {
+########################################################################
   my ($self) = @_;
 
   my $url = $self->get_url;
 
   if ( !$url ) {
-    $url
-      = $self->get_protocol . q{://}
-      . $self->get_service . q{.}
-      . $self->get_region
-      . '.amazonaws.com';
-  } ## end if ( !$url )
+    $url = $self->_create_service_url;
+  }
   else {
-
     if ( $url !~ /^https?/xmsi ) {
       $url =~ s/^\///xms;    # just remove leading slash...
       $url = $self->get_protocol . '://' . $url;
@@ -503,36 +662,32 @@ sub _set_url {
   return $self;
 } ## end sub _set_url
 
+########################################################################
 sub _set_x_amz_target {
+########################################################################
   my ( $self, $request ) = @_;
 
-  my $api
-    = $self->get_version
-    ? $self->get_api . q{_} . $self->get_version
-    : $self->get_api;
+  my $target  = $self->get_target_prefix;
+  my $version = $self->get_version;
+  my $api     = $self->get_api;
+  my $action  = $self->get_action;
 
-  $self->set_target( $api . q{.} . $self->get_action );
+  if ( !$target ) {
+    $target = $version ? $api . $UNDERSCORE . $version : $api;
+  }
 
-  $request->header( 'X-Amz-Target', $self->get_target );
+  $target = $target . $DOT . $action;
+
+  $self->set_target($target);
+
+  $request->header( 'X-Amz-Target', $target );
 
   return $request;
 } ## end sub _set_x_amz_target
 
-sub _set_form_url_encoded_string {
-  my ( $self, @args ) = @_;
-
-  if ( !grep {/Action=/xms} @args ) {    ## no critic (BuiltinFunctions::ProhibitBooleanGrep)
-    push @args, 'Action=' . $self->get_action;
-  }
-
-  if ( $self->get_version ) {
-    push @args, 'Version=' . $self->get_version;
-  }
-
-  return @args ? join( q{&}, @args ) : EMPTY;
-} ## end sub _set_form_url_encoded_string
-
+########################################################################
 sub _set_request_content {
+########################################################################
   my ( $self, %args ) = @_;
 
   my $request      = $args{'request'};
@@ -540,21 +695,13 @@ sub _set_request_content {
   my $content_type = $args{'content_type'} || $self->get_content_type;
 
   if ( $self->get_http_method ne 'GET' ) {
-    $request->content_type($content_type);
-
-    if ( $content_type eq 'application/x-www-form-urlencoded' ) {
-      $content
-        = $self->_set_form_url_encoded_string( $content ? $content : () );
-    }
+    $request->content_type( $content_type . '; charset=utf-8' );
 
     $request->content($content);
-  } ## end if ( $self->get_http_method...)
+  }
   else {
-    $content
-      = $self->_set_form_url_encoded_string( $content ? $content : () );
-
-    $request->uri( $request->uri . q{?} . $content );
-  } ## end else [ if ( $self->get_http_method...)]
+    $request->uri( $request->uri . $QUESTION_MARK . $content );
+  }
 
   return $request;
 } ## end sub _set_request_content
@@ -888,7 +1035,7 @@ default: true
 The AWS region. Pass an empty string if the service is a global
 service that does not require or want a region.
 
-default: $ENV{AWS_REGION}, $ENV{AWS_DEFAULT_REGION}, 'us-east-1'
+default: $ENV{'AWS_REGION'}, $ENV{'AWS_DEFAULT_REGION'}, 'us-east-1'
 
 =item response
 
@@ -1328,6 +1475,8 @@ true value to enable diagnostics.
 
 =item * L<Amazon::Credentials>
 
+=item * L<Class::Accessor::Fast>
+
 =item * L<Date::Format>
 
 =item * L<HTTP::Request>
@@ -1335,6 +1484,10 @@ true value to enable diagnostics.
 =item * L<JSON::PP>
 
 =item * L<LWP::UserAgent>
+
+=item * L<List::Util>
+
+=item * L<ReadonlyX>
 
 =item * L<Scalar::Util>
 

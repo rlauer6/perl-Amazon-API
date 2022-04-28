@@ -72,6 +72,6 @@ sub new {
 
 sub main {
   use Data::Dumper;
-  
-  print Dumper [Amazon::ECR->new->GetAuthorizationToken];
+
+  print Dumper [ Amazon::ECR->new->GetAuthorizationToken( {} ) ];
 }

@@ -1,0 +1,88 @@
+package Amazon::API::Botocore::Pod;
+
+use strict;
+use warnings;
+
+use parent qw{ Exporter };
+
+use Pod::Usage;
+use Pod::Find qw(pod_where);
+
+our @EXPORT_OK = qw{ pod };
+
+our $VERSION = '@PACKAGE_VERSION@';
+
+sub pod {
+  my ($exit_val) = @_;
+
+  return pod2usage(
+    -exitval => $exit_val,
+    -input   => pod_where( { -inc => 1 }, __PACKAGE__ )
+  );
+} ## end sub pod
+
+1;
+
+## no critic (Documentation::RequirePackageMatchesPodName)
+
+__END__
+=pod
+
+=head1 NAME
+
+Amazon::API::Botocore - Automagic AWS API class generator
+
+=head1 SYNOPSIS
+
+ perl Amazon/API/Botocore.pm options command
+
+ Options
+ -------
+ --help, -h           help
+ --module-name, -m    module name, default: Amazon::API::{service}
+ --service, -s        API service
+ --botocore-path, -b  path to git botocore project
+ --tidy, -t           perltidy output, default is true, use --no-tidy to disable
+ --file, -f           output filename, default: STDOUT
+
+ Commands
+ --------
+ describe
+ create-stub
+
+See also - perldoc Amazon::API::Botocore::Pod
+
+=head1 DESCRIPTION
+
+Generates Perl classes from Botocore specfications.
+
+=head1 NOTES
+
+Assuming you have built the project...
+
+ git clone https://github.com/rlauer6/perl-Amazon-API.git
+ export PROJECT_HOME="$(pwd)/perl-Amazon-API"
+ cd $PROJECT_HOME
+ ./bootstrap
+ ./configure && make && make install
+
+...now clone the Botocore repository.
+
+ cd $PROJECT_HOME/src/main/perl/lib
+ git clone https://github.com/boto/botocore.git
+
+...and try to generate a stub
+
+ PERL5LIB=. perl Amazon/API/Botocore.pm -s sqs create-stub
+
+=head1 METHODS AND SUBROUTINES
+
+No public methods are exported by this class. It is a modulino.
+
+=head1 AUTHOR
+
+Rob Lauer - <rclauer@gmail.com>
+
+=head1 SEE OTHER
+
+=cut

@@ -3,58 +3,89 @@ package Amazon::API::Signature4;
 use strict;
 use warnings;
 
-use parent qw/AWS::Signature4/;
+use parent qw{ Exporter AWS::Signature4 };
 
 our $VERSION = '@PACKAGE_VERSION@';
 
-sub new {
-  my ( $class, @options ) = @_;
-  $class = ref($class) || $class;
+our @EXPORT_OK = qw{ parse_service_url };
 
-  my %args = ref( $options[0] ) ? $options[0] : @options;
+our @SERVICE_URL_REGEXP = (
+  qr/(s3)[.]amazonaws[.]com\z/xsm,
+  qr/(s3)[.]([^.]+)[.]amazonaws[.]com\z/xsm,
+  qr/(s3)[.][^.]+[.]([^.]+)[.]amazonaws[.]com\z/xsm,
+  qr/(s3)[-][^.]+.+[.]([^.]+)[.]amazonaws[.]com\z/xsm,
+  qr/^([[:alpha:]-]+)[.]amazonaws[.]com\z/xsm,
+  qr/^([[:alpha:]-]+)[.]([^.]*)[.]amazonaws[.]com/xsm,
+);
+
+########################################################################
+sub new {
+########################################################################
+  my ( $class, @options ) = @_;
+  $class = ref $class || $class;
+
+  my %args = ref $options[0] ? $options[0] : @options;
 
   my $self = $class->SUPER::new(%args);
 
-  my @extra = grep { !/access_key|secret_key|security_token/ } keys %args;
+  my @extra = grep { !/access_key|secret_key|security_token/xsm } keys %args;
 
   @{$self}{@extra} = @args{@extra};
 
   return $self;
 } ## end sub new
 
+########################################################################
+sub parse_service_url {
+########################################################################
+  my (%args) = @_;
+
+  my ( $host,   $service )        = @args{qw{host service}};
+  my ( $region, $default_region ) = @args{qw{region default_region}};
+
+  if ( !$service || !$region ) {
+    foreach my $regexp (@SERVICE_URL_REGEXP) {
+      if ( $host =~ $regexp ) {
+        #        print Dumper [ $host, $regexp ];
+
+        $service = $1;
+        $region  = $2 || $region || $default_region;
+        last;
+      } ## end if ( $host =~ $regexp )
+
+    } ## end foreach my $regexp (@SERVICE_URL_REGEXP)
+  } ## end if ( !$service || !$region)
+
+  return ( $host, $service, $region );
+} ## end sub parse_service_url
+
+###############################################################
+sub scope {
+###############################################################
+  goto &_scope;
+}
+
+###############################################################
 sub _scope {
+###############################################################
   my ( $self, $request, $region ) = @_;
 
   my $host     = $request->uri->host;
   my $datetime = $self->_datetime($request);
-  my ($date)   = $datetime =~ /^(\d+)T/;
+  my ($date)   = $datetime =~ /^(\d+)T/xsm;
 
   my $service = $self->{service};
 
-  if ( !$service || !$region ) {
-
-    if ( $host =~ /^([\w.-]+)\.s3\.amazonaws.com/ ) {    # S3 bucket virtual host
-      $service = 's3';
-      $region ||= 'us-east-1';
-    }
-    elsif ( $host =~ /^[\w-]+\.s3-([\w-]+)\.amazonaws\.com/ ) {
-      $service = 's3';
-      $region ||= $2;
-    }
-    elsif ( $host =~ /^(\w+)[-.]([\w-]+)\.amazonaws\.com/ ) {
-      $service = $1;
-      $region ||= $2;
-    }
-    elsif ( $host =~ /^([\w-]+)\.amazonaws\.com/ ) {
-      $service = $1;
-    }
-  } ## end if ( !$service || !$region)
-
-  if ( !$region ) {
-    $region = $self->{region} || 'us-east-1';
-  }
+  ( $host, $service, $region ) = parse_service_url(
+    host           => $host,
+    service        => $service,
+    region         => $region,
+    default_region => 'us-east-1'
+  );
 
   return "$date/$region/$service/aws4_request";
 } ## end sub _scope
 
 1;
+
+__END__

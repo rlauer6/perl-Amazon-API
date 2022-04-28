@@ -1,17 +1,84 @@
+Thu Apr 28 17:32:18 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.3.0 - Botocore]:
+	* VERSION: bump
+	* README-BUILD.md: rename from README.md
+	* README.md: built from Amazon::API pod
+	* Makefile.am: build rule for above
+	* NEWS.md: updated info
+	* .gitignore:
+	- prove.*, test-suite.log
+	- *.pc
+	- botcore directory
+	* cpan/buildspec.yml
+	- + dependencies
+	* cpan/Makefile.am
+	- cleanup distribution directory
+	(CLEANFILES):
+	- requires
+	* src/main/perl/lib/Amazon/API/Signature4.pm.in
+	- export parse_service_url
+	(parse_service_url): new
+	(scope): new
+	(_scope): refactored, use parse_service_url
+	* src/main/perl/lib/Amazon/API.pm.in
+	- replace many characters with Readonly values (ex: $UNDERSCORE)
+	- perl 5.10
+	- refactoring, perlcritic improvements
+	- export create_urlencode_content
+	- remove accessors for credentials
+	- remove use constant
+	(_create_query_string): removed
+	(invoke_api):
+	- refactored
+	- use above
+	- use botocore definition if available
+	(_format_content): removed
+	(_set_request_content): refactored
+	(_set_defaults):
+	- let Amazon::Credentials handle credentials
+	- do not pass debug flag to Amazon::Credentials
+	(submit): use get_valid_token
+	(create_urlencoded_content): new
+	(_create_service_url): new
+	(_set_content_type): new
+	(init_botocore_request): new
+	(get_valid_token): new
+	* src/main/perl/lib/Amazon/API/Constants.pm.in: new
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in: new
+	* src/main/perl/lib/Amazon/API/Botocore/Pod.pm.in: new
+	* src/main/perl/lib/Makefile.am
+	- add above to build
+	- revisit dependencies
+	* src/main/perl/t/00-botocore-template-var.t: new
+	* src/main/perl/t/01-urlencode.t: new
+	* src/main/perl/t/02-parse-service-url.t: new
+	* src/main/perl/lib/modules.inc: new
+	* src/main/perl/lib/directories.inc: new
+	* src/examples/sts.pm: new
+	* src/main/perl/lib/Amazon/API/Error.pm.in: perlcritic cleanup
+	* src/main/perl/lib/Amazon/API/CloudWatchLogs.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/EC2.pm.in: likewise, rename module
+	* src/main/perl/lib/Amazon/API/ECS.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/SQS.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/SSM.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/STS.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/SecretsManager.pm.in: likewise
+
 Wed Apr  6 14:47:48 2022  Rob Lauer  <rlauer6@comcast.net>
 
-	[1.2.7 - set region]:
-	* VERSION: bump
-	* NEWS.md: updated info
-	* src/main/perl/lib/Amazon/API/STS.pm.in: new
-	* src/main/perl/lib/Makefile.am: add above to build
-	* src/main/perl/lib/Amazon/API.pm.in
-	(_format_content): application/x-www-form-urlencoded
-	(_set_request_content): likewise
-	(_set_defaults): set url after setting region
-	* src/main/perl/lib/Amazon/Error.pm.in
-	(_set_message): chomp XML content
-	* src/examples/ecr.pm: new
+        [1.2.7 - set region]:
+        * VERSION: bump
+        * NEWS.md: updated info
+        * src/main/perl/lib/Amazon/API/STS.pm.in: new
+        * src/main/perl/lib/Makefile.am: add above to build
+        * src/main/perl/lib/Amazon/API.pm.in
+        (_format_content): application/x-www-form-urlencoded
+        (_set_request_content): likewise
+        (_set_defaults): set url after setting region
+        * src/main/perl/lib/Amazon/Error.pm.in
+        (_set_message): chomp XML content
+        * src/examples/ecr.pm: new
 
 Thu Mar 31 11:21:11 2022  Rob Lauer  <rlauer6@comcast.net>
 

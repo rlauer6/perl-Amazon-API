@@ -58,7 +58,7 @@ sub new {
 
   my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
 
-  $class->SUPER::new(
+  return $class->SUPER::new(
     { service     => 'logs',
       api         => 'Logs',
       version     => '20140328',

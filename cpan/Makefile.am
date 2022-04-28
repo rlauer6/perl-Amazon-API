@@ -32,7 +32,6 @@ CLEANFILES = \
     extra-files \
     provides \
     resources \
-    requires \
     test-requires
 
 clean-local:
@@ -41,3 +40,6 @@ clean-local:
 	done
 	rm -f *.tar.gz
 	rm -f *.tmp
+	if test -n "$$(ls -d Amazon-API-*)"; then \
+	  rm -rf "$$(ls -d Amazon-API-*)"; \
+	fi
