@@ -123,7 +123,7 @@ sub decode_response {
         decode_json($content);
       }
       elsif ( $content_type =~ /xml/xmsi ) {
-        XMLin($content);
+        XMLin( $content, ForceArray => ['item'] );
       }
     };
 
@@ -132,7 +132,8 @@ sub decode_response {
       $decoded_content = eval { return decode_json($content); };
 
       if ( !$decoded_content || $EVAL_ERROR ) {
-        $decoded_content = eval { return XMLin($content); };
+        $decoded_content
+          = eval { return XMLin( $content, ForceArray => ['item'] ); };
       }
     } ## end if ( !$decoded_content...)
   } ## end if ($content)
@@ -585,7 +586,7 @@ sub _set_defaults {
 
   # legacy behavior is to never decode... :-(
   # setting to undef vs FALSE to indicate unfortunate legacy behavior
-  $self->set_decode_always( $self->get_decode_always || $TRUE );
+  $self->set_decode_always( $self->get_decode_always // $TRUE );
 
   $self->set_http_method( $self->get_http_method // 'POST' );
 

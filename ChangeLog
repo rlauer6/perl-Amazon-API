@@ -1,3 +1,12 @@
+Fri Jun  3 14:54:08 2022  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.3.1 - ForceArray]:
+	* src/main/perl/lib/Amazon/API.pm.in
+	(decode_response)
+	- ForceArray => ['item'] : 'items' in returned XML should be converted to arrays
+	(_set_defaults)
+	- decode_always true if decode_always undefined
+
 Thu Apr 28 17:32:18 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.3.0 - Botocore]:
