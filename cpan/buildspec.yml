@@ -15,7 +15,7 @@ extra-files:
     examples: ../src/examples
 dependencies:
   path: requires
-  core_modules: no
+  core_modules: yes
 resources:
   homepage: 'http://github.com/rlauer6/perl-Amazon-API'
   bugtracker:
