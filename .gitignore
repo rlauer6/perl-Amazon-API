@@ -3,7 +3,6 @@ src/main/perl/prove.*
 src/main/perl/test-suite.log
 cpan/extra-files
 cpan/provides
-cpan/requires
 cpan/test-requires
 **/Makefile
 **/Makefile.in

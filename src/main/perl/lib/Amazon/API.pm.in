@@ -48,6 +48,7 @@ __PACKAGE__->mk_accessors(
     decode_always
     endpoint_prefix
     error
+    force_array
     http_method
     last_action
     logger
@@ -107,8 +108,9 @@ sub decode_response {
 
   $response = $response || $self->get_response;
 
-  if ( !ref $response =~ /HTTP::Response/xms ) {
-    croak q{can't decode response - not a response object};
+  # could be Furl or HTTP?
+  if ( !ref $response && $response->can('content') ) {
+    croak q{can't decode response - not a response object: } . ref $response;
   }
 
   my $decoded_content;
@@ -123,7 +125,8 @@ sub decode_response {
         decode_json($content);
       }
       elsif ( $content_type =~ /xml/xmsi ) {
-        XMLin( $content, ForceArray => ['item'] );
+        XMLin( $content,
+          $self->get_force_array ? ( ForceArray => ['item'] ) : () );
       }
     };
 
@@ -132,9 +135,11 @@ sub decode_response {
       $decoded_content = eval { return decode_json($content); };
 
       if ( !$decoded_content || $EVAL_ERROR ) {
-        $decoded_content
-          = eval { return XMLin( $content, ForceArray => ['item'] ); };
-      }
+        $decoded_content = eval {
+          return XMLin( $content,
+            $self->get_force_array ? ( ForceArray => ['item'] ) : () );
+        };
+      } ## end if ( !$decoded_content...)
     } ## end if ( !$decoded_content...)
   } ## end if ($content)
 
@@ -586,7 +591,13 @@ sub _set_defaults {
 
   # legacy behavior is to never decode... :-(
   # setting to undef vs FALSE to indicate unfortunate legacy behavior
-  $self->set_decode_always( $self->get_decode_always // $TRUE );
+
+  if ( !$self->get_decode_always ) {
+    $self->set_force_array($FALSE);
+  }
+  else {
+    $self->set_decode_always( $self->get_decode_always // $TRUE );
+  }
 
   $self->set_http_method( $self->get_http_method // 'POST' );
 

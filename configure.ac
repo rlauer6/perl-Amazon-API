@@ -100,6 +100,13 @@ if test -z "$POD2MAN" ; then
   AC_MSG_ERROR([pod2man not found?])
 fi
 
+AC_PATH_PROG([POD2MARKDOWN],
+	[pod2markdown])
+
+if test -z "$POD2MAN" ; then 
+  AC_MSG_ERROR([pod2man not found?])
+fi
+
 AC_PATH_PROG([PERL],
 	[perl])
 
