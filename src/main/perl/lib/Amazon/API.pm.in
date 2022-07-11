@@ -205,7 +205,7 @@ sub invoke_api {
   $self->set_last_action($action);
   $self->set_error(undef);
 
-  my $content         = $parameters;                # default
+  my $content         = $parameters;             # default
   my $decode_response = $self->get_decode_always;
 
   # Botocore definition?
@@ -258,7 +258,7 @@ sub invoke_api {
     }
 
     if ( $self->get_raise_error ) {
-      die $self->get_error;    ## no critic (ErrorHandling::RequireCarping)
+      die $self->get_error; ## no critic (ErrorHandling::RequireCarping)
     }
   } ## end if ( !$rsp->is_success)
 
@@ -277,12 +277,12 @@ sub print_error {
 
   my $err_str = 'API ERROR (' . $self->get_last_action . '): ';
 
-  if ( $error && ref $error =~ /Amazon::API::Error/xms ) {
+  if ( $error && ref($error) =~ /Amazon::API::Error/xms ) {
     my $response = $error->get_response;
 
-    local $Data::Dumper::Terse = 1;
+    local $Data::Dumper::Terse = $TRUE;
     local $Data::Dumper::Pair  = $COLON;
-    local $Data::Dumper::Useqq = 1;
+    local $Data::Dumper::Useqq = $TRUE;
 
     $err_str .= sprintf q{[%s], %s},
       $error->get_error, Dumper( ref $response ? $response : [$response] );
@@ -384,7 +384,7 @@ sub param_n {
 ########################################################################
   my ( $message, $prefix, $idx ) = @_;
 
-  if ( !defined $idx ) {    # first call, check args
+  if ( !defined $idx ) { # first call, check args
     croak 'message argument must be reference'
       if !ref $message;
   }
@@ -431,13 +431,13 @@ sub create_urlencoded_content {
   }
   elsif ( $parameters && reftype($parameters) eq 'ARRAY' ) {
     if ( any {ref} @{$parameters} ) {
-      @args = map { %{$_} } @{$parameters};    # list of hashes
+      @args = map { %{$_} } @{$parameters}; # list of hashes
     }
     elsif ( any {/=/xsm} @{$parameters} ) {
-      @args = map { split /=/xsm } @{$parameters};    # formatted list
+      @args = map { split /=/xsm } @{$parameters}; # formatted list
     }
     else {
-      @args = @{$parameters};                         # simple list
+      @args = @{$parameters};                      # simple list
     }
   } ## end elsif ( $parameters && reftype...)
 
@@ -499,8 +499,8 @@ sub _create_methods {
   my $class = ref $self || $self;
 
   if ( $self->get_api_methods ) {
-    no strict 'refs';          ## no critic (TestingAndDebugging::ProhibitNoStrict)
-    no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings)
+    no strict 'refs';       ## no critic (TestingAndDebugging::ProhibitNoStrict)
+    no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings)
 
     my $stash = \%{ __PACKAGE__ . $DOUBLE_COLON };
 
@@ -545,8 +545,8 @@ sub _set_default_logger {
   my ($self) = @_;
 
   {
-    no strict 'refs';          ## no critic (TestingAndDebugging::ProhibitNoStrict)
-    no warnings 'redefine';    ## no critic (TestingAndDebugging::ProhibitNoWarnings)
+    no strict 'refs';       ## no critic (TestingAndDebugging::ProhibitNoStrict)
+    no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings)
 
     *{ __PACKAGE__ . $DOUBLE_COLON . 'DEBUG' } = sub {
       return $TRUE if !$self->get_debug;
@@ -592,8 +592,10 @@ sub _set_defaults {
   # legacy behavior is to never decode... :-(
   # setting to undef vs FALSE to indicate unfortunate legacy behavior
 
-  if ( !$self->get_decode_always ) {
-    $self->set_force_array($FALSE);
+  if ( !defined $self->get_decode_always ) {
+    if ( !defined $self->get_force_array ) {
+      $self->set_force_array($FALSE);
+    }
   }
   else {
     $self->set_decode_always( $self->get_decode_always // $TRUE );
@@ -663,7 +665,7 @@ sub _set_url {
   }
   else {
     if ( $url !~ /^https?/xmsi ) {
-      $url =~ s/^\///xms;    # just remove leading slash...
+      $url =~ s/^\///xms; # just remove leading slash...
       $url = $self->get_protocol . '://' . $url;
     }
 

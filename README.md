@@ -50,7 +50,7 @@ the parent class, but can be used directly.
 
 - See ["IMPLEMENTATION NOTES"](#implementation-notes) for using `Amazon::API`
 directly to call AWS services.
-- See [Amazon::CloudWatchEvents](https://metacpan.org/pod/Amazon::CloudWatchEvents) for an example of how to use
+- See [Amazon::CloudWatchEvents](https://metacpan.org/pod/Amazon%3A%3ACloudWatchEvents) for an example of how to use
 this module as a parent class.
 
 # BACKGROUND AND MOTIVATION
@@ -95,7 +95,7 @@ Think of this class as a DIY kit to invoke **only** the methods you
 need for your AWS project. A good example of creating a quick and
 dirty interface to CloudWatch Events can be found here:
 
-[Amazon::CloudWatchEvents](https://metacpan.org/pod/Amazon::CloudWatchEvents)
+[Amazon::CloudWatchEvents](https://metacpan.org/pod/Amazon%3A%3ACloudWatchEvents)
 
 And invoking some of the APIs is as easy as:
 
@@ -112,7 +112,7 @@ will be raised if `raise_error` has been set to a true
 value. Additionally, a detailed error message will be displayed if
 `print_error` is set to true.
 
-See [Amazon::API::Error](https://metacpan.org/pod/Amazon::API::Error) for more details.
+See [Amazon::API::Error](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3AError) for more details.
 
 # METHODS AND SUBROUTINES
 
@@ -164,7 +164,7 @@ key/values or hash reference.
 
     Your AWS access key. Both the access key and secret access key are
     required if either is passed. If no credentials are passed, an attempt
-    will be made to find credentials using [Amazon::Credentials](https://metacpan.org/pod/Amazon::Credentials). Note
+    will be made to find credentials using [Amazon::Credentials](https://metacpan.org/pod/Amazon%3A%3ACredentials). Note
     that you may need to pass `token` as well if you are using temporary
     credentials.
 
@@ -219,7 +219,7 @@ key/values or hash reference.
         will supply credentials, the module will use the
         `Amazon::Credentials` class that attempts to find credentials in the
         _environment_, your _credentials file(s)_, or the _container or
-        instance role_.  See [Amazon::Credentials](https://metacpan.org/pod/Amazon::Credentials) for more details.
+        instance role_.  See [Amazon::Credentials](https://metacpan.org/pod/Amazon%3A%3ACredentials) for more details.
 
         _NOTE: The latter method of obtaining credentials is probably the
         easiest to use and provides the most succinct and secure way of
@@ -691,7 +691,7 @@ a reference is passed to the `invoke_api()` method by passing the
 
 # VERSION
 
-This documentation refers to version 1.3.3 of `Amazon::API`.
+This documentation refers to version 1.3.4 of `Amazon::API`.
 
 # DIAGNOSTICS
 
@@ -703,18 +703,18 @@ true value to enable diagnostics.
 
 # DEPENDENCIES
 
-- [Amazon::Signature4](https://metacpan.org/pod/Amazon::Signature4)
-- [Amazon::Credentials](https://metacpan.org/pod/Amazon::Credentials)
-- [Class::Accessor::Fast](https://metacpan.org/pod/Class::Accessor::Fast)
-- [Date::Format](https://metacpan.org/pod/Date::Format)
-- [HTTP::Request](https://metacpan.org/pod/HTTP::Request)
-- [JSON::PP](https://metacpan.org/pod/JSON::PP)
-- [LWP::UserAgent](https://metacpan.org/pod/LWP::UserAgent)
-- [List::Util](https://metacpan.org/pod/List::Util)
+- [Amazon::Signature4](https://metacpan.org/pod/Amazon%3A%3ASignature4)
+- [Amazon::Credentials](https://metacpan.org/pod/Amazon%3A%3ACredentials)
+- [Class::Accessor::Fast](https://metacpan.org/pod/Class%3A%3AAccessor%3A%3AFast)
+- [Date::Format](https://metacpan.org/pod/Date%3A%3AFormat)
+- [HTTP::Request](https://metacpan.org/pod/HTTP%3A%3ARequest)
+- [JSON::PP](https://metacpan.org/pod/JSON%3A%3APP)
+- [LWP::UserAgent](https://metacpan.org/pod/LWP%3A%3AUserAgent)
+- [List::Util](https://metacpan.org/pod/List%3A%3AUtil)
 - [ReadonlyX](https://metacpan.org/pod/ReadonlyX)
-- [Scalar::Util](https://metacpan.org/pod/Scalar::Util)
-- [Time::Local](https://metacpan.org/pod/Time::Local)
-- [XML::LibXML::Simple](https://metacpan.org/pod/XML::LibXML::Simple)
+- [Scalar::Util](https://metacpan.org/pod/Scalar%3A%3AUtil)
+- [Time::Local](https://metacpan.org/pod/Time%3A%3ALocal)
+- [XML::LibXML::Simple](https://metacpan.org/pod/XML%3A%3ALibXML%3A%3ASimple)
 
 ...and possibly others.
 
