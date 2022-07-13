@@ -691,7 +691,7 @@ a reference is passed to the `invoke_api()` method by passing the
 
 # VERSION
 
-This documentation refers to version 1.3.4 of `Amazon::API`.
+This documentation refers to version 1.3.5 of `Amazon::API`.
 
 # DIAGNOSTICS
 

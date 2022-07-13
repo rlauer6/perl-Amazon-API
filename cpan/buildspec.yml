@@ -16,6 +16,7 @@ extra-files:
 dependencies:
   path: requires
   core_modules: yes
+  test_requires: test-requires
 resources:
   homepage: 'http://github.com/rlauer6/perl-Amazon-API'
   bugtracker:

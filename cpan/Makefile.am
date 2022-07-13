@@ -31,8 +31,7 @@ cpan: buildspec.yml
 CLEANFILES = \
     extra-files \
     provides \
-    resources \
-    test-requires
+    resources 
 
 clean-local:
 	for a in $(CLEANFILES); do \
