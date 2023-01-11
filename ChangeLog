@@ -1,3 +1,17 @@
+Wed Jan 11 10:52:54 2023  Rob Lauer  <rlauer@usgn.net>
+
+	[1.4.1 - Botocore fixes]:
+	* VERSION: bump
+	* README.md: generated
+	* NEWS.md: update
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	(render_stub)
+	- don't create path here, it's done upstream
+	- don't create method pod if no output-path
+	(get_service_descriptions): croak if unknown service
+	(main)
+	- create output path for service if it does not exist
+
 Sat Jan  7 06:02:07 2023  Rob Lauer  <rlauer6@comcast.net>>
 
 	[1.4.0 - Botocore enhancements]:

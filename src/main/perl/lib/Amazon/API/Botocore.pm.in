@@ -490,10 +490,6 @@ END_OF_POD
       my $package_name = $parameters->{ to_template_var('package_name') };
       $package_name =~ s/::/\//gxsm;
 
-      if ( !-d $package_name ) {
-        make_path $package_name;
-      }
-
       push @pod, render_template $method_pod, $parameters;
 
       my $pod_stub = <<'END_OF_POD';
@@ -556,14 +552,19 @@ modified under the same terms as Perl itself.
 1;
 END_OF_POD
 
-      my $stub_file = sprintf '%s/%s.pm', $package_name, $method;
+      # NOTE: this is JUST pod, so if you don't provide an output path,
+      # you won't get the method pod
+      if ( $options{'output-path'} ) {
+        my $stub_file = sprintf '%s/%s/%s.pm', $options{'output-path'},
+          $package_name, $method;
 
-      open my $fh, '>', $stub_file
-        or croak "could not open $stub_file for writing";
+        open my $fh, '>', $stub_file
+          or croak "could not open $stub_file for writing";
 
-      print {$fh} render_template( $pod_stub, $parameters );
+        print {$fh} render_template( $pod_stub, $parameters );
 
-      close $fh;
+        close $fh;
+      }
     }
 
     $parameters->{ to_template_var('methods') } = join "\n", @pod;
@@ -596,10 +597,13 @@ sub get_service_descriptions {
   if ( !@services ) {
     @services = sort keys %BOTO_SERVICES;
   }
-
   foreach my $s (@services) {
 
-    my @path      = @{ $BOTO_SERVICES{$s}->{path} };
+    croak "no such service: $s\n"
+      if !$BOTO_SERVICES{$s};
+
+    my @path = @{ $BOTO_SERVICES{$s}->{path} };
+
     my $boto_path = first_index {/botocore/xsm} @path;
 
     if ( $boto_path < 0 ) {
@@ -1004,18 +1008,36 @@ sub main {
 
   GetOptions( \%options, @option_defs );
 
-  if ( $options{'output-path'} eq $DASH ) {
-    delete $options{'output-path'};
-  }
+  $options{'command'}    = shift @ARGV;
+  $options{'extra-args'} = \@ARGV;
 
-  if ( $options{'output-path'} && $options{'output-path'} =~ /^[.]/xsm ) {
-    my $cwd = getcwd;
-
-    $options{'output-path'} =~ s/^[.]/$cwd/xsm;
+  if ( $options{'help'} || !$options{'command'} ) {
+    $options{'command'} = 'help';
   }
 
   if ( !$options{'module-name'} && $options{'service'} ) {
     $options{'module-name'} = create_module_name( $options{'service'} );
+  }
+
+  if ( $options{'output-path'} eq $DASH ) {
+    delete $options{'output-path'};
+  }
+
+  if ( $options{command} ne 'help' ) {
+    if ( $options{'output-path'} && $options{'output-path'} =~ /^[.]/xsm ) {
+      my $cwd = getcwd;
+
+      $options{'output-path'} =~ s/^[.]/$cwd/xsm;
+    }
+    elsif ( $options{'output-path'} && $options{'module-name'} ) {
+      my $module_path = sprintf '%s/Amazon/API/%s',
+        @options{qw(output-path module-name)};
+
+      if ( !-d $module_path ) {
+        croak "could not create path: $module_path\n"
+          if !make_path $module_path;
+      }
+    }
   }
 
   my %handlers = (
@@ -1028,13 +1050,6 @@ sub main {
     'create-shape'  => \&create_service_shapes,
     'help'          => \&help,
   );
-
-  $options{'command'}    = shift @ARGV;
-  $options{'extra-args'} = \@ARGV;
-
-  if ( $options{'help'} || !$options{'command'} ) {
-    $options{'command'} = 'help';
-  }
 
   croak sprintf 'not a valid command [%s]', $options{'command'}
     if !$handlers{ $options{'command'} };

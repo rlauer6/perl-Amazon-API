@@ -6,6 +6,19 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 1.4.1 (2023-01-11)
+
+
+## Enhancements
+
+None
+
+## Fixes
+
+* method stubs were being created in the current directory instead of
+  using the --output-path option
+* croak if service name provide unknown
+
 # perl-Amazon-API 1.4.0 (2023-01-11)
 
 This version most notablly presents some improvements for the

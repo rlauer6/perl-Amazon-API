@@ -856,7 +856,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 1.4.0 of `Amazon::API`.
+This documentation refers to version 1.4.1 of `Amazon::API`.
 
 # DIAGNOSTICS
 
