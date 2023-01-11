@@ -6,7 +6,34 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
-# perl-Amazon-API 1.3.0 (2022-04-??)
+# perl-Amazon-API 1.4.0 (2023-01-11)
+
+This version most notablly presents some improvements for the
+experimental Botocore support. `Amazon::API` can now make use of
+the shapes metadata from Botocore the project when making requests and
+decoding responses. This version removes generated example APIs
+(`Amazon::API::EC2`, etc) and instead includes a utility for creating
+service API.  See `ChangeLog` for a detailed inventory of
+changes.
+
+## Enhancements
+
+* Updated documenation (pod) for `Amazon::API`
+* Improvements in the use of Botocore metadata for autogeneration of API classes
+* API documentation using Botocore metadata for services and shapes
+* Amazon API shape support via `Amazon::API::Shape`
+* `amazon-api` utility for generating classes as well showing API and shape documentation
+* Pod, pod, and more pod
+
+## Fixes
+
+* Generated documentation for APIs and shapes has been updated to fix
+  several pod errors.
+* Serialization of responses into shapes is more reliable.
+* Removed accessors for passed credentials to avoid storing
+* No longer passes debug flag to `Amazon::Credentials` 
+
+# perl-Amazon-API 1.3.0 (2022-04-28)
 
 ## Enhancements
 

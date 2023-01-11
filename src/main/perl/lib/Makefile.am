@@ -16,10 +16,14 @@ endif
 
 ax_perl5_extra_includes_opt = @ax_perl5_extra_includes_opt@
 
-GAMAZON_PERLMODULES              = $(AMAZON_PERLMODULES:.pm.in=.pm)
-GAMAZON_API_PERLMODULES          = $(AMAZON_API_PERLMODULES:.pm.in=.pm)
-GAMAZON_API_BOTOCORE_PERLMODULES = $(AMAZON_API_BOTOCORE_PERLMODULES:.pm.in=.pm)
-G3MANPAGES                       = $(GALLMODULES:.pm=.3man)
+GAMAZON_PERLMODULES                     = $(AMAZON_PERLMODULES:.pm.in=.pm)
+GAMAZON_API_PERLMODULES                 = $(AMAZON_API_PERLMODULES:.pm.in=.pm)
+GAMAZON_API_POD_PERLMODULES             = $(AMAZON_API_POD_PERLMODULES:.pm.in=.pm)
+GAMAZON_API_POD_SIMPLE_PERLMODULES      = $(AMAZON_API_POD_SIMPLE_PERLMODULES:.pm.in=.pm)
+GAMAZON_API_BOTOCORE_PERLMODULES        = $(AMAZON_API_BOTOCORE_PERLMODULES:.pm.in=.pm)
+GAMAZON_API_BOTOCORE_SHAPE_PERLMODULES  = $(AMAZON_API_BOTOCORE_SHAPE_PERLMODULES:.pm.in=.pm)
+
+G3MANPAGES = $(GALLMODULES:.pm=.3man)
 
 AUTOMAKE_OPTIONS = -Wno-portability
 
@@ -42,33 +46,68 @@ include perl-build.inc
 $(GAMAZON_PERLMODULES): % : %.in \
     Amazon/API/Constants.pm \
     Amazon/API/Error.pm \
-    Amazon/API/Signature4.pm
-include perl-build.inc
+    Amazon/API/Signature4.pm \
+    Amazon/API/Template.pm \
+    Amazon/API/Botocore.pm \
+    Amazon/API/Botocore/Shape.pm \
+    Amazon/API/Botocore/Shape/Serializer.pm
 
-$(GAMAZON_API_PERLMODULES): % : %.in \
-    $(GAMAZON_PERLMODULES) \
-    $(GAMAZON_API_BOTOCORE_PERLMODULES)
-include perl-build.inc
+Amazon/API/Botocore/Shape.pm: % : %.in \
+    Amazon/API/Template.pm \
+    Amazon/API/Botocore/Shape/Utils.pm
 
-$(GAMAZON_API_BOTOCORE_PERLMODULES): % : %.in
-include perl-build.inc
+Amazon/API/Botocore.pm: % : %.in \
+    Amazon/API/Botocore/Shape.pm \
+    $(GAMAZON_API_POD_PERLMODULES)
+
+$(GAMAZON_API_PERLMODULES): % : %.in 
+
+$(GAMAZON_API_BOTOCORE_PERLMODULES): % : %.in $(GAMAZON_API_PERLMODULES)
+
+$(GAMAZON_API_POD_PERLMODULES): % : %.in $(GAMAZON_API_POD_SIMPLE_PERLMODULES)
+
+Amazon/API/Botocore.pm: % : %.in
+
+$(GAMAZON_API_BOTOCORE_SHAPE_PERLMODULES): % : %.in  \
+    Amazon/API/Constants.pm \
+    Amazon/API/Template.pm
 
 amazon_DATA = \
     $(GAMAZON_PERLMODULES)
 
 amazon_api_DATA = \
-    $(GAMAZON_API_PERLMODULES)
+    $(GAMAZON_API_PERLMODULES) \
+    Amazon/API/Constants.pm \
+    Amazon/API/Error.pm \
+    Amazon/API/Signature4.pm \
+    Amazon/API/Template.pm
+
+amazon_api_botocore_shape_DATA = \
+    $(GAMAZON_API_BOTOCORE_SHAPE_PERLMODULES)
 
 amazon_api_botocore_DATA = \
-    $(GAMAZON_API_BOTOCORE_PERLMODULES)
+    $(GAMAZON_API_BOTOCORE_PERLMODULES) \
+    Amazon/API/Botocore/Shape.pm
+
+amazon_api_pod_DATA = \
+    $(GAMAZON_API_POD_PERLMODULES)
+
+amazon_api_pod_simple_DATA = \
+    $(GAMAZON_API_POD_SIMPLE_PERLMODULES)
 
 dist_noinst_DATA = \
     Amazon/API/Constants.pm.in \
     Amazon/API/Error.pm.in \
     Amazon/API/Signature4.pm.in \
+    Amazon/API/Template.pm.in \
+    Amazon/API/Botocore/Shape.pm.in \
+    $(AMAZON_PERLMODULES) \
     $(AMAZON_PERLMODULES) \
     $(AMAZON_API_PERLMODULES) \
-    $(AMAZON_API_BOTOCORE_PERLMODULES)
+    $(AMAZON_API_POD_PERLMODULES) \
+    $(AMAZON_API_POD_SIMPLE_PERLMODULES) \
+    $(AMAZON_API_BOTOCORE_PERLMODULES) \
+    $(AMAZON_API_BOTOCORE_SHAPE_PERLMODULES)
 
 all:
 
@@ -125,7 +164,12 @@ CLEANFILES = \
     Amazon/API/Constants.pm \
     Amazon/API/Error.pm \
     Amazon/API/Signature4.pm \
+    Amazon/API/Template.pm \
+    Amazon/API/Botocore/Shape.pm \
     $(GAMAZON_PERLMODULES) \
     $(GAMAZON_API_PERLMODULES) \
+    $(GAMAZON_API_POD_PERLMODULES) \
+    $(GAMAZON_API_POD_SIMPLE_PERLMODULES) \
     $(GAMAZON_API_BOTOCORE_PERLMODULES) \
+    $(GAMAZON_API_BOTOCORE_SHAPE_PERLMODULES) \
     $(G3MANPAGES)

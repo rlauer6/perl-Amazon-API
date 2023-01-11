@@ -5,10 +5,11 @@ use warnings;
 
 use parent qw( Class::Accessor::Fast );
 
+use Data::Dumper;
 use English qw{ -no_match_vars };
-use JSON::PP qw{ decode_json };
+use JSON qw{ decode_json };
 use Scalar::Util qw{ reftype };
-use XML::LibXML::Simple qw{ XMLin };
+use XML::Simple qw{ XMLin };
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(qw/error api message_raw response content_type/);
@@ -38,7 +39,7 @@ sub _set_message {
   if ($raw_message) {
 
     if ( $self->get_content_type =~ /xml/xmsi ) {
-      $message = eval { return XMLin( chomp $raw_message ); };
+      $message = eval { return XMLin($raw_message); };
     }
     elsif ( $self->get_content_type =~ /json/xmsi ) {
       $message = eval { return decode_json($raw_message); };
@@ -48,8 +49,10 @@ sub _set_message {
     if ( !$message || $EVAL_ERROR ) {
       $message = eval { return decode_json($raw_message); };
 
-      if ($EVAL_ERROR) {
-        $message = eval { return XMLin( chomp $raw_message ); };
+      if ( !$message || $EVAL_ERROR ) {
+        if ( $raw_message =~ /^\s*\</xsm ) {
+          $message = eval { return XMLin($raw_message); };
+        }
       }
     } ## end if ( !$message || $EVAL_ERROR)
 

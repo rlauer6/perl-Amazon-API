@@ -21,11 +21,13 @@ our %EXPORT_TAGS = (
     qw{
       $AMPERSAND
       $COLON
-      $COLOR
+      $COMMA
       $DOUBLE_COLON
+      $DASH
       $DOT
       $EMPTY
       $EQUALS_SIGN
+      $OCTOTHORP
       $PERIOD
       $QUESTION_MARK
       $SLASH
@@ -46,10 +48,13 @@ our $VERSION = '@PACKAGE_VERSION@';
 # chars
 Readonly our $AMPERSAND          => q{&};
 Readonly our $COLON              => q{:};
+Readonly our $COMMA              => q{,};
 Readonly our $DOUBLE_COLON       => q{::};
+Readonly our $DASH               => q{-};
 Readonly our $DOT                => q{.};
 Readonly our $EMPTY              => q{};
 Readonly our $EQUALS_SIGN        => q{=};
+Readonly our $OCTOTHORP          => q{#};
 Readonly our $PERIOD             => q{.};
 Readonly our $QUESTION_MARK      => q{?};
 Readonly our $SLASH              => q{/};

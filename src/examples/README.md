@@ -1,13 +1,15 @@
 # REAMDE.md for Amazon::API Examples
 
 This directory contains examples demonstrating how you can create a
-Perl module for various flavors of the Amazon APIs.
+simple Perl module for various flavors of the Amazon APIs using the
+`Amazon::API` module as a base class.
 
 In order to exercise these examples:
 
 * you must have an Amazon account and credentials with sufficient
-  privileges to invoke the various APIs. You can also exercise these
-  examples using API compatible services like [LocalStack](https://localstack.cloud/).
+  privileges to invoke the various APIs. You can also exercise _some_
+  of these examples using API compatible services like
+  [LocalStack](https://localstack.cloud/).
   
 * Your credentials should be accessible in one of:
 
@@ -19,13 +21,36 @@ In order to exercise these examples:
 * AWS APIs are (generally speaking) not free, especially if they
   create resources. Most of these examples do not create resources,
   however you should be aware of what each of these examples does
-  before invoking theme  For a short description of each of these
+  before invoking them.  For a short description of each of these
   examples try:
   
   ```
-  perl service-name.pm--help
+  perl service-name.pm --help
   ```
 # Example Scripts
+
+Most of these scripts will show you how to use `Amazon::API` as a base
+class. Where noted however, the example service may require the use of
+a class constructed using the experimental Botocore class constructor
+(`amazon-api`). To create the classes for those services use the
+commands below:
+
+```
+for a in ec2 sts; do
+  amazon-api -s $a create-stub
+  amazon-api -s $a create-shapes
+done
+```
+
+| Name | Service | Notes |
+| ---- | ------- | ----- |
+| cloud-watch-events.pm | CloudWatch Events | - |
+| ec2.pm | Elastic Compute Cloud | requires `Amazon::API::EC2` |
+| ecr.pm | Elastic Container Registry | - |
+| secrets-manager.pm | Secrets Manager | - |
+| ssm.pm | Systems Manager | - |
+| sts.pm | Security Token Service | requires `Amazon::API::STS` |
+| sqs.pm | Simple Queue Service | - |
 
 The example scripts will execute a subset of the API methods for
 various services. The intent is to show how you can create your own
@@ -73,5 +98,5 @@ To use LocalStack when exercising an example, use the `--endpoint-url`
 option.
 
 ```
-perl sqs.pm --endpoint-usr=http://localhost:4566 run ListQueues
+perl sqs.pm --endpoint-url http://localhost:4566 run ListQueues
 ```

@@ -1,0 +1,90 @@
+package Amazon::API::Template;
+
+use strict;
+use warnings;
+
+use parent qw( Exporter );
+
+our @EXPORT_OK
+  = qw( to_template_var fetch_template render_template html2pod );
+
+our %EXPORT_TAGS = ( all => [@EXPORT_OK] );
+
+use Amazon::API::Constants qw(:chars :booleans);
+
+use ReadonlyX;
+use Pod::HTML2Pod;
+use English qw(-no_match_vars);
+use Fcntl qw(:seek);
+
+Readonly my $TEMPLATE_DELIMITER => q{@};
+
+########################################################################
+sub to_template_var {
+########################################################################
+  my (@vars) = @_;
+
+  my @template_vars
+    = map { $TEMPLATE_DELIMITER . $_ . $TEMPLATE_DELIMITER } @vars;
+
+  return wantarray ? @template_vars : $template_vars[0];
+} ## end sub to_template_var
+
+########################################################################
+sub fetch_template {
+########################################################################
+  my ( $fh, $template_start ) = @_;
+
+  seek $fh, $template_start, SEEK_SET;
+
+  my $template;
+
+  {
+    local $RS = undef;
+    $template = <$fh>;
+  }
+
+  return $template;
+} ## end sub fetch_template
+
+########################################################################
+sub render_template {
+########################################################################
+  my ( $template, $parameters ) = @_;
+
+  foreach my $p ( keys %{$parameters} ) {
+    next if $p !~ /^$TEMPLATE_DELIMITER/xsm;
+
+    my $val = $parameters->{$p} || $EMPTY;
+
+    while ( $template =~ s/$p/$val/xsm ) { }
+  } ## end foreach my $p ( keys %{$parameters...})
+
+  return $template;
+}
+
+########################################################################
+sub html2pod {
+########################################################################
+  my ($html) = @_;
+
+  my $pod = Pod::HTML2Pod::convert(
+    a_href  => $TRUE,
+    a_name  => $TRUE,
+    content => $html // $EMPTY,
+  );
+
+  $pod =~ s/^=pod//xsm;
+  $pod =~ s/^=cut//xsm;
+
+  $pod =~ s/^\#.*$//gxsm;
+
+  $pod = "\n$pod\n";
+
+  $pod =~ s/\A\n+/\n/xsm;
+  $pod =~ s/\n+\z/\n/xsm;
+
+  return $pod;
+}
+
+1;

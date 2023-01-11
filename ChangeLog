@@ -1,3 +1,140 @@
+Sat Jan  7 06:02:07 2023  Rob Lauer  <rlauer6@comcast.net>>
+
+	[1.4.0 - Botocore enhancements]:
+	* .gitignore
+	- perltidy.err
+	- Amazon/API/Botocore/Shape/*
+	- src/main/perl/lib/test/* (moved all temp test files here)
+	- src/main/bash/bin/amazon-api.sh, amazon-api
+	* VERSION: bump
+	* README.md: generated
+	* NEWS.md: updated
+	* configure.ac
+	- added bash/bin to build
+	* src/main/Makefile.am: likewise
+	* src/main/perl/lib/Amazon/API/Constants.pm.in
+	- $COMMA, $DASH
+
+	[Botocore enhancements/fixes]:
+	* src/main/perl/lib/Amazon/API.pm.in
+	- use JSON, not JSON::PP
+	- pod updates
+	(new)
+	- if the API class isa botocore api, set a serializer
+	(get_api_service): new
+	(decode_response)
+	- ForceContent 1 for parsing XML into models
+	- serializer needs to know service now
+	- execute Botocore serializer if botocore api
+	(get_botocore_action): new
+	(is_botocore_shape): new
+	(is_param_type): new
+	(is_query_param): new
+	(is_uri_param): new
+	(create_botocore_request): new
+	(init_botocore_request)
+	- use Botocore metadata to create request object
+	(_set_defaults)
+	- get_decode_always, not set_
+	- use local region or region from credentials
+	(is_botocore_api): new
+	(serialize_content): new
+	(invoke_api): serialize response if botocore api
+	(submit): add request_uri to URL if rest-json/xml
+	(param_n): move to Amazon::API::Botocore::Shape::Utils::param_n
+	(create_url_encoded_content): allow array as arg in parameter list
+	(_set_content_type): use map of content types (API_TYPES)
+	(_set_default_logger): add pattern
+	(create_service_url): use botocore metadata if available
+	(_set_request_content): set charset to utf for POST
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	- export create_module_name, create_service_shapes,
+	fetch_boto_services, get_service_descriptions
+	(help): user IO::Pager if available
+	(render_stub)
+	- get paginators
+	- don't render pod if --no-pod option selected
+	- fixes for pod errors
+	(get_api_descriptions)
+	- fetch_paginators
+	- add documentation for servcie
+	- add shapes metadata
+	(describe): JSON, not JSON::PP
+	(create_stub): pass %options to render_stub()
+	(main)
+	- new options, pod, pager, output-path (replaces file)
+	- defaults for new options
+	- synonyms for create-stub(s), create-shape(s)
+	(template)
+	- set default region to us-east-1
+	- utf8 encoding for pod
+	* src/main/perl/lib/Amazon/API/Botocore/Pod.pm.in
+	(pod)
+	- new options --pager, --pod, --output-path
+	- beefed up usage
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	* src/main/perl/lib/Amazon/API/Template.pm.in
+
+	[CPAN build]:
+	* cpan/Makefile.am
+	- project-root option for make-cpan-dist.pl
+	* cpan/buildspec.yml
+	(dependencies): path deprecated, now requires:
+	(provide): list new files added to project
+
+	[unit tests]:
+	* src/main/perl/t/00-botocore-template-var.t
+	- moved to_template_var to separate module (Amazon::API::Template)
+
+	[refactoring/enhancing  Botocore support]:
+	* src/main/bash/Makefile.am: new
+	* src/main/bash/bin/Makefile.am: new
+	* src/main/bash/bin/amazon-api.sh.in: new
+	* perl-Amazon-API.spec.in: add above to rpm
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in: new
+	* src/main/perl/lib/Amazon/API/Pod/Parser.pm.in: new
+	* src/main/perl/lib/Amazon/API/Pod/Simple/Text.pm.in: new
+	* src/main/perl/lib/Amazon/API/Template.pm.in: new
+	* src/main/perl/lib/Makefile.am: add above to build
+	* src/main/perl/lib/modules.inc: likewise
+	* src/main/perl/lib/directories.inc: likewise
+
+	[examples]:
+	* README.md: beefed up
+	* src/examples/ecr.pm: use APIExample base
+	* src/examples/sts.pm: likewise
+	* src/examples/cloudwatch-events.pm: minor formatting changes
+	* src/examples/ec2.pm: likewise
+	* src/examples/ssm.pm: likewise
+	* src/examples/secrets-manager.pm: likewise
+	* src/examples/sqs.pm: likewise, param_n shoudl be called as class method
+	* src/examples/README.md:typos
+	* src/examples/APIExample.pm
+	- perlcritic refactoring
+	- export booleans used by examples
+	(help)
+	- usage
+	- use pager
+	* src/main/perl/lib/Amazon/API/Error.pm.in
+	- use JSON, not JSON:PP
+	- use XML::Simple
+	(_set_message)
+	- don't chomp
+	- check to see if the message is xml before converting
+
+	[remove example APIs]:
+	* src/main/perl/lib/modules.inc remove AMAZON_API_PERLMODULES
+	* src/main/perl/lib/directories.inc
+	* src/main/perl/lib/Makefile.am
+	* src/main/perl/lib/Amazon/API/CloudWatchLogs.pm.in: removed
+	* src/main/perl/lib/Amazon/API/EC2.pm.in: likewis
+	* src/main/perl/lib/Amazon/API/ECR.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/ECS.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/SQS.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/SSM.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/STS.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/SecretsManager.pm.in: likewise
+
 Wed Jul 13 14:07:41 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.3.5 - unit test fun]:
@@ -9,7 +146,7 @@ Wed Jul 13 14:07:41 2022  Rob Lauer  <rlauer6@comcast.net>
 	* cpan/builspec.yml: ...and yes add test-requires
 	* cpan/requires: remove core file version numbers
 
-Mon Jul 11 13:10:37 2022  Rob Lauer  <rlauer@usgn.net>
+Mon Jul 11 13:10:37 2022  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.3.4 - Amazon::API::Error, force_array]:
 	* VERSION: bump

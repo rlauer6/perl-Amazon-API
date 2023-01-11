@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# -*- mode: sh; -*-
+
+MODULINO="Amazon::API::Botocore"
+MODULINO_PATH="${MODULINO//::/\/}.pm"
+
+MODULINO_RUN=$(perl -M$MODULINO -e 'print $INC{"'$MODULINO_PATH'"}';)
+
+if test -z "$MODULINO_RUN"; then
+    echo "$MODULINO is not installed"
+    exit 1;
+fi
+
+perl $MODULINO_RUN "$@"

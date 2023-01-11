@@ -1,22 +1,30 @@
-#!/usr/bin/env perl
-
 package Amazon::STS;
+
+## no critic ( Capitalization)
 
 use strict;
 use warnings;
 
-use parent qw{ Amazon::API::STS };
+use parent qw( Amazon::API::STS APIExample );
 
 use Carp;
-use English qw{ -no_match_vars };
+use Data::Dumper;
+
+use English qw( -no_match_vars );
 use JSON::PP;
+
+our $VERSION = '0.01';
+
+our $DESCRIPTIONS = { AssumeRole => 'Executes the AssumeRole API' };
 
 caller or __PACKAGE__->main();
 
+########################################################################
 sub get_credentials_from_role {
+########################################################################
   my ( $self, $role_arn ) = @_;
 
-  my ( undef, $role_session_name ) = split /\//, $role_arn;
+  my ( undef, $role_session_name ) = split /\//xsm, $role_arn;
 
   my $args = {
     RoleArn         => $role_arn,
@@ -33,19 +41,22 @@ sub get_credentials_from_role {
   }
 
   return $credentials;
-} ## end sub get_credentials_from_role
+}
 
-sub main {
-  my $sts = Amazon::STS->new(
-    debug => $ENV{DEBUG},
-    url   => $ENV{ENDPOINT_URL}
-  );
+########################################################################
+sub _AssumeRole {
+########################################################################
+  my ( $package, $options ) = @_;
+
+  my $sts = $package->new;
 
   my $credentials = $sts->get_credentials_from_role( shift @ARGV );
 
   if ($credentials) {
-    print JSON::PP->new->pretty->encode($credentials);
+    print {*STDOUT} JSON::PP->new->pretty->encode($credentials);
   }
-} ## end sub main
+
+  return $credentials;
+}
 
 1;

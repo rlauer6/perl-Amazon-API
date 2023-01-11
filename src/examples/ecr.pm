@@ -3,7 +3,13 @@ package Amazon::ECR;
 use strict;
 use warnings;
 
-use parent qw{ Amazon::API };
+use Data::Dumper;
+use JSON;
+
+our $DESCRIPTIONS = { GetAuthorizationToken =>
+    q{Retrieves an authorization token: run GetAuthorizationToken}, };
+
+use parent qw( Amazon::API APIExample );
 
 our @API_METHODS = qw{
   BatchCheckLayerAvailability
@@ -51,8 +57,11 @@ our @API_METHODS = qw{
 
 caller or __PACKAGE__->main;
 
+########################################################################
 sub new {
+########################################################################
   my ( $class, @options ) = @_;
+
   $class = ref($class) || $class;
 
   my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
@@ -68,10 +77,15 @@ sub new {
   );
 
   return $self;
-} ## end sub new
-
-sub main {
-  use Data::Dumper;
-
-  print Dumper [ Amazon::ECR->new->GetAuthorizationToken( {} ) ];
 }
+
+########################################################################
+sub _GetAuthorizationToken {
+########################################################################
+
+  my $rsp = Amazon::ECR->new->GetAuthorizationToken( {} );
+
+  return print {*STDOUT} JSON->new->pretty->encode($rsp);
+}
+
+1;

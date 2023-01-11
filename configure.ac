@@ -149,6 +149,8 @@ AC_CONFIG_FILES([
     Makefile
     src/Makefile
     src/main/Makefile
+    src/main/bash/Makefile
+    src/main/bash/bin/Makefile
     src/main/perl/Makefile
     src/main/perl/lib/Makefile
     cpan/Makefile

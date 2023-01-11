@@ -1,22 +1,32 @@
-version: 0.1
-
 project:
   description: "AWS API base class"
   author:
     name: Rob Lauer
     mailto: rlauer6@comcast.net
 pm_module: Amazon::API
-path:
-  pm_module: ../src/main/perl/lib
-  tests: ../src/main/perl/t
-extra-files:
-  - ../ChangeLog
-  -
-    examples: ../src/examples
 dependencies:
-  path: requires
-  core_modules: yes
+  requires: requires
   test_requires: test-requires
+  core_modules: yes
+path:
+  pm_module: src/main/perl/lib
+  tests: src/main/perl/t
+  exe_files: src/main/bash/bin
+extra-files:
+  - ChangeLog
+  - examples: src/examples
+provides:
+  - Amazon::API::Botocore
+  - Amazon::API::Botocore::Pod
+  - Amazon::API::Botocore::Shape
+  - Amazon::API::Botocore::Shape::Serializer
+  - Amazon::API::Botocore::Shape::Utils
+  - Amazon::API::Constants
+  - Amazon::API::Error
+  - Amazon::API::Pod::Parser
+  - Amazon::API::Pod::Simple::Text
+  - Amazon::API::Signature4
+  - Amazon::API::Template
 resources:
   homepage: 'http://github.com/rlauer6/perl-Amazon-API'
   bugtracker:
@@ -26,4 +36,3 @@ resources:
     url: 'git://github.com/rlauer6/perl-Amazon-API.git'
     web: 'http://github.com/rlauer6/perl-Amazon-API'
     type: 'git'
-

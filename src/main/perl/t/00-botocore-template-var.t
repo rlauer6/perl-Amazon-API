@@ -5,9 +5,9 @@ use Data::Dumper;
 
 use Test::More tests => 3;
 
-use_ok('Amazon::API::Botocore');
+use_ok('Amazon::API::Template');
 
-Amazon::API::Botocore->import('to_template_var');
+Amazon::API::Template->import('to_template_var');
 
 my $foo = to_template_var('foo');
 

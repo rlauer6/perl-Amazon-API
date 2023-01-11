@@ -73,7 +73,9 @@ make DESTDIR=%{buildroot} install
 %{_mandir}/man3/*
 
 # Executables run by the user go in bin
-# %{_bindir}/*
+%{_bindir}/*
+
+%{_libexecdir}/*
 
 # Executables run by the system (e.g. daemons) go in sbin
 # %{_sbindir}/*

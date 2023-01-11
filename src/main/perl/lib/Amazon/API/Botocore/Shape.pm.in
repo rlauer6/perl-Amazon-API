@@ -1,0 +1,370 @@
+package Amazon::API::Botocore::Shape;
+
+use strict;
+use warnings;
+
+our $VERSION = '@PACKAGE_VERSION@';
+
+use parent qw(Exporter Class::Accessor::Fast);
+
+use Amazon::API::Constants qw(:chars :booleans);
+use Amazon::API::Botocore::Shape::Utils
+  qw(flatten require_shape check_type check_pattern );
+
+use Carp;
+use Cwd;
+use Data::Dumper;
+use English qw(-no_match_vars);
+use ReadonlyX;
+use Scalar::Util qw( reftype blessed );
+use List::Util qw( any );
+
+__PACKAGE__->follow_best_practice;
+__PACKAGE__->mk_accessors(
+  qw(
+    documentation
+    enum
+    flattened
+    location
+    locationName
+    key
+    value
+    max
+    member
+    members
+    min
+    paginator
+    pattern
+    required
+    service
+    shape
+    type
+    _value
+  )
+);
+
+########################################################################
+sub new {
+########################################################################
+  my ( $class, $args ) = @_;
+
+  my $self = $class->SUPER::new($args);
+
+  $self->_init_value;
+
+  return $self;
+}
+
+########################################################################
+sub is_structure {
+########################################################################
+  my ($self) = @_;
+
+  return $self->get_type eq 'structure';
+}
+
+########################################################################
+sub is_list {
+########################################################################
+  my ($self) = @_;
+
+  return $self->get_type eq 'list';
+}
+
+########################################################################
+sub is_string {
+########################################################################
+  my ($self) = @_;
+
+  return $self->get_type eq 'string';
+}
+
+########################################################################
+sub is_integer {
+########################################################################
+  my ($self) = @_;
+
+  return $self->get_type eq 'integer';
+}
+
+########################################################################
+sub is_map {
+########################################################################
+  my ($self) = @_;
+
+  return $self->get_type eq 'map';
+}
+
+########################################################################
+sub is_flattened {
+########################################################################
+  my ($self) = @_;
+
+  return $self->get_flattened;
+}
+
+########################################################################
+sub _init_structure {
+########################################################################
+  my ($self) = @_;
+
+  my $value = $self->get__value;
+
+  foreach my $member ( @{ $self->get_required } ) {
+    croak "$member is a required parameter"
+      if !any { $_ eq $member } keys %{$value};
+  }
+
+  foreach my $member ( keys %{ $self->get_members } ) {
+
+    if ( exists $value->{$member} ) {
+
+      my $class = require_shape( $self->get_members->{$member}->{shape},
+        $self->get_service );
+
+      $value->{$member} = $class->new( $value->{$member} );
+    }
+  }
+
+  return $value;
+}
+
+########################################################################
+sub _init_map {
+########################################################################
+  my ($self) = @_;
+
+  my $value = $self->get__value;
+
+  if ( ref $value eq 'HASH' ) {
+    $value = [$value];
+  }
+
+  foreach my $elem ( @{$value} ) {
+    croak 'elements of a map must be of type HASH'
+      if !ref $elem eq 'HASH';
+  }
+
+  my @list;
+
+  my $class = require_shape( $self->get_member->{shape}, $self->get_service );
+
+  foreach my $elem ( @{$value} ) {
+    my @kv = %{$elem};
+
+    push @list, { $kv[0] => $class->new( $kv[1] ) };
+  }
+
+  $value = \@list;
+
+  return $value;
+}
+
+########################################################################
+sub _init_list {
+########################################################################
+  my ($self) = @_;
+
+  my $value = $self->get__value;
+
+  croak 'more than ' . $self->get_max . ' elements in list'
+    if $self->get_max && @{$value} > $self->get_max;
+
+  croak 'need at least ' . $self->get_min . ' elements in list'
+    if $self->get_min && @{$value} < $self->get_min;
+
+  my $class = require_shape( $self->get_member->{shape}, $self->get_service );
+
+  # do not alter the input!
+  my @list;
+
+  foreach my $elem ( @{$value} ) {
+    push @list, $class->new($elem);
+  }
+
+  return \@list;
+}
+
+########################################################################
+sub _init_string {
+########################################################################
+  my ($self) = @_;
+
+  my $value = $self->get__value;
+
+  my $pattern = $self->get_pattern;
+
+  croak 'length of value must be > ' . $self->get_min
+    if $self->get_min && length $value < $self->get_min;
+
+  croak 'length of value must be < ' . $self->get_max
+    if $self->get_max && length $value > $self->get_max;
+
+  check_pattern( $value, $pattern );
+
+  return $value;
+}
+
+########################################################################
+sub _init_integer {
+########################################################################
+  my ($self) = @_;
+
+  my $value = $self->get__value;
+
+  croak 'value must be > ' . $self->get_min
+    if defined $self->get_min && $value < $self->get_min;
+
+  croak 'value must be < ' . $self->get_max
+    if defined $self->get_max && $value > $self->get_max;
+
+  return $value;
+}
+
+########################################################################
+sub _init_value {
+########################################################################
+  my ($self) = @_;
+
+  my $value = $self->get__value;
+  return if !$value;
+
+  croak 'ref type of value should be one of SCALAR, ARRAY or HASH'
+    if blessed $value;
+
+  my %types = (
+    structure => 'HASH',
+    list      => 'ARRAY',
+    map       => [ 'ARRAY', 'HASH' ],
+    string    => 'SCALAR',
+    integer   => 'SCALAR',
+    long      => 'SCALAR',
+    timestamp => 'SCALAR',
+    double    => 'SCALAR',
+    boolean   => 'SCALAR',
+  );
+
+  my $required_type = $types{ $self->get_type };
+
+  check_type( $required_type, ref $value )
+    or croak sprintf '%s requires a value of type %s', ref $self,
+    $required_type;
+
+  my %init_value_subs = (
+    structure => sub { $self->_init_structure },
+    map       => sub { $self->_init_map },
+    list      => sub { $self->_init_list },
+    string    => sub { $self->_init_string },
+    integer   => sub { $self->_init_integer },
+  );
+
+  my $sub = $init_value_subs{ $self->get_type } // sub { return $value };
+
+  $self->set__value( $sub->() );
+
+  return $value;
+}
+
+########################################################################
+sub finalize {
+########################################################################
+  my ($self) = @_;
+
+  return $self
+    if !blessed $self;
+
+  my $output;
+
+  if ( $self->is_structure ) {
+    $output = {};
+
+    my $members = $self->get_members;
+
+    foreach my $member ( keys %{$members} ) {
+      my $member_name;
+
+      #      if ( $members->{$member}->{location} eq 'querystring' ) {
+      #        $member_name = $members->{$member}->{locationName};
+      #      }
+      #      else {
+      #        $member_name = $member;
+      #      }
+
+      if ( defined $self->get__value->{$member} ) {
+        my $value = $self->get__value->{$member};
+
+        $output->{$member} = $value->finalize;
+      }
+    }
+  }
+  elsif ( $self->is_list ) {
+
+    my $member = $self->get_member;
+
+    my $list = [];
+
+    if ( $member->{locationName} ) {
+      $output = {};
+      $output->{ $member->{locationName} } = $list;
+    }
+    else {
+      $output = $list;
+    }
+
+    foreach my $elem ( @{ $self->get__value } ) {
+      push @{$list}, $elem->finalize;
+    }
+
+    if ( $self->is_flattened ) {
+      $output = flatten($output);
+    }
+  }
+  elsif ( $self->is_map ) {
+    my $list = [];
+
+    my ( $key, $value ) = @{$self}{qw(key value)};
+
+    if ( $key->{locationName} ) {
+      $key = $key->{locationName};
+    }
+    else {
+      $key = undef;
+    }
+
+    if ( $value->{locationName} ) {
+      $value = $value->{locationName};
+    }
+    else {
+      $value = undef;
+    }
+
+    foreach my $elem ( @{ $self->get__value } ) {
+
+      my @kv = %{$elem};
+      if ($key) {
+        push @{$list}, { $key => $kv[0], $value => $kv[1]->finalize };
+      }
+      else {
+        push @{$list}, $elem;
+      }
+    }
+
+    if ( $self->is_flattened ) {
+      $output = flatten( $self->{locationName}, $list );
+    }
+    else {
+      $output
+        = $self->{locationName}
+        ? { $self->{locationName} => $list }
+        : $list;
+    }
+  }
+  else {
+    $output = $self->get__value;
+  }
+
+  return $output;
+}
+
+1;
+

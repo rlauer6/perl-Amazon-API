@@ -1,3 +1,5 @@
+src/main/perl/lib/Amazon/API/Botocore/Shape/**
+**/perltidy.err
 src/main/perl/lib/botocore
 src/main/perl/prove.*
 src/main/perl/test-suite.log
@@ -7,8 +9,11 @@ cpan/provides
 **/Makefile.in
 src/main/perl/lib/**/*.pm
 src/main/perl/lib/**/*.pc
+src/main/perl/lib/test/*
 src/main/perl/t/*.log
 src/main/perl/t/*.trs
+src/main/bash/bin/amazon-api
+src/main/bash/bin/amazon-api.sh
 **/*.3man
 configure
 config.log
