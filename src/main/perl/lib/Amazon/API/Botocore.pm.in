@@ -661,7 +661,7 @@ sub fetch_boto_services {
     croak "no $path/botocore directory found";
   }
 
-  find( \&find_latest_services, $path );
+  find( { wanted => \&find_latest_services, follow => $TRUE }, $path );
 
   if ( !keys %BOTO_SERVICES ) {
     croak 'no services found in path ' . $path;

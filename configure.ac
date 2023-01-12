@@ -81,7 +81,7 @@ AC_SUBST([do_subst_command])
 AC_CONFIG_AUX_DIR([autotools])
 AC_CONFIG_MACRO_DIR([autotools])
 
-AM_INIT_AUTOMAKE([-Wall -Werror foreign tar-ustar])
+AM_INIT_AUTOMAKE([-Wall gnu foreign tar-ustar])
 
 dnl --enable-rpm-build-mode
 RPM_BUILD_MODE
@@ -103,8 +103,22 @@ fi
 AC_PATH_PROG([POD2MARKDOWN],
 	[pod2markdown])
 
-if test -z "$POD2MAN" ; then 
-  AC_MSG_ERROR([pod2man not found?])
+if test -z "$POD2MARKDOWN" ; then 
+  AC_MSG_ERROR([pod2markdown  not found?])
+fi
+
+AC_PATH_PROG([SCANDEPS],
+	[scandepsx-static.pl])
+
+if test -z "$SCANDEPS" ; then 
+  AC_MSG_WARN([scandeps-static.pl not found...you won't be able generate project requirements])
+fi
+
+AC_PATH_PROG([MAKE_CPAN_DIST],
+	[make-cpan-dist.pl])
+
+if test -z "$MAKE_CPAN_DIST" ; then 
+  AC_MSG_WARN([make-cpan-dist not found...you won't be able to create a CPAN distribution])
 fi
 
 AC_PATH_PROG([PERL],
@@ -130,12 +144,6 @@ AC_ARG_WITH(
 
 AC_SUBST([perl5libdir])
 
-dnl something just to make autoconf include the autotools/ads_ stuff in the distribution
-ads_PERL_MODULE([Getopt::Long])
-
-dnl example using the PERL_MODULE check with a version number
-dnl ads_PERL_MODULE([CJ::Log], [REQUIRED], [1.3])
-
 dnl example macro that enables allows you to enable/disable some feature
 dnl --enable-some-thingy, --disable-some-thingy : see the autotools/ax_am_conditional_example.m4 macro
 dnl AX_SOME_THINGY
@@ -144,6 +152,7 @@ AX_DISTCHECK_HACK
 AX_DEPS_CHECK
 AX_PERLDEPS_CHECK
 AX_RPMBUILD_CHECK
+AX_REQUIREMENTS_CHECK
 
 AC_CONFIG_FILES([
     Makefile
@@ -173,3 +182,8 @@ printf "                          perl: %s\n" "`__poor_mans_expand_file_name PER
 printf "                          bash: %s\n" "`__poor_mans_expand_file_name BASHRUN`"
 printf "\n"
 printf "               Package Version: %s\n"   "${PACKAGE_VERSION}"
+
+if test -n "${PERL_MODULES_MISSING}"; then
+ echo -e "\nNOTE: you have missing or possibly out of date Perl modules:\n"
+ echo ${PERL_MODULES_MISSING} | perl -ne 'print sprintf "* %s\n", join "\n* ", grep { $_ } split /\s*,\s*/;'
+fi

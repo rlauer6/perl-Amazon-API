@@ -6,8 +6,25 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 1.4.2 (2023-01-12)
+
+This version introduces a way to create CPAN distributions for
+individual AWS APIs.
+
+## Enhancements
+
+* `cpan-dist/Makefile` for creating CPAN distributions - See
+  [cpan-dist/README.md](cpan-dist/README.md)
+* `Makefile.requirements` for creating Perl dependencies - See
+  [README-BUILD.md](README-BUILD.md)
+
+## Fixes
+
+* `Amazon::API::Botcore` - follow symlinks to find boto data
+
 # perl-Amazon-API 1.4.1 (2023-01-11)
 
+None
 
 ## Enhancements
 

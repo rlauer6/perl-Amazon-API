@@ -1,32 +1,50 @@
 #!/usr/bin/env bash
 # -*- mode: sh; -*
 
+########################################################################
 function _bump {
+########################################################################
     version=$(mktemp)
+
     eval $(echo perl -ne "'my \$p=$1; my @v=split /\./; \$v[2]=0 if \$p == 1; \$v[1] = \$v[2] = 0 unless \$p; \$v[\$p]++; print join(\".\", @v);'" VERSION) > $version
+
     test -e "$version" && mv $version VERSION
+
     cat VERSION
+    
+    if test -x bootstrap; then
+        ./bootstrap
+        ./configure
+    fi
 }
 
+########################################################################
 function bump {
+########################################################################
     [ "$1" = "major" ] && _bump 0 && exit;
     [ "$1" = "minor" ] && _bump 1 && exit;
     [ "$1" = "release" ] && _bump 2 && exit;
 }
 
+########################################################################
 function bump_major {
+########################################################################
     bump 0
 }
 
+########################################################################
 function bump_minor {
+########################################################################
     bump 1
 }
 
+########################################################################
 function bump_release {
+########################################################################
     bump 2
 }
 
-
+########################################################################
 # Usage:
 #   bootstrap [ AUTORECONF_ARG ... ]
 #
@@ -38,8 +56,12 @@ function bump_release {
 #
 # Example 3:
 #   $ ./bootstrap --debug
+# 
+# Example 4:
+#   $ ./bootstrap bump major|minor|release
 
 declare -r PROG='bootstrap'
+
 if [ "$1" = "bump" ]; then
     bump $2
     exit
@@ -80,31 +102,31 @@ test -n "$DEBUG" && set -x
 # version number suffixes, so the default names, such as 'aclocal' won't work.
 AM_VERSION=$(automake --version | grep "^automake" | awk '{print $4}' | sed 's/^\([0-9]\+\.[0-9]\+\)\.[0-9]\+$/\1/;')
 
-if test "$(which aclocal)"; then
+if test "$(command -v aclocal)"; then
     export ACLOCAL="aclocal"
-elif test "$(which aclocal-$AM_VERSION)"; then
+elif test "$(command -v aclocal-$AM_VERSION)"; then
     export ACLOCAL="aclocal-$AM_VERSION"
 else
     echo "no aclocal found"
     exit 1
 fi
 
-if test "$(which automake)"; then
+if test "$(command -v automake)"; then
     export AUTOMAKE="automake"
-elif test "$(which automake-$AM_VERSION)"; then
+elif test "$(command -v automake-$AM_VERSION)"; then
     export AUTOMAKE="automake-$AM_VERSION"
 else
     echo "no automake found"
 fi
 
-# use the VERSION file in the project to set the PACKAGE_VERSION
-#if test -z "$VERSION"; then
-#    test -e VERSION && VERSION=$(cat VERSION)
-#fi
+if ! make -nq -f Makefile.requirements; then
+    echo "creating Perl requirements for project..."
+    make -f Makefile.requirements
+fi
 
 # --force: consider all files obsolete (ignores timestamps)
 # --warnings=all
-VERSION="$VERSION" autoreconf \
+autoreconf \
     "--include=${_include_dir}" \
     "$@" \
     --force \

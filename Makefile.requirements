@@ -1,0 +1,95 @@
+# -*- mode: makefile-gmake; -*-
+
+SCANDEPS=scandeps-static.pl --no-core
+
+define requirements_check =
+use JSON::PP;
+
+my $requirements = JSON::PP->new->decode(<>);
+my @modules;
+
+my $template = 'ads_PERL_MODULE([%s], [], [%s])';
+
+for (sort keys %{$requirements} ) {
+  my $version = $requirements->{$_};
+  if ($version eq 'undef' || $ENV{NO_VERSION} ) {
+    $version = '';
+  }
+
+  push @modules, sprintf $template, $_, $version;
+}
+
+my $module_list = join "\n  ", @modules;
+
+print {*STDOUT} <<"END_OF_MACRO";
+AC_DEFUN([AX_REQUIREMENTS_CHECK],[
+  $module_list
+])
+END_OF_MACRO
+
+endef
+
+export s_requirements_check = $(value requirements_check)
+
+autotools/ax_requirements_check.m4: requirements.json
+	@perl -0 -e "$$s_requirements_check" $< > $@
+
+define remove_provided =
+use JSON::PP;
+use File::Find;
+
+my @provided;
+
+my $path = 'src/main/perl/lib';
+
+find(sub {
+  return if $File::Find::name !~/[.]p[ml][.]in$/;
+  push @provided, $File::Find::name, undef;
+ },
+ $path);
+
+my %provided = @provided;
+
+my $content = <>;
+my %requirements = eval "($content)";
+
+for my $module (keys %requirements) {
+  my $module_path = $module;
+
+  $module_path =~s/::/\//xsmg;
+  $module_path = "$path/$module_path.pm.in";
+
+  next if ! exists $provided{$module_path};
+
+  delete $requirements{$module};
+}
+
+delete $requirements{perl};
+
+print JSON::PP->new->pretty->encode(\%requirements);
+
+endef
+
+export s_remove_provided = $(value remove_provided)
+
+requirements.json: requirements
+	@perl -0 -e "$$s_remove_provided" $< > $@
+
+
+requirements:
+	@requirements=$$(mktemp); \
+	for dir in perl/lib perl/bin; do \
+	  for a in $$(find src/main/$$dir  -name '*.p[lm].in' 2>/dev/null || true); do \
+	   $(SCANDEPS) $$a >>$$requirements; \
+	  done; \
+	done; \
+	sort -u $$requirements > $@; \
+	rm $$requirements
+
+CLEANFILES = \
+    requirements \
+    requirement.json \
+    autotools/ax_requirements_check.m4
+
+clean:
+	rm -f $(CLEANFILES)

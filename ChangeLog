@@ -1,3 +1,27 @@
+Wed Jan 11 13:13:04 2023  Rob Lauer  <rlauer@usgn.net>
+
+	[1.4.2 - CPAN dist maker]:
+	* VERSION: bump
+	* NEWS.md: updated
+	* cpan-dist/.gitignore: new
+	* cpan-dist/README.md: new
+	* cpan-dist/buildspec.yml.in: new
+	* cpan-dist/requires: new
+	* cpan/Makefile.am: use @MAKE_CPAN_DIST@
+	* src/main/bash/bin/amazon-api.sh.in: bash exit code
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	(fetch_boto_services): follow symlinks
+
+	[requirements]:
+	* autotools/ads_PERL_MODULE.m4: report missing/out of date modules
+	* configure.ac
+	- likewise
+	(AC_PATH_PROG): scandeps-static.pl, make-cpan-dist.pl
+	* bootstrap: create Perl requirements
+	* Makefile.requirements: new
+	* autotools/ax_requirements_check.m4: new (generated)
+	* requirements.json: new (generated)
+
 Wed Jan 11 10:52:54 2023  Rob Lauer  <rlauer@usgn.net>
 
 	[1.4.1 - Botocore fixes]:

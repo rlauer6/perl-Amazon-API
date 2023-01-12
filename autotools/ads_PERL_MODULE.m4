@@ -281,10 +281,13 @@ dnl FIXME: provide macro maintainer email address in error message
         else  # presence of module was optional
 ]
             AC_MSG_RESULT([[no (ok)]])
+            PERL_MODULES_MISSING="$_tmp_perl_mod_name,$PERL_MODULES_MISSING"
 [
         fi
     fi
 ]
+        AM_CONDITIONAL([PERL_MODULES_MISSING], [ test -n "${PERL_MODULES_MISSING}"])
+
 ])
 
 dnl FIXME: Maybe provide an autoconf flag indicating whether or not
