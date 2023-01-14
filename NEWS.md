@@ -6,6 +6,21 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 1.4.3 (2023-01-14)
+
+This version introduces fixes a bug in the way `Amazon::API` treats
+null content.
+
+## Enhancements
+
+None
+
+## Fixes
+
+* `Amazon::API::init_boto_request` - when there is no content for
+  POST methods, the APIs usualy expect a payload anyway (like
+  {}). GET methods on the other hand will not have any content.
+
 # perl-Amazon-API 1.4.2 (2023-01-12)
 
 This version introduces a way to create CPAN distributions for

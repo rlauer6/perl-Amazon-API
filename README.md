@@ -71,7 +71,7 @@ you can also roll your own complete Amazon API classes that include
 support for serializing requests and responses based on metadata
 provided by the Botocore project. The classes you create with
 `amazon-api` include full documentation as pod. (See ["BOTOCORE
-SUPPORT for more details)."](#botocore-support-for-more-details)
+SUPPORT"](#botocore-support) for more details).
 
 > _NOTE:_ The original [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) was written in 2017 as a _very_
 > lightweight way to call a handfull of APIs. The evolution of the
@@ -856,7 +856,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 1.4.2 of `Amazon::API`.
+This documentation refers to version 1.4.3 of `Amazon::API`.
 
 # DIAGNOSTICS
 
@@ -1097,11 +1097,3 @@ modified under the same terms as Perl itself.
 # AUTHOR
 
 Rob Lauer - <rlauer6@comcast.net>
-
-# POD ERRORS
-
-Hey! **The above document had some coding errors, which are explained below:**
-
-- Around line 1609:
-
-    Unterminated L<...> sequence
