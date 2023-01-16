@@ -1,4 +1,19 @@
-Sat Jan 14 17:33:47 2023  Rob Lauer  <rlauer@usgn.net>
+Mon Jan 16 10:17:33 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.4.4 - paginator]:
+	* VERSION: bump
+	* NEWS.md: updated
+	* src/main/perl/lib/Amazon/API.pm.in
+	- minor formatting changes
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	(paginator): new
+	(help)
+	- set $service from 'service' option
+	- look for $service or service name created by create_module_name
+	(render_stub)
+	- prep for on-the-fly generation of pod from help
+
+Sat Jan 14 17:33:47 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.4.3 - POST content]:
 	* VERSION: bump
@@ -7,7 +22,7 @@ Sat Jan 14 17:33:47 2023  Rob Lauer  <rlauer@usgn.net>
 	(init_botocore_request)
 	- set content to undef for non-POST operations if no parameters
 
-Wed Jan 11 13:13:04 2023  Rob Lauer  <rlauer@usgn.net>
+Wed Jan 11 13:13:04 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.4.2 - CPAN dist maker]:
 	* VERSION: bump
@@ -31,7 +46,7 @@ Wed Jan 11 13:13:04 2023  Rob Lauer  <rlauer@usgn.net>
 	* autotools/ax_requirements_check.m4: new (generated)
 	* requirements.json: new (generated)
 
-Wed Jan 11 10:52:54 2023  Rob Lauer  <rlauer@usgn.net>
+Wed Jan 11 10:52:54 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.4.1 - Botocore fixes]:
 	* VERSION: bump

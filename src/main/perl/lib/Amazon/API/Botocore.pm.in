@@ -33,6 +33,9 @@ use charnames qw(:full);
 Readonly our $BOTO_PATH_OFFSET    => 3;
 Readonly our $SHAPE_FILE_TEMPLATE => '%sAmazon/API/Botocore/Shape/%s/';
 
+Readonly our $REQUEST_CLASS_TEMPLATE =>
+  q{Amazon::API::Botocore::Shape::%s::%sRequest};
+
 use Amazon::API::Constants qw( :all );
 use Amazon::API::Botocore::Pod qw( pod );
 
@@ -48,6 +51,7 @@ our @EXPORT_OK = qw(
   create_service_shapes
   fetch_boto_services
   get_service_descriptions
+  paginator
 );
 
 our %EXPORT_TAGS = (
@@ -61,6 +65,69 @@ our %EXPORT_TAGS = (
 );
 
 caller or __PACKAGE__->main;
+
+########################################################################
+sub paginator {
+########################################################################
+  my (%options) = @_;
+
+  my ( $service, $api, $parameters ) = @options{qw(service api parameters)};
+
+  $parameters //= {};
+
+  croak "no service\n"
+    if !$service && ref($service) =~ /^Amazon::API::/xsm;
+
+  croak "no api name\n"
+    if !$api;
+
+  my $service_name = ref $service;
+
+  if ( $service_name =~ /^Amazon::API::([^:]+)$/xsm ) {
+    $service_name = $1;
+  }
+  else {
+    croak "could not determine service name\n";
+  }
+
+  my $request_class = sprintf $REQUEST_CLASS_TEMPLATE, $service_name, $api;
+
+  my $ret = eval { require_class $request_class; };
+
+  croak "unable to find a request class: $request_class\n"
+    if !$ret || $EVAL_ERROR;
+
+  my $paginator = $service->get_paginators->{$api};
+
+  my $input_token  = $paginator->{input_token};
+  my $more_results = $paginator->{more_results};
+  my $limit_key    = $paginator->{limit_key};
+  my $output_token = $paginator->{output_token};
+  my $result_key   = $paginator->{result_key};
+
+  my $request = $request_class->new($parameters);
+
+  my @response;
+
+  $more_results //= $output_token;
+
+  while ( my $rsp = $service->$api($request) ) {
+
+    push @response, @{ $rsp->{$result_key} };
+
+    last if !$rsp->{$more_results};
+
+    my $limit = $rsp->{$limit_key};
+
+    $request = $request_class->new(
+      { $limit ? ( $limit_key => $limit ) : (),
+        $input_token => $rsp->{$output_token}
+      }
+    );
+  }
+
+  return \@response;
+}
 
 ########################################################################
 sub parse_request_uri {
@@ -555,11 +622,15 @@ END_OF_POD
       # NOTE: this is JUST pod, so if you don't provide an output path,
       # you won't get the method pod
       if ( $options{'output-path'} ) {
-        my $stub_file = sprintf '%s/%s/%s.pm', $options{'output-path'},
+        my $method_pod_file = sprintf '%s/%s/%s.pm', $options{'output-path'},
           $package_name, $method;
 
-        open my $fh, '>', $stub_file
-          or croak "could not open $stub_file for writing";
+        my $fh = *STDOUT;
+
+        if ( $options{'output-path'} ne $DASH ) {
+          open $fh, '>', $method_pod_file
+            or croak "could not open $method_pod_file for writing";
+        }
 
         print {$fh} render_template( $pod_stub, $parameters );
 
@@ -888,7 +959,8 @@ sub help {
   return pod
     if !@args && !$options{service};
 
-  my $service = $options{'module-name'};
+  my $service = $options{'service'};
+
   my $module;
 
   if ( @args == 2 ) {
@@ -957,12 +1029,19 @@ HELP
 
   my $service_name = create_module_name($service);
 
-  my $file = require_class( sprintf 'Amazon::API::Botocore::Shape::%s::%s',
-    $service_name, $module );
+  my $class = sprintf 'Amazon::API::Botocore::Shape::%s::%s',
+    $service_name, $module;
+
+  print {*STDOUT} "$class\n";
+
+  my $file;
+  # try -s service or
+  for (qw($service_name $service)) {
+    $file = require_class($class);
+    last if $file;
+  }
 
   if ( !$file || !-e $file ) {
-
-    #print {*STDERR} sprintf 'Amazon::API::%s::%s', $service_name, $module;
 
     $file = require_class( sprintf 'Amazon::API::%s::%s', $service_name,
       $module );

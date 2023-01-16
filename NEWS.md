@@ -6,6 +6,34 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 1.4.4 (2023-01-15)
+
+This version introduces a `paginator()` helper method that will return an
+array from an API request that paginates (e.g. Route53's
+`ListHostedZones`):
+
+```
+my $rt53 = Amazon::API::Route53->new;
+my $results = paginator($rt53, 'ListHostedZones', {MaxItems => 10});
+```
+
+...I hope to incorporate embed this automagically into `Amazon::API`
+so that requests that contain paginators use this method (or
+technique) by default. For now, this seems to be a working version of
+a useful paginator.
+
+## Enhancements
+
+* add exportable `pagintor()` method to `Amazon::API::Botocore`
+
+## Fixes
+
+* `amazon-api` help function can use the canoncial service name (upper
+or CamelCased) provided to serve up documentation on service methods.
+   ```
+   amazon-api -s SecretsManager help ListSecrets
+   ```
+
 # perl-Amazon-API 1.4.3 (2023-01-14)
 
 This version introduces fixes a bug in the way `Amazon::API` treats

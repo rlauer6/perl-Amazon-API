@@ -472,7 +472,7 @@ sub new {
   }
 
   return $self;
-} ## end sub new
+}
 
 ########################################################################
 sub get_api_service {
@@ -534,9 +534,9 @@ sub decode_response {
             $self->get_force_array ? ( ForceArray => ['item'] ) : ()
           );
         };
-      } ## end if ( !$decoded_content...)
-    } ## end if ( !$decoded_content...)
-  } ## end if ($content)
+      }
+    }
+  }
 
   $content = $decoded_content || $content;
 
@@ -563,7 +563,7 @@ sub decode_response {
   }
 
   return $content;
-} ## end sub decode_response
+}
 
 ########################################################################
 sub get_botocore_action {
@@ -853,7 +853,7 @@ sub init_botocore_request {
         return Dumper [ 'rest API', \%parameters, $self->get_request_uri ];
       }
     );
-  } ## end if ( $protocol eq 'rest-json')
+  }
 
   my $content = \%parameters;
 
@@ -866,7 +866,7 @@ sub init_botocore_request {
   DEBUG( 'content ' . Dumper( [$content] ) );
 
   return $content;
-} ## end sub init_botocore_request
+}
 
 ########################################################################
 sub is_botocore_api {
@@ -908,11 +908,12 @@ sub serialize_content {
 }
 
 ########################################################################
-# invoke_api( action, parameters, conten-type, headers)
+# invoke_api( action, parameters, content-type, headers)
 ########################################################################
 sub invoke_api {
 ########################################################################
   my ( $self, @args ) = @_;
+
   my ( $action, $parameters, $content_type, $headers );
 
   if ( ref $args[0] && reftype( $args[0] ) eq 'HASH' ) {
@@ -929,9 +930,8 @@ sub invoke_api {
 
   my $decode_response = $self->get_decode_always;
 
-  croak sprintf
-    '"%s" was not generated with Botocore support. Parameters should be simple objects, not blessed.',
-    ref $self
+  croak sprintf qq{"%s" was not generated with Botocore support.\n}
+    . qq{Parameters should be simple objects, not blessed.\n}, ref $self
     if blessed($parameters) && !$self->is_botocore_api;
 
   # See if this was generated w/Botocore
@@ -978,12 +978,15 @@ sub invoke_api {
     }
 
     if ( $self->get_raise_error ) {
-      die $self->get_error; ## no critic (ErrorHandling::RequireCarping)
+      die $self->get_error; ## no critic (RequireCarping)
     }
-  } ## end if ( !$rsp->is_success)
+  }
 
-  return $self->get_decode_always ? $self->decode_response : $rsp->content;
-} ## end sub invoke_api
+  return $rsp->content
+    if !$self->get_decode_always;
+
+  return $self->decode_response;
+}
 
 ########################################################################
 sub print_error {
@@ -1003,13 +1006,13 @@ sub print_error {
 
     $err_str .= sprintf q{[%s], %s},
       $error->get_error, Dumper( ref $response ? $response : [$response] );
-  } ## end if ( $error && ref $error...)
+  }
   else {
     $err_str .= '[' . $error . ']';
   }
 
   return $err_str;
-} ## end sub print_error
+}
 
 ########################################################################
 sub get_valid_token {
@@ -1025,13 +1028,13 @@ sub get_valid_token {
         croak 'token expired';
       }
     }
-  } ## end if ( $credentials->can...)
+  }
 
   TRACE( sub { return Dumper( [ 'valid token:', $credentials->get_token ] ) }
   );
 
   return $credentials->get_token;
-} ## end sub get_valid_token
+}
 
 ########################################################################
 sub submit {
@@ -1053,7 +1056,7 @@ sub submit {
       if !$self->get_request_uri;
 
     $url .= $self->get_request_uri;
-  } ## end if ( $botocore_protocol...)
+  }
 
   DEBUG( sub { return Dumper [ $method, $url, $headers ] } );
 
@@ -1097,7 +1100,7 @@ sub submit {
   DEBUG( sub { return Dumper [$rsp] } );
 
   return $rsp;
-} ## end sub submit
+}
 
 # +------------------+
 # | EXPORTED METHODS |
@@ -1161,7 +1164,7 @@ sub create_urlencoded_content {
     else {
       @args = @{$parameters};                      # simple list
     }
-  } ## end elsif ( $parameters && reftype...)
+  }
 
   my $content;
 
@@ -1174,7 +1177,7 @@ sub create_urlencoded_content {
   }
 
   return join $AMPERSAND, map { sprintf '%s=%s', @{$_} } pairs @args;
-} ## end sub create_urlencoded_content
+}
 
 ########################################################################
 sub has_keys {
@@ -1184,7 +1187,7 @@ sub has_keys {
   my %creds = keys %options ? %options : @{$self}{@REQUIRED_KEYS};
 
   return $creds{'aws_secret_access_key'} && $creds{'aws_access_key_id'};
-} ## end sub has_keys
+}
 
 # +-----------------+
 # | PRIVATE METHODS |
@@ -1211,7 +1214,7 @@ sub _set_content_type {
     if any { $_ eq $service } @{ $API_TYPES{xml} };
 
   return $content_type;
-} ## end sub _set_content_type
+}
 
 ########################################################################
 sub _create_methods {
@@ -1244,7 +1247,7 @@ sub _create_methods {
 
           $self->invoke_api( $api, @_ );
         };
-      } ## end if ( !$stash->{$method...})
+      }
 
       # ...but some prefer camels
       if ( !$stash->{$api} ) {
@@ -1253,13 +1256,13 @@ sub _create_methods {
 
           $self->$method(@_);
         };
-      } ## end if ( !$stash->{$api} )
-    } ## end foreach my $api ( @{ $self->...})
+      }
+    }
 
-  } ## end if ( $self->get_api_methods)
+  }
 
   return $self;
-} ## end sub _create_methods
+}
 
 ########################################################################
 sub _set_default_logger {
@@ -1357,7 +1360,7 @@ sub _set_default_logger {
   }
 
   return $self;
-} ## end sub _set_default_logger
+}
 
 ########################################################################
 sub _set_defaults {
@@ -1390,7 +1393,7 @@ sub _set_defaults {
         || $ENV{'AWS_REGION'}
         || $ENV{'AWS_DEFAULT_REGION'}
         || $DEFAULT_REGION );
-  } ## end if ( !defined $self->get_region)
+  }
 
   my $debug //= $options{debug} || $ENV{DEBUG};
   $debug = $debug && $debug =~ /^(2|insecure)$/xsm ? $debug : undef;
@@ -1406,7 +1409,7 @@ sub _set_defaults {
           }
         )
       );
-    } ## end if ( $self->has_keys(%options...))
+    }
     else {
       $self->set_credentials(
         Amazon::Credentials->new(
@@ -1418,14 +1421,14 @@ sub _set_defaults {
       if ( !defined $self->get_region ) {
         $self->set_region( $self->get_credentials->get_region );
       }
-    } ## end else [ if ( $self->has_keys(%options...))]
-  } ## end if ( !$self->get_credentials)
+    }
+  }
 
   # set URL last since it contains region
   $self->_set_url;
 
   return $self;
-} ## end sub _set_defaults
+}
 
 ########################################################################
 sub _create_service_url {
@@ -1458,7 +1461,7 @@ sub _create_service_url {
   }
 
   return $url;
-} ## end sub _create_service_url
+}
 
 ########################################################################
 sub _set_url {
@@ -1476,12 +1479,12 @@ sub _set_url {
       $url = $self->get_protocol . '://' . $url;
     }
 
-  } ## end else [ if ( !$url ) ]
+  }
 
   $self->set_url($url);
 
   return $self;
-} ## end sub _set_url
+}
 
 ########################################################################
 sub _set_x_amz_target {
@@ -1504,7 +1507,7 @@ sub _set_x_amz_target {
   $request->header( 'X-Amz-Target', $target );
 
   return $request;
-} ## end sub _set_x_amz_target
+}
 
 ########################################################################
 sub _set_request_content {
@@ -1529,7 +1532,7 @@ sub _set_request_content {
   }
 
   return $request;
-} ## end sub _set_request_content
+}
 
 1;
 
