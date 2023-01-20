@@ -1,3 +1,24 @@
+Mon Jan 16 13:44:53 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.4.5 - paginator]:
+	* VERSION: bump
+	* NEWS.md: updated
+	* README.md: generated
+	* src/main/perl/lib/Amazon/API.pm.in
+	(new)
+	- +use_paginator, raise_serialization_error
+	(_set_defaults)
+	- set use_paginator default to true
+	(decode_response)
+	- return raw response if exception during serialization
+	(invoke_api):
+	- automatically paginate if use_paginate is true
+	- return raw content if exception in serialization/pagination
+	* src/examples/sqs.pm
+	- add tags to example
+	(serialize_content)
+	- don't serialize parameters with nokeys if content-type is xml
+
 Mon Jan 16 10:17:33 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.4.4 - paginator]:

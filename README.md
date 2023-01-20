@@ -199,23 +199,63 @@ And invoking some of the APIs is as easy as:
 # BOTOCORE SUPPORT
 
 A new experimental module ( [Amazon::API::Botocore](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore)) is now included
-in this project. The module will augment [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) by using
-Botocore metadata for determining how to call individual services and
-pass data to its API methods.  It can also automatically generate Perl
-classes for AWS services using the Botocore metadata.
+in this project.
 
-Perl classes that represent AWS data structures that are passed to or
-returned from services can also be generated. These classes allow you
-to call all of the API methods for a given service using simple Perl
-objects that are serialized correcty for a specific method.
+**!!CAUTION!!**
+
+_Support for API calls using the Botocore metadata may be buggy and
+is subject to change. It may not be suitable for production
+environments at this time._
+
+Using Botocore metadata and the utilities in this project, you can
+create Perl classes that simplify calling AWS services.  After
+creating service classes and shape objects from the Botocore metadata
+calling AWS APIs will look something like this:
+
+    use Amazon::API::SQS;
+
+    my $sqs = Amazon::API::SQS->new;
+    my $rsp = $sqs->ListQueues();
+
+The [Amazon::API::Botocore](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore) module augments [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) by using
+Botocore metadata for determining how to call individual services and
+serialize parameters passed to its API methods. A utility (`amazon-api`)
+is provided that can generate Perl classes for all AWS services using
+the Botocore metadata.
+
+Perl classes that represent AWS data structures (aka shapes) that are
+passed to or returned from services can also be generated. These
+classes allow you to call all of the API methods for a given service
+using simple Perl objects that are serialized correctly for a specific
+method.
+
+Service classes are subclassed from [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) so the `new()`
+constructor for them takes the same arguments.
+
+    my $credentials = Amazon::Credential->new();
+    my $sqs = Amazon::API::SQS->new( credentials => $credentials );
 
 If you are going to use the Botocore support and automatically
-generate API classes you should also create the data structure classes
+generate API classes you must also create the data structure classes
 that are used by each service. The Botocore based APIs will use these
 classes to serialize requests and responses.
 
+## Serialization Errors
+
+Starting with version 1.4.5, serialization exceptions or exceptions
+that occur while attempting to decode a response, will result in the
+raw response being returned to the caller. If you can prevent errors
+from being surpressed by setting the `raise_serializtion_errors` to a
+true value. The default is false.
+
 For more information on generating API classes, see
 [Amazon::API::Botocore](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore).
+
+_Throughout the rest of this documentation a request made using one
+of the classes created by the Botocore support scripts will be
+referred to as a **Botocore request** or **Botocore API**._
+
+-
 
 # ERRORS
 
@@ -227,6 +267,9 @@ value. Additionally, a detailed error message will be displayed if
 See [Amazon::API::Error](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3AError) for more details.
 
 # METHODS AND SUBROUTINES
+
+_Reminder: You can mostly ignore this part of the documentation when
+you are leveraging Botocore to generate your API classes._
 
 ## new
 
@@ -522,6 +565,15 @@ the `decode_always` attribute when you call the `new` constructor.
 
 default: true
 
+By default, \`Amazon::API\` will retrieve all results for Botocore based
+API calls that require pagination. To turn this behavior off, set
+`use_paginator` to a false value when you instantiate the API
+service.
+
+    my $ec2 = Amazon::API->new(use_paginator => 0);
+
+You can also use the ["paginator"](#paginator) method to retrieve all results from Botocore requests that implement pagination.
+
 ## submit
 
     submit(options)
@@ -605,6 +657,15 @@ Returns a URL encoded query string. `parameters` can be any of SCALAR, ARRAY, or
 - version
 
     The WSDL version for the API. Some query type APIs require a Version query variable.
+
+## paginator
+
+    paginator(service, api, request)
+
+Returns an array containing the results of an API call that requires
+pagination,
+
+    my $result = paginator($ec2, 'DescribeInstances', { MaxResults => 10 });
 
 ## param\_n
 
@@ -856,7 +917,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 1.4.4 of `Amazon::API`.
+This documentation refers to version 1.4.5 of `Amazon::API`.
 
 # DIAGNOSTICS
 
@@ -930,15 +991,18 @@ then these functions will be used for logging. The idea is to support
 
 # BUGS AND LIMITATIONS
 
-This module has not been tested on Windows OS.
+This module has not been tested on Windows OS. Please report any
+issues found by opening an issue here:
+
+[https://github.com/rlauer6/perl-Amazon-API/issues](https://github.com/rlauer6/perl-Amazon-API/issues)
 
 # FAQs
 
 ## Why should I use this module instead of PAWS?
 
-You shouldn't. PAWS is a community supported project and probably a
-better choice for most people. The programmers who created PAWS are
-luminaries in the pantheon of Perl programming (alliteration
+Maybe you shouldn't. PAWS is a community supported project and
+may be a better choice for most people. The programmers who created
+PAWS are luminaries in the pantheon of Perl programming (alliteration
 intended). If you want to use something a little lighter in the
 dependency department however, and perhaps only need to invoke a
 single service, [Amazon:API](Amazon:API) may be the right choice.
@@ -956,7 +1020,7 @@ I don't know. Probably not. Would love to hear your
 feedback. [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) has been developed based on my needs.
 Although I have tested it on many APIs, there may still be some cases
 that are not handled properly and I am still deciphering the nuances
-of flattening, boxing and serializing objects to send to Amazon APIs.
+of flattening, boxing and serializing objects to send to Amazon APIs. The newer versions of this module using Botocore metadata have become increasingly reliable.
 
 Amazon APIs are not created equal, homogenous or invoked in the the
 same manner. Some accept parameters as a query strings, some
@@ -983,12 +1047,21 @@ modules designed specifically for S3; [Amazon::S3](https://metacpan.org/pod/Amaz
 ## Do I have to create the shape classes when I generate stubs for
 a service?
 
-No. If you do not create the shape stubs, then you must pass
-parameters to your API methods that are ready to be serialized by
-[Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI).  Creating data structures that will be serialized
-correctly however is done for you if you use the shape classes.  For
-example, to create an SQS queue using the shape stubs, you can call
-the `CreateQueue` API method as describe in the Botocore
+Possibly. If you create stubs manually, then you do not need the shape
+classes. If you use the scripts provide to create the API stubs using
+Botocore metadata, then yes, you must create the shapes so that the
+Botocore API methods know how to serialize requests. Note that you can
+create the shape stubs using the Botocore metadata while not creating
+the API services. You might want to do that if you want a
+lean stub but want the benefits of using the shape stubs for
+serialization of the parameters.
+
+If you produce your stubs manually and do not create the shape stubs,
+then you must pass parameters to your API methods that are ready to be
+serialized by [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI).  Creating data structures that will be
+serialized correctly however is done for you if you use the shape
+classes.  For example, to create an SQS queue using the shape stubs,
+you can call the `CreateQueue` API method as describe in the Botocore
 documentation.
 
     $sqs->CreateQueue(
@@ -998,7 +1071,8 @@ documentation.
      });
 
 If you do not use the shape classes, then you must pass the arguments
-in the form that will eventually be serialized in the correct manner as a query string.
+in the form that will eventually be serialized in the correct manner
+as a query string.
 
     $sqs->CreateQueue([
      'QueueName=foo',

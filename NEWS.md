@@ -6,6 +6,20 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 1.4.5 (2023-01-20)
+
+This version introduces automatic pagination for APIs that require the
+use of paginators.
+
+## Enhancements
+
+* add support for automatic pagination (use_paginator)
+* return raw content if serialization exceptions occur
+
+## Fixes
+
+* serialization of some shapes was busted (ListQueuesResult, e.g.)
+
 # perl-Amazon-API 1.4.4 (2023-01-15)
 
 This version introduces a `paginator()` helper method that will return an

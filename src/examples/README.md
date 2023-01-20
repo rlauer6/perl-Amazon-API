@@ -27,6 +27,7 @@ In order to exercise these examples:
   ```
   perl service-name.pm --help
   ```
+
 # Example Scripts
 
 Most of these scripts will show you how to use `Amazon::API` as a base
@@ -60,7 +61,7 @@ service.
 All of the examples are exercised in the same way:
 
 ```
-perl service-name.pm run API arguments
+perl -I . service-name.pm run API arguments
 ```
 
 # Using LocalStack to Run Examples
@@ -95,8 +96,16 @@ services:
 ```
 
 To use LocalStack when exercising an example, use the `--endpoint-url`
-option.
+option and anything for the credentials environment variables.
 
 ```
-perl sqs.pm --endpoint-url http://localhost:4566 run ListQueues
+export AWS_ACCESS_KEY_ID=foo
+export AWS_SECRET_ACCESS_KEY=foo
+perl -I . sqs.pm --endpoint-url http://localhost:4566 run ListQueues
 ```
+
+## Known Limitations of LocalStack
+
+* `aws sqs --list-queue-tags` returns an empty response
+
+

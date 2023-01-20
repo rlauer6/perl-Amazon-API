@@ -119,11 +119,16 @@ sub _CreateQueue {
 
   my $sqs = $package->new( url => $options->{'endpoint-url'} );
 
-  my $attributes     = [ { Name => 'VisibilityTimeout', Value => '100' } ];
+  my $attributes = [ { Name => 'VisibilityTimeout', Value => '100' } ];
+  my $tags       = [ { Key  => 'Name',              Value => 'Foo' } ];
+
   my @sqs_attributes = Amazon::API::param_n( { Attribute => $attributes } );
+  my @sqs_tags       = Amazon::API::param_n( { Tag       => $tags } );
+
+  print {*STDOUT} Dumper( [ @sqs_attributes, @sqs_tags ] );
 
   my $rsp;
-  $rsp = $sqs->CreateQueue( [ 'QueueName=foo', @sqs_attributes ] );
+  $rsp = $sqs->CreateQueue( [ 'QueueName=foo', @sqs_attributes, @sqs_tags ] );
 
   print {*STDOUT} Dumper( [ 'response', $rsp ] );
 
