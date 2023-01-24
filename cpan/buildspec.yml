@@ -4,10 +4,10 @@ project:
     name: Rob Lauer
     mailto: rlauer6@comcast.net
 pm_module: Amazon::API
+min-perl-version: 5.010
 dependencies:
-  requires: requires
   test_requires: test-requires
-  core_modules: yes
+  requires: requires
 path:
   pm_module: src/main/perl/lib
   tests: src/main/perl/t

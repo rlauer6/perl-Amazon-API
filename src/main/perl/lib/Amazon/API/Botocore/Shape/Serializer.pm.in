@@ -1,0 +1,379 @@
+package Amazon::API::Botocore::Shape::Serializer;
+
+use strict;
+use warnings;
+
+BEGIN {
+  use English qw(-no_match_vars);
+
+  eval { require Log::Log4perl; };
+
+  if ($EVAL_ERROR) {
+    no strict qw(refs); ## no critic (ProhibitNoStrict)
+
+    *{ __PACKAGE__ . "::$_" } = sub { }
+      for qw(DEBUG INFO WARN ERROR FATAL);
+  }
+  else {
+    no warnings;        ## no critic (ProhibitNoWarnings)
+
+    Log::Log4perl->import(qw(:easy));
+  }
+}
+
+use parent qw(Class::Accessor::Fast);
+
+use Amazon::API::Constants qw(:chars :booleans);
+use Amazon::API::Botocore::Shape::Utils qw(require_shape);
+
+use Carp;
+use Data::Dumper;
+use English qw(-no_match_vars);
+use JSON qw(decode_json encode_json);
+use Scalar::Util qw(reftype);
+use List::Util qw(any none);
+
+use URL::Encode qw(url_decode_utf8);
+
+our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
+
+__PACKAGE__->follow_best_practice;
+
+__PACKAGE__->mk_accessors(qw( service delete_empty_members debug logger ));
+
+########################################################################
+sub new {
+########################################################################
+  my ( $class, @args ) = @_;
+
+  my %options = ref $args[0] ? %{ $args[0] } : @args;
+
+  my $self = $class->SUPER::new( \%options );
+
+  return $self;
+}
+
+########################################################################
+sub _serialize_structure {
+########################################################################
+  my ( $self, $this, $data, $service ) = @_;
+
+  $service ||= $self->get_service;
+
+  TRACE( Dumper [ 'serialize_structure', $this, $data ] );
+
+  my $members = $this->get_members;
+
+  my $result = {};
+
+  foreach my $m ( keys %{$members} ) {
+    my $member        = $members->{$m};
+    my $location_name = $member->{locationName} || $m;
+    my $has_location  = exists $member->{locationName};
+
+    my $shape = $member->{shape};
+    my $serialized_data;
+
+    DEBUG(
+      sub {
+        return Dumper(
+          [ 'member name:',  $m,
+            'member:',       $member,
+            'shape:',        $shape,
+            'location:',     $location_name,
+            'has location:', $has_location
+          ]
+        );
+      }
+    );
+
+    my $member_data;
+
+    DEBUG(
+      sub {
+        return Dumper(
+          [ 'data',        $data, 'location', $location_name,
+            'member_data', $member_data
+          ]
+        );
+      }
+    );
+
+    $member_data = $data->{$location_name};
+
+    # because we may have serialized an XML object...
+    if ( $member_data && ref($member_data) && $shape eq 'String' ) {
+      $member_data = $member_data->{content} // $EMPTY;
+    }
+
+    DEBUG(
+      sub {
+        return Dumper(
+          [ 'serializing structure member',
+            $m, $shape, $data, $member_data, $has_location
+          ]
+        );
+      }
+    );
+
+    $serialized_data = $self->serialize(
+      shape   => $shape,
+      data    => $member_data || $data,
+      service => $service
+    );
+
+    DEBUG(
+      sub {
+        return Dumper(
+          [ "back from serializing $shape",
+            'data', $serialized_data, 'location_name', $location_name, 'm',
+            $m
+          ]
+        );
+      }
+    );
+
+    # skip empty members
+    next if !exists $data->{$location_name} && !defined $serialized_data;
+
+    $result->{$m} = $serialized_data;
+
+    DEBUG( sub { return Dumper( [ 'result', $result ] ) } );
+  }
+
+  return $result;
+}
+
+########################################################################
+sub _serialize_list {
+########################################################################
+  my ( $self, $this, $data, $service ) = @_;
+
+  $service ||= $self->get_service;
+
+  DEBUG( Dumper( [ 'serialize_list', $this, $data, $service ] ) );
+
+  my $member        = $this->get_member;
+  my $location_name = $member->{locationName};
+
+  if ( !$location_name ) {
+    if ( ref $data && reftype($data) eq 'HASH' && exists $data->{member} ) {
+      $location_name = 'member';
+    }
+  }
+
+  my $list = $location_name ? $data->{$location_name} : $data;
+
+  my $member_shape = $member->{shape};
+
+  DEBUG(
+    Dumper(
+      [ 'serialize_list', 'member:',
+        $member,          'location_name:',
+        $location_name,   'list',
+        $list,            'member shape:',
+        $member_shape
+      ]
+    )
+  );
+
+  my $result = [];
+
+  if ( $list && !ref $list ) {
+    $list = [$list];
+  }
+  elsif ( $list && reftype($list) eq 'HASH' ) {
+
+    my @key_values;
+    DEBUG( Dumper( [ 'pre-pre-marker', $list ] ) );
+    if (0) {
+      foreach my $key ( keys %{$list} ) {
+        push @key_values, { $key => $list->{$key} };
+        next;
+
+        DEBUG( Dumper( [ 'pre-marker', $key ] ) );
+
+        if ( ref $list->{$key} && exists $list->{$key}->{value} ) {
+          push @key_values,
+            {
+            value => $list->{$key}->{value},
+            key   => $key
+            };
+        }
+        else {
+          push @key_values, { $key => $list->{$key} };
+        }
+      }
+    }
+    else {
+      $list = [$list];
+    }
+
+    DEBUG( Dumper( [ 'key_values', $member_shape, \@key_values ] ) );
+
+    my %result;
+
+    foreach my $p ( @{$list} ) {
+
+      DEBUG( Dumper( [ 'post-marker', $p, $member_shape ] ) );
+
+      my $serialized_data = $self->serialize(
+        shape   => $member_shape,
+        data    => $p,
+        service => $service,
+      );
+
+      push @{$result}, $serialized_data;
+    }
+
+    local $LIST_SEPARATOR = ",";
+
+    DEBUG( 'list:' . Dumper( [ ref($self), ref($this), $result, $list ] ) );
+  }
+  else {
+    foreach my $elem ( @{$list} ) {
+
+      DEBUG(
+        sub { return Dumper( [ 'populate list', $member->{shape}, $elem ] ) }
+      );
+
+      push @{$result},
+        $self->serialize(
+        shape   => $member->{shape},
+        data    => $elem,
+        service => $service,
+        );
+    }
+  }
+
+  return $result;
+}
+
+########################################################################
+sub serialize {
+########################################################################
+  my ( $self, %args ) = @_;
+
+  my ( $shape, $service, $data ) = @args{qw(shape service data)};
+
+  $service ||= $self->get_service;
+
+  DEBUG(
+    sub {
+      return Dumper( [ 'serialize', $shape, $data, $service ] );
+    }
+  );
+
+  my $class = require_shape( $shape, $service );
+
+  croak "unable to require class for $shape: $EVAL_ERROR\n"
+    if !$class;
+
+  my $this = $class->new;
+
+  my $type = $this->get_type;
+
+  DEBUG(
+    sub {
+      return Dumper(
+        [ 'serialize', 'class', $class, 'type',
+          $type,       'data',  $data,  $service
+        ]
+      );
+    }
+  );
+
+  my %serializers = (
+    structure => sub {
+      return $self->_serialize_structure( $this, $data, $service );
+    },
+    list => sub {
+      return $self->_serialize_list( $this, $data, $service );
+    },
+    string => sub {
+      return if !defined $data;
+
+      if ( $shape eq 'policyDocumentType' ) {
+        return decode_json( url_decode_utf8($data) );
+      }
+
+      $data = ref $data ? $data->{content} // $EMPTY : $data;
+
+      return $data;
+    },
+    boolean => sub {
+      $data = ref $data ? $data->{content} : $data;
+
+      $data //= 0;
+
+      if ( any { $data eq $_ } qw( 0 1 true false) ) {
+        return {
+          0     => JSON::false,
+          1     => JSON::true,
+          true  => JSON::true,
+          false => JSON::false,
+        }->{$data};
+      }
+
+      return $data;
+    },
+    integer => sub {
+      return ref $data ? $data->{content} : $data;
+    },
+    long => sub {
+      return ref $data ? $data->{content} : $data;
+    },
+    map => sub {
+      return $data;
+    },
+    timestamp => sub {
+      $data = ref $data ? $data->{content} : $data;
+      $data //= $EMPTY;
+
+      $data =~ s/^(.*)[.]000Z$/$1\+00:00/xsm;
+
+      if ( $data =~ /^[\d.]+$/xsm ) {
+        require DateTime;
+
+        my $dt = DateTime->from_epoch($data);
+
+        my $pattern = '%Y-%m-%dT%I:%M:%S.%6N%z';
+        $data = $dt->strftime($pattern);
+      }
+
+      return $data;
+    },
+  );
+
+  my $result;
+
+  if ( $serializers{$type} ) {
+    DEBUG(
+      sub {
+        return Dumper(
+          [ 'serializing object of type', $type, 'data', $data ] );
+      }
+    );
+
+    $result = $serializers{$type}->();
+
+    DEBUG( sub { return Dumper( [ 'result', $result ] ) } );
+  }
+  else {
+    DEBUG(
+      sub {
+        return Dumper( [ 'serializing unknown object', $this, $data ] );
+      }
+    );
+
+    $result = $self->serialize(
+      shape   => $this->{shape},
+      data    => $data,
+      service => $service,
+    );
+  }
+
+  return $result;
+}
+
+1;

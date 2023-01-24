@@ -1,3 +1,44 @@
+Fri Jan 20 17:56:53 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.4.6 - Log::Log4perl]:
+	* VERSION: bump
+	* NEWS.md: updated
+	* README.md: generated
+	* Makefile.requirements: --no-include-require
+	* autotools/ax_requirements_check.m4: generated
+	* requirements.json: generated
+	* .gitignore: remove src/main/perl/lib/Amazon/API/Botocore/Shape directory
+	* cpan/buildspec.yml
+	- min perl version 5.010
+	- no core modules
+	* cpan/requires
+	- require Amazon::Credentials 1.16
+	- remove version number from most modules
+	- + List::Utils 1.33
+	- + XML::Simple
+	- + JSON
+	- + URL::Encode
+	- + Pod::Simple
+	- - core modules, Perl::Tidy, Pod::Find
+	* src/main/perl/lib/Amazon/API.pm.in
+	- explain new logging method in pod
+	- require Log::Log4perl
+	(new)
+	- call _set_default_logger before setting log level
+	(set_log_level): new
+	(invoke_api): remove null/blank paginator keys
+	(_set_default_logger)
+	- use Log::Log4perl, custom logger, or nothing
+	(_set_defaults)
+	- removed code that formerly set 'debug' for Amazon::Credentials
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	(BEGIN)
+	- stub Stealth loggers if no Log::Log4perl
+	- use Log::Log4perl Stealth loggers if Log::Log4perl available
+	* src/main/perl/lib/Amazon/API/Signature4.pm.in: whitespace
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in: new
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Utils.pm.in: new
+
 Mon Jan 16 13:44:53 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.4.5 - paginator]:

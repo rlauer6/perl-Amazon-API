@@ -4,7 +4,26 @@ package Amazon::API;
 
 use strict;
 use warnings;
+
 use 5.010;
+
+our %LOG4PERL_LOG_LEVELS;
+
+BEGIN {
+
+  %LOG4PERL_LOG_LEVELS = eval {
+    require Log::Log4perl::Level;
+
+    return (
+      error => $Log::Log4perl::Level::ERROR,
+      warn  => $Log::Log4perl::Level::WARN,
+      info  => $Log::Log4perl::Level::INFO,
+      debug => $Log::Log4perl::Level::DEBUG,
+      trace => $Log::Log4perl::Level::TRACE,
+      fatal => $Log::Log4perl::Level::FATAL,
+    );
+  };
+}
 
 use parent qw( Exporter Class::Accessor::Fast);
 
@@ -65,6 +84,7 @@ __PACKAGE__->mk_accessors(
     force_array
     http_method
     last_action
+    _log_level
     logger
     paginators
     print_error
@@ -461,11 +481,11 @@ sub new {
   croak 'service is required'
     if !$self->get_service;
 
+  $self->_set_default_logger;
+
   $self->_set_defaults(%options);
 
   $self->_create_methods;
-
-  $self->_set_default_logger;
 
   if ( $self->is_botocore_api ) {
     $self->set_serializer(
@@ -476,6 +496,35 @@ sub new {
   }
 
   return $self;
+}
+
+########################################################################
+sub set_log_level {
+########################################################################
+  my ( $self, $log_level ) = @_;
+
+  $self->set__log_level($log_level);
+
+  if ( Log::Log4perl->initialized() ) {
+    Log::Log4perl->get_logger->level( $LOG4PERL_LOG_LEVELS{$log_level} );
+  }
+  else {
+    my $logger = $self->get_logger;
+
+    if ( $logger->can('level') ) {
+      $logger->level($log_level);
+    }
+  }
+
+  return $self;
+}
+
+########################################################################
+sub get_log_level {
+########################################################################
+  my ($self) = @_;
+
+  return $self->get__log_level();
 }
 
 ########################################################################
@@ -1127,8 +1176,12 @@ sub invoke_api {
   return $results
     if !$paginator;
 
-  delete $results->{ $paginator->{more_results} };
-  delete $results->{ $paginator->{input_token} };
+  # you must have a paginator, but told me not to use it, delete
+  # blank/null markers
+  if ( !$results->{ $paginator->{more_results} } ) {
+    delete $results->{ $paginator->{more_results} };
+    delete $results->{ $paginator->{input_token} };
+  }
 
   return $results;
 }
@@ -1414,93 +1467,31 @@ sub _set_default_logger {
 ########################################################################
   my ($self) = @_;
 
-  my $logger = $self->get_logger;
+  if ( !$self->get_logger && !Log::Log4perl->initialized ) {
+    eval {
+      require Log::Log4perl;
 
-  {
-    no strict 'refs';       ## no critic (TestingAndDebugging::ProhibitNoStrict)
-    no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings)
+      use vars qw($INFO);
 
-    if ( $::{DEBUG} ) {
-      *{ __PACKAGE__ . $DOUBLE_COLON . 'DEBUG' } = *{'main::DEBUG'};
-    }
-    elsif ($logger) {
-      *{ __PACKAGE__ . $DOUBLE_COLON . 'DEBUG' } = sub {
-        $logger->debug(@_);
-      };
-    }
-    else {
-      *{ __PACKAGE__ . $DOUBLE_COLON . 'DEBUG' } = sub {
-        return $TRUE if !$self->get_debug;
+      Log::Log4perl::Level->import(qw($INFO));
+      Log::Log4perl->import(':easy');
+      Log::Log4perl->easy_init($INFO);
+    };
+  }
+  else {
+    my $package = ref $self;
 
-        my @tm        = localtime time;
-        my $timestamp = strftime( '%c', @tm );
+    no strict 'refs'; ## no critic ProhibitNoStrict
 
-        # setup elapsed time/time since last logging event
-        my $now_time = [gettimeofday];
-
-        my $elapsed = tv_interval( $START_TIME, $now_time );
-
-        my $elapsed_since_last_log_event
-          = tv_interval( $LAST_LOG_TIME, $now_time );
-
-        $LAST_LOG_TIME = $now_time;
-
-        my @message = @_;
-
-        my ( $package, $filename, $line, $sub );
-
-        ( $package, $filename, $line ) = caller 0;
-        ( undef, undef, undef, $sub ) = caller 1;
-
-        my $err_msg;
-
-        if ( ref $message[0] && reftype( $message[0] ) eq 'CODE' ) {
-          $err_msg = $message[0]->();
+    for my $level (qw(debug trace info warn error )) {
+      *{ $package . q{::} . uc $level } = sub {
+        if ( $self->get_logger && $self->get_logger->can($level) ) {
+          $self->get_logger->$level(@_);
         }
         else {
-          $err_msg = join $EMPTY, @message;
+          return;
         }
-
-        # Log::Log4perl compatible (sort of)
-        my %parameters = (
-          '%L' => $line,
-          '%M' => $sub,
-          '%F' => $filename,
-          '%m' => $err_msg,
-          '%d' => $timestamp,
-          '%r' => $elapsed,
-          '%R' => $elapsed_since_last_log_event,
-          '%P' => $PROCESS_ID,
-          '%p' => $package,
-        );
-
-        my $log_message = $LAYOUT_PATTERN;
-
-        foreach my $k ( keys %parameters ) {
-          my $val = $parameters{$k} // $EMPTY;
-          $log_message =~ s/$k/$val/xsm;
-        }
-
-        print {*STDERR} "$log_message\n";
-
-        return $TRUE;
-      };
-    }
-
-    if ( $::{TRACE} ) {
-      *{ __PACKAGE__ . $DOUBLE_COLON . 'TRACE' } = *{'main::TRACE'};
-    }
-    elsif ($logger) {
-      *{ __PACKAGE__ . $DOUBLE_COLON . 'TRACE' } = sub {
-        $logger->trace(@_);
-      };
-    }
-    else {
-      *{ __PACKAGE__ . $DOUBLE_COLON . 'TRACE' } = sub {
-        return $TRUE if $self->get_debug && $self->get_debug ne '2';
-
-        DEBUG(@_);
-      };
+      }
     }
   }
 
@@ -1542,8 +1533,11 @@ sub _set_defaults {
         || $DEFAULT_REGION );
   }
 
-  my $debug //= $options{debug} || $ENV{DEBUG};
-  $debug = $debug && $debug =~ /^(2|insecure)$/xsm ? $debug : undef;
+  my $debug //= ( $options{debug} || $ENV{DEBUG} );
+
+  $options{log_level} = $debug ? 'debug' : $options{log_level} // 'info';
+
+  $self->set_log_level( $options{log_level} );
 
   if ( !$self->get_credentials ) {
     if ( $self->has_keys(%options) ) {
@@ -2705,53 +2699,23 @@ true value to enable diagnostics.
 
 =head2 Logging
 
-By default L<Amazon::API> uses an internal logging routine that uses a
-default layout pattern to output debugging messages. The layout
-pattern can be redefined by setting the package variable
-C<$Amazon::API::LAYOUT_PATTERN>.  The default pattern is:
+By default L<Amazon::API> uses L<Log::Log4perl>'s Stealth loggers to
+log at the DEBUG and TRACE levels. Setting the environment variable
+DEBUG to some value or passing a true value for C<debug> in the
+constructor will trigger verbose logging.
 
- '%d - %r - %R - %M[%L] - (%P) - %m'
+If you pass a logger to the constructor, C<Amazon::API> will attempt
+to use that if it has the appropriate logging level methods (error,
+warn, info, debug, trace). If L<Log::Log4perl> is unavailable and you
+do not pass a logger, logging is essentially disabled at any level.
 
- %d => timestamp
- %r => elapsed time since start of program
- %R => elapsed time since last log event
- %M => method
- %L => line number
- %P => process id
- %m => log message
- %F => filename
- %p => package name
+If, for some reason you set the enviroment variable DEBUG to a true
+value but do not want C<Amazon::API> to log messages you can turn off
+logging as shown below:
 
-You can pass your own logger into L<Amazon::API>. The logger should
-support at least the C<debug()> and C<trace()> methods. The input to
-these methods should either be a message to log or a code reference that
-returns a message to log in a similar vein as L<Log::Log4perl>.
+ my $ec2 = Amazon::API::EC2->new();
 
-If you do not pass a logger L<Amazon::API> will define two class
-methods C<Amazon::API::DEBUG> and C<Amazon::API::TRACE>.
-
-If C<DEBUG> and C<TRACE> are already defined in your main namespace,
-then these functions will be used for logging. The idea is to support
-L<Log::Log4perl>'s I<easy mode>.
-
- use Amazon::API qw(get_api_service);
-
- use Log::Log4perl qw(:easy);
- Log::Log4perl->easy_init($DEBUG);
-
- my $sqs = get_api_service 'sqs'; # bam! and we're logging
-
-=over 5
-
-=item I<Why didn't I just use Log::Log4perl in the first place?>
-
-I originally didn't want to make L<Log::Log4perl> a dependency,
-however it now is a depdendency for the modules that implement
-L</BOTOCORE SUPPORT>. Future versions may remove the logging methods
-and require L<Log::Log4perl>.
-
-=back
-
+ $ec2->set_log_level('fatal');
 
 =head1 DEPENDENCIES
 

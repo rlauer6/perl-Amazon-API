@@ -927,48 +927,23 @@ true value to enable diagnostics.
 
 ## Logging
 
-By default [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) uses an internal logging routine that uses a
-default layout pattern to output debugging messages. The layout
-pattern can be redefined by setting the package variable
-`$Amazon::API::LAYOUT_PATTERN`.  The default pattern is:
+By default [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) uses [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl)'s Stealth loggers to
+log at the DEBUG and TRACE levels. Setting the environment variable
+DEBUG to some value or passing a true value for `debug` in the
+constructor will trigger verbose logging.
 
-    '%d - %r - %R - %M[%L] - (%P) - %m'
+If you pass a logger to the constructor, `Amazon::API` will attempt
+to use that if it has the appropriate logging level methods (error,
+warn, info, debug, trace). If [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl) is unavailable and you
+do not pass a logger, logging is essentially disabled at any level.
 
-    %d => timestamp
-    %r => elapsed time since start of program
-    %R => elapsed time since last log event
-    %M => method
-    %L => line number
-    %P => process id
-    %m => log message
-    %F => filename
-    %p => package name
+If, for some reason you set the enviroment variable DEBUG to a true
+value but do not want `Amazon::API` to log messages you can turn off
+logging as shown below:
 
-You can pass your own logger into [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI). The logger should
-support at least the `debug()` and `trace()` methods. The input to
-these methods should either be a message to log or a code reference that
-returns a message to log in a similar vein as [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl).
+    my $ec2 = Amazon::API::EC2->new();
 
-If you do not pass a logger [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) will define two class
-methods `Amazon::API::DEBUG` and `Amazon::API::TRACE`.
-
-If `DEBUG` and `TRACE` are already defined in your main namespace,
-then these functions will be used for logging. The idea is to support
-[Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl)'s _easy mode_.
-
-    use Amazon::API qw(get_api_service);
-
-    use Log::Log4perl qw(:easy);
-    Log::Log4perl->easy_init($DEBUG);
-
-    my $sqs = get_api_service 'sqs'; # bam! and we're logging
-
-- _Why didn't I just use Log::Log4perl in the first place?_
-
-    I originally didn't want to make [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl) a dependency,
-    however it now is a depdendency for the modules that implement
-    ["BOTOCORE SUPPORT"](#botocore-support). Future versions may remove the logging methods
-    and require [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl).
+    $ec2->set_log_level('fatal');
 
 # DEPENDENCIES
 

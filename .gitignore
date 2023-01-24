@@ -1,4 +1,3 @@
-src/main/perl/lib/Amazon/API/Botocore/Shape/**
 **/perltidy.err
 src/main/perl/lib/botocore
 src/main/perl/prove.*
@@ -30,6 +29,7 @@ tags
 TAGS
 .make.state
 .nse_depinfo
+!Makefile.requirements
 *~
 #*
 .#*

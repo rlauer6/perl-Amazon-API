@@ -1,6 +1,6 @@
 # -*- mode: makefile-gmake; -*-
 
-SCANDEPS=scandeps-static.pl --no-core
+SCANDEPS=scandeps-static.pl --no-core --no-include-require
 
 define requirements_check =
 use JSON::PP;
@@ -74,7 +74,6 @@ export s_remove_provided = $(value remove_provided)
 
 requirements.json: requirements
 	@perl -0 -e "$$s_remove_provided" $< > $@
-
 
 requirements:
 	@requirements=$$(mktemp); \

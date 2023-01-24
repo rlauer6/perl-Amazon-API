@@ -5,6 +5,27 @@ package Amazon::API::Botocore;
 use strict;
 use warnings;
 
+BEGIN {
+  use English qw(-no_match_vars);
+
+  eval { require Log::Log4perl; };
+
+  if ($EVAL_ERROR) {
+    no strict qw(refs); ## no critic (ProhibitNoStrict)
+
+    *{ __PACKAGE__ . "::$_" } = sub { }
+      for qw(DEBUG INFO WARN ERROR FATAL);
+  }
+  else {
+    no warnings;        ## no critic (ProhibitNoWarnings)
+
+    require Log::Log4perl::Level;
+
+    Log::Log4perl::Level->import(__PACKAGE__);
+    Log::Log4perl->import(qw(:easy));
+  }
+}
+
 use parent qw{ Exporter };
 
 use Amazon::API::Botocore::Shape::Utils

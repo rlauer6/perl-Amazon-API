@@ -1,0 +1,535 @@
+package Amazon::API::Botocore::Shape::Utils;
+
+use strict;
+use warnings;
+
+use parent qw(Exporter);
+
+use Amazon::API::Constants qw(:booleans :chars);
+use Amazon::API::Template qw(:all);
+
+use Carp;
+use Data::Dumper;
+use English qw(-no_match_vars);
+use List::Util qw( pairs any );
+use ReadonlyX;
+use Scalar::Util qw(reftype blessed );
+
+our @EXPORT_OK = qw(
+  $SHAPE_NAME_TEMPLATE
+  create_shape
+  create_module_name
+  check_pattern
+  check_type
+  flatten
+  get_service_from_class
+  param_n
+  require_class
+  require_shape
+  snake_case
+);
+
+our %EXPORT_TAGS = ( all => [@EXPORT_OK] );
+
+Readonly our $SHAPE_NAME_TEMPLATE => 'Amazon::API::Botocore::Shape::%s::%s';
+
+our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
+
+our $TEMPLATE_START = tell DATA;
+
+########################################################################
+sub create_module_name {
+########################################################################
+  my ($service) = @_;
+
+  my $module_name;
+
+  if ( length $service == 3 ) {
+    $module_name = uc $service; # SQS SNS IAM STS SES RDS...
+  }
+  else {
+    # Route53, Cloudwatch? SecretsManager? ...well then provide your own damn name!
+    $module_name = ucfirst $service;
+  }
+
+  return $module_name;
+}
+
+########################################################################
+sub require_class {
+########################################################################
+  my ($class) = @_;
+
+  my $class_path = $class;
+
+  $class_path =~ s/::/\//xsmg;
+
+  my $retval = eval { require "$class_path.pm"; };
+
+  return $retval ? $INC{"$class_path.pm"} : undef;
+}
+
+########################################################################
+sub get_service_from_class {
+########################################################################
+  my ($class) = @_;
+
+  # find the service name, we'll need then when creating the request class
+  my $name = ref $class ? ref $class : $class;
+
+  if ( $name =~ /::([^:]+)$/xsm ) {
+    $name = $1;
+  }
+
+  return $name;
+}
+
+########################################################################
+sub require_shape {
+########################################################################
+  my ( $shape, $service ) = @_;
+
+  my $class = create_shape_name( $shape, $service );
+
+  my $class_path = require_class $class;
+
+  return $class_path ? $class : undef;
+}
+
+########################################################################
+# snake_case name
+#
+# Attempts to create a snake case name from a CamelCase name
+# - FooBar => foo_bar
+# - FOOBar => FOO_Bar
+
+########################################################################
+sub snake_case {
+########################################################################
+  my ($name) = @_;
+
+  while ( $name =~ s/([[:upper:]])([[:lower:]])/lc("_$1").$2/xsme ) { }; # snake_case the CamelCase
+
+  $name =~ s/^_//xsm;
+
+  $name =~ s/([[:lower:]])([[:upper:]])/$1_$2/gxsm;
+
+  return $name;
+}
+
+########################################################################
+sub check_pattern {
+########################################################################
+  my ( $value, $pattern );
+
+  return $TRUE if !$pattern;
+
+  ## no critic
+
+  eval {
+    use warnings FATAL => qw( regexp );
+
+    qr/$pattern/;
+  };
+
+  if ( !$EVAL_ERROR ) {
+    croak "value must match pattern [$pattern]"
+      if $value !~ /$pattern/sm;
+  }
+
+  return $TRUE;
+}
+
+########################################################################
+sub check_type {
+########################################################################
+  my ( $required_type, $type ) = @_;
+
+  if ( ref $required_type ) {
+    return any {$type} @{$required_type};
+  }
+
+  $type ||= 'SCALAR';
+
+  return $required_type eq $type;
+
+}
+
+########################################################################
+# flatten('Tag', $tag_list), flatten({ Tag => $tag_list })
+########################################################################
+sub flatten {
+########################################################################
+  my (@args) = @_;
+
+  my ( $name, $list ) = @args;
+
+  if ( ref $name ) {
+    ( $name, $list ) = %{$name};
+  }
+
+  my $idx = 0;
+
+  my @items = @{$list};
+
+  my @output;
+
+  foreach my $elem (@items) {
+    ++$idx;
+
+    if ( ref $elem && reftype($elem) eq 'HASH' ) {
+      my @kv = %{$elem};
+
+      foreach my $p ( pairs @kv ) {
+
+        my $key = sprintf '%s.%d.%s', $name, $idx, $p->[0];
+
+        push @output, { $key => $p->[1] };
+      }
+    }
+    else {
+      my $key = sprintf '%s.%d', $name, $idx;
+
+      push @output, { $key => $elem };
+    }
+  }
+
+  return \@output;
+}
+
+########################################################################
+# param_n() is a rather naive attempt to implement a way to create the
+# "param n" notation used by some Amazon APIs (most notably APIs using
+# a "map" shape and expecting a query string - e.g. SQS)
+#
+# Note that param_n() and flatten() are related but produce different
+# output and accept slightly different input. Whereas param_n() can be
+# sent an object that contains some parameters that might not be
+# serialized in the param_n() notation, flatten() input should only be
+# an object that will be serialized in an intermediate param_n() format
+# suitable for create_urlencoded_content().
+#
+# Both must be passed a valid request. A "valid" request is one in
+# which the parameters represent the serialized version of the "map"
+# parameter shape. For example to send multiple tags to one of the
+# APIs that use the param_n notation you would pass an object that
+# looks like this:
+#
+# my $tags = Tag => [ { Key => 'Name', Value  => 'foo'},
+#                     { Key => 'Env', Value => 'dev }
+#                   ];
+#
+# The finalize() method of botocore request objects
+# (Amazon::API::Botocore::Shape) will produce this exact serialized
+# representation when passed an object that looks like this:
+#
+# my $tags = Tag => [ { 'Name' => 'foo' },
+#                     { 'Env' => 'dev' },
+#                   ];
+#
+# It knows knows how to create the former structure by consulting the
+# botocore metadata for the TagMap "map" type.
+#
+# param_n() was written prior to the use of botocore metadata and
+# assumes the the object being passed was hand rolled by someone with
+# the knowledge of the required finalized map object.
+#
+# flatten($tags) != param_n($tags)
+#
+# ...however...surprisingly....
+#
+# create_urlencode_content(flatten($tags)) == create_urlencode_content(param_n($tags))
+#
+# f(x) <> g(x), but h(f(x)) == h(g(x))
+#
+# In other words, create_urlencoded_content() in an isomorphic
+# transformation function.
+#
+########################################################################
+sub param_n {
+########################################################################
+  my ( $message, $prefix, $idx ) = @_;
+
+  if ( !defined $idx ) { # first call, check args
+    croak 'message argument must be reference'
+      if !ref $message;
+  }
+
+  my @param_n;
+
+  if ( ref $message ) {
+    if ( reftype($message) eq 'HASH' ) {
+      foreach my $k ( keys %{$message} ) {
+        push @param_n,
+          param_n( $message->{$k}, $prefix ? "$prefix.$k" : $k, $idx );
+      }
+    } ## end if ( reftype($message)...)
+    else {
+      $idx = 1;
+      foreach my $e ( @{$message} ) {
+        push @param_n,
+          param_n( $e, $prefix ? "$prefix.$idx" : $EMPTY, $idx++ );
+      }
+    } ## end else [ if ( reftype($message)...)]
+  } ## end if ( ref $message )
+  else {
+    croak 'missing value'
+      if !defined $message || $message eq $EMPTY;
+
+    return "$prefix=$message";
+  } ## end else [ if ( ref $message ) ]
+
+  return @param_n;
+} ## end sub param_n
+
+########################################################################
+sub create_shape_name {
+########################################################################
+  my ( $name, $service ) = @_;
+
+  return sprintf $SHAPE_NAME_TEMPLATE, $service, $name;
+}
+
+########################################################################
+sub create_shape {
+########################################################################
+  my (%args) = @_;
+
+  my ( $shape_name, $service_description, $service )
+    = @args{qw( name service_description service )};
+
+  my $shapes = $service_description->{shapes};
+
+  my $shape = $shapes->{$shape_name};
+
+  my $shape_class = create_shape_name( $shape_name, $service );
+
+  my $shape_template = fetch_template( *DATA, $TEMPLATE_START );
+
+  my $description = html2pod( $shape->{documentation} );
+
+  my $required = join "\n", map {"=item $_\n"} @{ $shape->{required} };
+
+  my $type = $shape->{type};
+
+  my @members;
+  my @see_also;
+
+  if ( $shape->{member} ) {
+    push @members, sprintf "=item %s\n", $shape->{member}->{shape};
+  }
+  elsif ( $shape->{members} ) {
+    foreach my $m ( sort keys %{ $shape->{members} } ) {
+      my $member = $shape->{members}->{$m};
+
+      my $type          = $member->{shape};
+      my $location_name = $member->{locationName} || $m;
+
+      $type = sprintf 'L<%s|Amazon::API::Botocore::Shape::%s::%s/%s>', $type,
+        $service,
+        $type, $type;
+
+      push @see_also, $type;
+
+      my $description = html2pod( $member->{documentation} );
+      $description =~ s/\A\n+//xsm;
+      $description =~ s/[\n]+\z//xsm;
+
+      my $item = <<'END_OF_ITEM';
+=item Name: %s
+
+=over 10
+
+=item Type
+
+%s
+
+=item Description
+
+%s
+
+=back
+END_OF_ITEM
+
+      push @members, sprintf $item, $m, $type, $description;
+    }
+  }
+
+  my @limits;
+
+  foreach (qw( max min pattern )) {
+    if ( $shape->{$_} ) {
+      push @limits, sprintf "=item %s: %s\n", $_, $shape->{$_};
+    }
+  }
+
+  my $lc_name = snake_case $shape_name;
+
+  my %parameters = (
+    to_template_var('see_also')     => join( "$COMMA ", @see_also ),
+    to_template_var('lc_name')      => $lc_name,
+    to_template_var('package_name') => $shape_name,
+    to_template_var('program_name') => $PROGRAM_NAME,
+    to_template_var('timestamp')    => scalar(localtime),
+    to_template_var('class')        => $shape_class,
+    to_template_var('shape')        => JSON->new->pretty->encode($shape),
+    to_template_var('service')      => $service,
+    to_template_var('description')  => $description,
+    to_template_var('type')         => $type,
+    to_template_var('required')     => $required,
+    to_template_var('members')      => join( "\n", @members ) . "\n",
+    to_template_var('limits')       => join( "\n", @limits ) . "\n",
+  );
+
+  my $synopsis;
+
+  if ( !$shape->{members}->{message} ) {
+    $synopsis = <<'END_OF_POD';
+=head1 SYNOPSIS
+
+ my $@lc_name@ = @class@->new( $parameters );
+END_OF_POD
+
+    $synopsis = render_template( $synopsis, \%parameters );
+  }
+
+  $parameters{ to_template_var('synopsis') } = $synopsis // $EMPTY;
+
+  my $pod = render_template( $shape_template, \%parameters );
+
+  return $pod;
+}
+
+1;
+
+__DATA__
+
+########################################################################
+package @class@;
+########################################################################
+
+# Autogenerated on @timestamp@
+
+use parent qw(Amazon::API::Botocore::Shape);
+
+use strict;
+use warnings;
+
+use JSON qw(decode_json);
+
+our $SHAPE = <<'SHAPE';
+@shape@
+SHAPE
+
+our $SHAPE_DEFINITION = decode_json($SHAPE);
+
+########################################################################
+sub new {
+########################################################################
+  my ( $class, $value ) = @_;
+
+  my $options = $SHAPE_DEFINITION;
+
+  $options->{_value} = $value;
+  $options->{service} = '@service@';
+  
+  my $self = $class->SUPER::new($options);
+  
+  return $self;
+}
+
+
+1;
+
+=pod
+
+=encoding utf8
+
+=head1 NAME
+
+@class@
+
+@synopsis@
+
+=head1 DESCRIPTION
+
+@description@
+
+=head1 PARAMETERS
+
+=over 5
+
+=item Type: @type@
+
+@limits@
+
+=back
+
+=over 5
+
+@members@
+
+=back
+
+=head1 NOTE
+
+You almost never need to actually instantiate these objects
+manually if you are using the APIs that are built using Botocore
+support. Data structures required for each API are created
+automatically for you from simple Perl objects.  For example to create
+an SQS queue the Botocore documentation states that you need to pass the
+C<QueueName>, C<Attribute> and C<Tag> values.
+
+ my $result = $sqs->CreateQueue(
+    {
+     QueueName => 'foo',
+     Tag       => [ { Name              => 'foo' }, { Env => 'dev' } ],
+     Attribute => [ { VisibilityTimeout => 40 },    { DelaySeconds => 60 } ]
+    });
+
+Each of these parameters is described in the Botocore metadata as one
+of several different shapes which ultimately are mapped to one of the
+data types below.
+
+=over 5
+
+=item * map
+
+A I<map> generally corresponds to an array of hashes which represent key/value pairs.
+
+=item * list
+
+A I<list> corresponds to an array. Lists can have a minimum or maximum length.
+
+=item * string
+
+A I<string> corresponds to a SCALAR containing a character string. The
+string may be constrained by a pattern or can be an enumeration.
+
+=item * integer
+
+An I<integer> corresponds to a SCALAR containing an integer value.
+The integer may have a max and minimum value.
+
+=item * boolean
+
+A I<boolean> values corresponds to a SCALAR containing the values 'true' or 'false'
+
+=back
+
+L<Amazon::API::Botocore::Shape> handles converting Perl data
+structures into shapes and eventually back into Perl data structures
+which can be properly serialized as input to the APIs.
+
+=head1 SEE ALSO
+
+L<Amazon::API>, L<Amazon::API::Botocore::Shape>
+@see_also@
+
+=head1 AUTHOR
+
+Autogenerated by @program_name@ on @timestamp@
+
+=cut
+
+1;

@@ -3,7 +3,7 @@ package Amazon::API::Signature4;
 use strict;
 use warnings;
 
-use parent qw{ Exporter AWS::Signature4 };
+use parent qw( Exporter AWS::Signature4 );
 
 our $VERSION = '@PACKAGE_VERSION@';
 
