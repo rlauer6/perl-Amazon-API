@@ -10,17 +10,22 @@ use 5.010;
 our %LOG4PERL_LOG_LEVELS;
 
 BEGIN {
-
   %LOG4PERL_LOG_LEVELS = eval {
     require Log::Log4perl::Level;
 
+    no warnings 'once'; ## no critic (ProhibitNoWarnings)
+
+    Log::Log4perl::Level->import();
+
+    use vars qw($ERROR $WARN $INFO $DEBUG $TRACE $FATAL);
+
     return (
-      error => $Log::Log4perl::Level::ERROR,
-      warn  => $Log::Log4perl::Level::WARN,
-      info  => $Log::Log4perl::Level::INFO,
-      debug => $Log::Log4perl::Level::DEBUG,
-      trace => $Log::Log4perl::Level::TRACE,
-      fatal => $Log::Log4perl::Level::FATAL,
+      error => $ERROR,
+      warn  => $WARN,
+      info  => $INFO,
+      debug => $DEBUG,
+      trace => $TRACE,
+      fatal => $FATAL,
     );
   };
 }
@@ -1038,8 +1043,9 @@ sub invoke_api {
     if blessed($parameters) && !$self->is_botocore_api;
 
   my @paged_results;
-  my $paginator     = $self->get_paginators->{$action};
-  my $use_paginator = $paginator && $self->get_use_paginator;
+
+  my $paginator = $self->get_paginators && $self->get_paginators->{$action};
+  my $use_paginator = $paginator        && $self->get_use_paginator;
 
   my $limit;
 
@@ -1174,7 +1180,7 @@ sub invoke_api {
   my $results = $self->decode_response;
 
   return $results
-    if !$paginator;
+    if !$paginator || !$use_paginator;
 
   # you must have a paginator, but told me not to use it, delete
   # blank/null markers
@@ -1468,14 +1474,12 @@ sub _set_default_logger {
   my ($self) = @_;
 
   if ( !$self->get_logger && !Log::Log4perl->initialized ) {
+
     eval {
       require Log::Log4perl;
 
-      use vars qw($INFO);
-
-      Log::Log4perl::Level->import(qw($INFO));
       Log::Log4perl->import(':easy');
-      Log::Log4perl->easy_init($INFO);
+      Log::Log4perl->easy_init( $LOG4PERL_LOG_LEVELS{'info'} );
     };
   }
   else {

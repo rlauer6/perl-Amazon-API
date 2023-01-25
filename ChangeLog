@@ -1,3 +1,16 @@
+Wed Jan 25 16:24:11 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.4.7 - logging]:
+	* VERSION: bump
+	* NEWS.md: updated
+	* README.md: generated
+	* src/main/perl/lib/Amazon/API.pm.in
+	(BEGIN): import log levels
+	(invoke_api)
+	- only retrieve paginators if they're present
+	- return raw results if we're not using paginator
+	(_set_default_logger): use levels from $LOG4PERL_LOG_LEVELS
+
 Fri Jan 20 17:56:53 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.4.6 - Log::Log4perl]:

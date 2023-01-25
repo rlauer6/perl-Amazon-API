@@ -6,6 +6,33 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 1.4.7 (2023-01-25)
+
+This version removes fixes problem setting log levels and bug when
+paginators exist but `use_paginator` is false
+
+## Enhancements
+
+* None
+
+## Fixes
+
+* properly import log levels and initialize %LOG4PERL_LOG_LEVELS hash
+* return raw results when either there are no paginators or `use_paginator` is false
+
+# perl-Amazon-API 1.4.6 (2023-01-25)
+
+This version removes the default logger and uses Log::Log4perl
+or a logger passed in by caller.
+
+## Enhancements
+
+* use Log::Log4perl Stealth loggers or custom logger supplied by caller
+
+## Fixes
+
+* update module requirements
+
 # perl-Amazon-API 1.4.5 (2023-01-20)
 
 This version introduces automatic pagination for APIs that require the
