@@ -326,6 +326,9 @@ sub serialize {
     map => sub {
       return $data;
     },
+    blob => sub {
+      return $data;
+    },
     timestamp => sub {
       $data = ref $data ? $data->{content} : $data;
       $data //= $EMPTY;
