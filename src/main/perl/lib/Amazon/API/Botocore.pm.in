@@ -677,9 +677,11 @@ END_OF_POD
 
 ########################################################################
 sub get_api_descriptions {
+########################################################################
   goto &get_service_descriptions;
 }
 
+########################################################################
 sub get_service_descriptions {
 ########################################################################
   my @services = @_;
@@ -689,7 +691,8 @@ sub get_service_descriptions {
   if ( !@services ) {
     @services = sort keys %BOTO_SERVICES;
   }
-  foreach my $s (@services) {
+
+  foreach my $s ( map {lc} @services ) {
 
     croak "no such service: $s\n"
       if !$BOTO_SERVICES{$s};
@@ -750,7 +753,17 @@ sub fetch_boto_services {
   my ($path) = @_;
 
   if ( !-d "$path/botocore" ) {
-    croak "no $path/botocore directory found";
+    croak <<"END_OF_CROAKING";
+!!! No $path/botocore directory found.
+
+In order to create stubs or shapes you must clone the Botocore project
+and provide the path to the project using the -b option or by setting
+the environment variable BOTOCORE_PATH.
+
+  git clone https::/github.com/boto/botocore.git /tmp/botocore
+  export BOTOCORE_PATH=/tmp/botocore
+
+END_OF_CROAKING
   }
 
   find( { wanted => \&find_latest_services, follow => $TRUE }, $path );
@@ -799,6 +812,9 @@ sub create_stub {
   fetch_boto_services( $options{'botocore-path'} );
 
   my ( $service, $module_name ) = @options{qw( service module-name)};
+
+  $service = lc $service;
+
   my $package_name = sprintf 'Amazon::API::%s', $module_name;
 
   croak 'no service specified'
@@ -1001,11 +1017,13 @@ sub help {
         format_columns( text => [ sort keys %BOTO_SERVICES ] );
     }
     else {
-      my $description = get_service_descriptions( $options{service} );
-      my $operations = $description->[0]->{ $options{service} }->{operations};
+      my $description = get_service_descriptions( lc $options{service} );
+      my $operations
+        = $description->[0]->{ lc $options{service} }->{operations};
 
       my $documentation
-        = $description->[0]->{ $options{service} }->{documentation};
+        = $description->[0]->{ lc $options{service} }->{documentation};
+
       $documentation = html2pod $documentation ;
 
       my $available_commands

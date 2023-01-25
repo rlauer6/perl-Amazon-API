@@ -72,6 +72,9 @@ $(GAMAZON_API_BOTOCORE_SHAPE_PERLMODULES): % : %.in  \
     Amazon/API/Constants.pm \
     Amazon/API/Template.pm
 
+README.md: Amazon/API.pm.in
+	$(POD2MARKDOWN) < $< >$@
+
 amazon_DATA = \
     $(GAMAZON_PERLMODULES)
 
@@ -109,7 +112,7 @@ dist_noinst_DATA = \
     $(AMAZON_API_BOTOCORE_PERLMODULES) \
     $(AMAZON_API_BOTOCORE_SHAPE_PERLMODULES)
 
-all:
+all: README.md
 
 $(G3MANPAGES): %.3man : %.pm
 	set -x; \

@@ -6,6 +6,20 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 1.4.8 (2023-01-25)
+
+This version removes improves support for creating stubs and shapes
+and fixes the serializer when shapes are of type `blob`
+
+## Enhancements
+
+* None
+
+## Fixes
+
+* serialize `blob` types
+* fix for `amazon-api` when service name is mixed case (e.g. SecretsManager)
+
 # perl-Amazon-API 1.4.7 (2023-01-25)
 
 This version removes fixes problem setting log levels and bug when

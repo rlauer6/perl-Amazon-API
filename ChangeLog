@@ -1,3 +1,20 @@
+Wed Jan 25 18:41:03 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.4.8 - documentation, blob]:
+	* VERSION: bump
+	* NEWS.md: updated
+	* README.md: generated
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	(get_service_descriptions): lc service
+	(fetch_boto_services)
+	- better die message when no botocore path found
+	(create_stub): lc service
+	(help): likewise
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(serialize): handle blob type
+	* src/main/perl/lib/Makefile.am: README.md
+	* src/main/perl/lib/README.md: generated from above
+
 Wed Jan 25 16:24:11 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.4.7 - logging]:
