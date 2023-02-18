@@ -51,9 +51,12 @@ metadata. (See ["BOTOCORE SUPPORT"](#botocore-support)).
 
 - See ["IMPLEMENTATION NOTES"](#implementation-notes) for using `Amazon::API`
 directly to call AWS services.
-- See [Amazon::CloudWatchEvents](https://github.com/rlauer6/perl-Amazon-CloudWatchEvents/blob/master/src/main/perl/lib/Amazon/CloudWatchEvents.pm.in) for an example of how to use this module as a parent class.
-- See [Amazon::API::Botocore](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore) for information on how to automatically create Perl classes for AWS services using Botocore
-metadata.
+- See
+[Amazon::CloudWatchEvents](https://github.com/rlauer6/perl-Amazon-CloudWatchEvents/blob/master/src/main/perl/lib/Amazon/CloudWatchEvents.pm.in)
+for an example of how to use this module as a parent class.
+- See [Amazon::API::Botocore::Pod](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3APod) for information regarding
+how to automatically create Perl classes for AWS services using
+Botocore metadata.
 
 # BACKGROUND AND MOTIVATION
 
@@ -67,9 +70,9 @@ dependency count, you might want to consider `Amazon::API`.
 
 Think of this class as a DIY kit for invoking **only** the methods you
 need for your AWS project.  Using the included `amazon-api` utility
-you can also roll your own complete Amazon API classes that include
-support for serializing requests and responses based on metadata
-provided by the Botocore project. The classes you create with
+however, you can also roll your own complete Amazon API classes that
+include support for serializing requests and responses based on
+metadata provided by the Botocore project. The classes you create with
 `amazon-api` include full documentation as pod. (See ["BOTOCORE
 SUPPORT"](#botocore-support) for more details).
 
@@ -139,17 +142,26 @@ You can use [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) in 3 differe
         amazon-api -s sqs create-stubs
         amazon-api -s sqs create-shapes
 
-        perl -I . -MData::Dumper -MAmazon::API:SQS -e 'print Dumper(Amazon::API->new->ListQueues);'
+        perl -I . -MData::Dumper -MAmazon::API:SQS -e 'print Dumper(Amazon::API::SQS->new->ListQueues);'
 
     >     _NOTE:_ In order to use Botocore metadata you must clone the Botocore
     >     repository and point the utility to the repo.
     >
+    >     Clone the Botocore project from GitHub:
+    >
     >         mkdir ~/git
     >         cd git
     >         git clone https:://github.com/boto/botocore.git
-    >         amazon-api -b ~/git -s sqs -o ~/lib/perl5 create-stubs
-    >         amazon-api -b ~/git -s sqs -o ~/lib/perl5 create-shapes
-    >         
+    >
+    >     Generate stub classes for the API and shapes:
+    >
+    >         amazon-api -b ~/git/botocore -s sqs -o ~/lib/perl5 create-stubs
+    >         amazon-api -b ~/git/botocore -s sqs -o ~/lib/perl5 create-shapes
+    >
+    >         perldoc Amazon::API::SQS
+    >
+    >     See [Amazon::API::Botocore::Pod](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3APod) for more details regarding building
+    >     stubs and shapes.
 
 # THE APPROACH
 
@@ -179,16 +191,19 @@ willng to invest time reading the documentation on Amazon's website.
 The payoff is that you can probably use this class to call _any_ AWS
 API without installing a large number of dependencies.
 
-If you don't mind a few extra dependencies and overhead, you
-should generate the stub APIs and support classes using the
-`amazon-api` utility.
+If you don't mind a few extra dependencies and overhead, you should
+generate the stub APIs and support classes using the `amazon-api`
+utility. The stubs and shapes produced by the utility will serialize
+and deserialize requests and responses correctly by using the Botocore
+metadata. Botocore metadata provides the necessary information to
+create classes that can successfully invoke all of the Amazon APIs.
 
 A good example of creating a quick and dirty interface to CloudWatch
 Events can be found here:
 
 [Amazon::CloudWatchEvents](https://github.com/rlauer6/perl-Amazon-CloudWatchEvents/blob/master/src/main/perl/lib/Amazon/CloudWatchEvents.pm.in)
 
-And invoking some of the APIs is as easy as:
+And invoking some of the APIs can be as easy as:
 
     Amazon::API->new(
       service     => 'sqs',
@@ -229,27 +244,37 @@ classes allow you to call all of the API methods for a given service
 using simple Perl objects that are serialized correctly for a specific
 method.
 
-Service classes are subclassed from [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) so the `new()`
-constructor for them takes the same arguments.
+Service classes are subclassed from `Amazon::API` so their `new()`
+constructor takes the same arguments as `Amazon::API::new()`.
 
     my $credentials = Amazon::Credential->new();
+
     my $sqs = Amazon::API::SQS->new( credentials => $credentials );
 
 If you are going to use the Botocore support and automatically
-generate API classes you must also create the data structure classes
+generate API classes you _must also_ create the data structure classes
 that are used by each service. The Botocore based APIs will use these
 classes to serialize requests and responses.
 
+For more information on generating API classes, see
+[Amazon::API::Botocore::Pod](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3APod).
+
 ## Serialization Errors
 
-Starting with version 1.4.5, serialization exceptions or exceptions
+With little documentation to go on, Interpretting the Botocore
+metadata and deducing how to serialize shapes from Perl objects has
+been a difficult task. It's likely that there are still some edge
+cases and bugs lurking in the serialization methods. Accordingly,
+starting with version 1.4.5, serialization exceptions or exceptions
 that occur while attempting to decode a response, will result in the
-raw response being returned to the caller. If you can prevent errors
-from being surpressed by setting the `raise_serializtion_errors` to a
-true value. The default is false.
+raw response being returned to the caller. The idea being that getting
+something back that allows you figure out what to do with the response
+might be better than receiving an error.
 
-For more information on generating API classes, see
-[Amazon::API::Botocore](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore).
+OTOH, you might want to see the error, report it, or possibly
+contribute to its resolution.  You can prevent errors from being
+surpressed by setting the `raise_serializtion_errors` to a true
+value. The default is _false_.
 
 _Throughout the rest of this documentation a request made using one
 of the classes created by the Botocore support scripts will be
@@ -259,10 +284,10 @@ referred to as a **Botocore request** or **Botocore API**._
 
 # ERRORS
 
-When an error is encountered an exception class (`Amazon::API::Error`)
-will be raised if `raise_error` has been set to a true
-value. Additionally, a detailed error message will be displayed if
-`print_error` is set to true.
+When an error is returned from an API request, an exception class
+(`Amazon::API::Error`) will be raised if `raise_error` has been set
+to a true value. Additionally, a detailed error message will be
+displayed if `print_error` is set to true.
 
 See [Amazon::API::Error](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3AError) for more details.
 

@@ -1,17 +1,17 @@
 {
-   "List::MoreUtils" : "0.430",
-   "Class::Accessor::Fast" : "0.51",
    "AWS::Signature4" : "1.02",
-   "LWP::UserAgent" : "6.67",
-   "ReadonlyX" : "1.04",
-   "XML::Simple" : "2.25",
    "Carp::Always" : "0.16",
-   "Pod::HTML2Pod" : "4.05",
-   "Pod::Simple::Text" : "3.40",
-   "IO::Scalar" : "2.111",
    "Date::Format" : "2.24",
-   "JSON" : "4.07",
    "HTTP::Request" : "6.37",
+   "IO::Scalar" : "2.111",
+   "URL::Encode" : "0.03",
+   "XML::Simple" : "2.25",
+   "Pod::HTML2Pod" : "4.05",
+   "LWP::UserAgent" : "6.67",
+   "Class::Accessor::Fast" : "0.51",
+   "List::MoreUtils" : "0.430",
    "Amazon::Credentials" : "1.1.16",
-   "URL::Encode" : "0.03"
+   "Pod::Simple::Text" : "3.40",
+   "JSON" : "4.07",
+   "ReadonlyX" : "1.04"
 }

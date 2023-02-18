@@ -1,3 +1,14 @@
+Sat Feb 18 17:50:44 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[1.4.9]:
+	* src/main/perl/lib/Amazon/API.pm.in
+	- pod edits
+	* src/main/perl/lib/Amazon/API/Botocore/Pod.pm.in: likewise
+	* README.md: generated
+	* README-BUILD.md: likewise
+	* src/main/perl/lib/README.md: likewise
+	* requirements.json: order only change
+
 Wed Jan 25 18:41:03 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[1.4.8 - documentation, blob]:
@@ -281,7 +292,7 @@ Sat Jan  7 06:02:07 2023  Rob Lauer  <rlauer6@comcast.net>>
 	* src/main/perl/lib/directories.inc
 	* src/main/perl/lib/Makefile.am
 	* src/main/perl/lib/Amazon/API/CloudWatchLogs.pm.in: removed
-	* src/main/perl/lib/Amazon/API/EC2.pm.in: likewis
+	* src/main/perl/lib/Amazon/API/EC2.pm.in: likewise
 	* src/main/perl/lib/Amazon/API/ECR.pm.in: likewise
 	* src/main/perl/lib/Amazon/API/ECS.pm.in: likewise
 	* src/main/perl/lib/Amazon/API/SQS.pm.in: likewise

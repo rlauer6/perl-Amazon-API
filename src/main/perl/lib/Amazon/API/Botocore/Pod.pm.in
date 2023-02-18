@@ -10,9 +10,11 @@ use Pod::Find qw(pod_where);
 
 our @EXPORT_OK = qw{ pod };
 
-our $VERSION = '@PACKAGE_VERSION@';
+our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
 
+########################################################################
 sub pod {
+########################################################################
   my ($exit_val) = @_;
 
   return pod2usage(
@@ -20,11 +22,11 @@ sub pod {
     -input   => pod_where( { -inc => 1 }, __PACKAGE__ ),
     -output  => \*STDOUT,
   );
-} ## end sub pod
+}
 
 1;
 
-## no critic (Documentation::RequirePackageMatchesPodName)
+## no critic (RequirePackageMatchesPodName)
 
 __END__
 
@@ -71,8 +73,9 @@ Amazon::API::Botocore - Automagic AWS API class generator
     * if you don't like these rules, use the -m option to change the name ;-)
 
 2. The current working directory will be used as the root directory
-   for creating the API and shape classes unless the -o option is
-   specified. Directories will be created if they do not exist.
+   for creating the API and shape classes. Use the -o option to create
+   the API in a different directory.s Directories will be created if
+   they do not exist.
 
 3. Use this script to get help for specific APIs, methods
    or shapes.
@@ -107,7 +110,14 @@ See L<Amazon::API> for more details.
 
 =head1 NOTES
 
-Assuming you have built the project...
+First build the project from either the GitHub repository or CPAN.
+
+I<Note that building the project from the GitHub repository requires
+additional tooling you may not have in your environment. See
+L<README-BUILD.md|https://github.com/rlauer6/perl-Amazon-API/blob/master/README-BUILD.md>
+for more details.>
+
+Assuming you have built the L<Amazon::API> project...
 
  git clone https://github.com/rlauer6/perl-Amazon-API.git
  export PROJECT_HOME="$(pwd)/perl-Amazon-API"
@@ -121,10 +131,10 @@ or installed L<Amazon::API> from CPAN...
 
 ...now clone the Botocore repository.
 
- cd $PROJECT_HOME/src/main/perl/lib
  git clone https://github.com/boto/botocore.git
+ export BOTOCORE_PATH=$(pwd)/botocore
 
-...and try to generate the API class and its data classes (shapes)
+...and now generate the API class and its data classes (shapes)
 
  amazon-api -s sqs create-stubs
  amazon-api -s sqs create-shapes
@@ -137,14 +147,14 @@ or installed L<Amazon::API> from CPAN...
 
 =head1 METHODS AND SUBROUTINES
 
-No public methods are exported by this class. It is a modulino!
+No public methods are exported by this class. It's a modulino!
 
 =head1 AUTHOR
 
-Rob Lauer - <rclauer@gmail.com>
+Rob Lauer - <rlauer6@comcast.net>
 
 =head1 SEE OTHER
 
-L<Amazon::API>, L<Amazon::API::Botocore>, L<Amazon::API::Botocore::Shape>
+L<Amazon::API>, L<Amazon::API::Botocore::Pod>, L<Amazon::API::Botocore::Shape>
 
 =cut
