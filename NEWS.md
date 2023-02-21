@@ -6,6 +6,44 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.1 (2023-02-25)
+
+This version adds `Pod::Parser` as a dependency since it may not exist
+on some systems. There are no code changes in this version, only the
+`requires` files that is used to create the CPAN distribution has been
+changed.
+
+## Enhancements
+
+* None - _essentially the same version as 2.0.0_
+
+## Fixes
+
+* None
+
+# perl-Amazon-API 2.0.0 (2023-02-18)
+
+This is the first official release of the experimental version that
+employs botocore metadata to create classes for accessing AWS API services.
+
+## Enhancements
+
+* None - _essentially the same version as 1.4.9_
+
+## Fixes
+
+* None
+
+# perl-Amazon-API 1.4.9 (2023-02-18)
+
+This is a minor release which includes edits to documentation
+
+## Enhancements
+
+* None - _essentially the same version as 1.4.8_
+
+## Fixes
+
 # perl-Amazon-API 1.4.8 (2023-01-25)
 
 This version removes improves support for creating stubs and shapes

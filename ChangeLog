@@ -1,3 +1,11 @@
+Tue Feb 21 07:04:44 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.1 - Pod::Parser]:
+	* VERSION: bump
+	* cpan/requires: add Pod::Parser any version
+	* README.md: generated]
+	* NEWS: updated
+
 Sat Feb 18 18:04:56 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.0 - Botocore release to CPAN]:

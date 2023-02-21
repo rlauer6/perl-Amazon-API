@@ -10,6 +10,7 @@ List::MoreUtils 0
 List::Util 1.33
 LWP::UserAgent 0
 Pod::HTML2Pod 0
+Pod::Parser 0
 Pod::Simple::Text 0
 ReadonlyX 0
 URL::Encode 0
