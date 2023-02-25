@@ -6,6 +6,20 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.2 (2023-02-25)
+
+This version adds `Log::Log4perl` as a dependency. There are no code
+changes in this version, only the `requires` file that is used to
+create the CPAN distribution has been changed.
+
+## Enhancements
+
+* None - _essentially the same version as 2.0.0_
+
+## Fixes
+
+* None
+
 # perl-Amazon-API 2.0.1 (2023-02-25)
 
 This version adds `Pod::Parser` as a dependency since it may not exist

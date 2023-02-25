@@ -8,6 +8,7 @@ IO::Scalar 0
 JSON 0
 List::MoreUtils 0
 List::Util 1.33
+Log::Log4perl 0
 LWP::UserAgent 0
 Pod::HTML2Pod 0
 Pod::Parser 0

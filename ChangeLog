@@ -1,9 +1,17 @@
+Sat Feb 25 10:18:34 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.2 - Log::Log4perl]:
+	* VERSION: bump
+	* cpan/requires: + Log::Log4perl
+	* NEWS: updated
+	* README.md: generated
+
 Tue Feb 21 07:04:44 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.1 - Pod::Parser]:
 	* VERSION: bump
 	* cpan/requires: add Pod::Parser any version
-	* README.md: generated]
+	* README.md: generated
 	* NEWS: updated
 
 Sat Feb 18 18:04:56 2023  Rob Lauer  <rlauer6@comcast.net>
