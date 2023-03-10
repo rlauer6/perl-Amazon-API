@@ -46,28 +46,28 @@ our %EXPORT_TAGS = (
 our $VERSION = '@PACKAGE_VERSION@';
 
 # chars
-Readonly our $AMPERSAND          => q{&};
-Readonly our $COLON              => q{:};
-Readonly our $COMMA              => q{,};
-Readonly our $DOUBLE_COLON       => q{::};
-Readonly our $DASH               => q{-};
-Readonly our $DOT                => q{.};
-Readonly our $EMPTY              => q{};
-Readonly our $EQUALS_SIGN        => q{=};
-Readonly our $OCTOTHORP          => q{#};
-Readonly our $PERIOD             => q{.};
-Readonly our $QUESTION_MARK      => q{?};
-Readonly our $SLASH              => q{/};
-Readonly our $SPACE              => q{ };
-Readonly our $TEMPLATE_DELIMITER => q{@};
-Readonly our $UNDERSCORE         => q{_};
+Readonly::Scalar our $AMPERSAND          => q{&};
+Readonly::Scalar our $COLON              => q{:};
+Readonly::Scalar our $COMMA              => q{,};
+Readonly::Scalar our $DOUBLE_COLON       => q{::};
+Readonly::Scalar our $DASH               => q{-};
+Readonly::Scalar our $DOT                => q{.};
+Readonly::Scalar our $EMPTY              => q{};
+Readonly::Scalar our $EQUALS_SIGN        => q{=};
+Readonly::Scalar our $OCTOTHORP          => q{#};
+Readonly::Scalar our $PERIOD             => q{.};
+Readonly::Scalar our $QUESTION_MARK      => q{?};
+Readonly::Scalar our $SLASH              => q{/};
+Readonly::Scalar our $SPACE              => q{ };
+Readonly::Scalar our $TEMPLATE_DELIMITER => q{@};
+Readonly::Scalar our $UNDERSCORE         => q{_};
 
 # strings
-Readonly our $PADDING => $SPACE x 4;
+Readonly::Scalar our $PADDING => $SPACE x 4;
 
 # booleans
-Readonly our $TRUE  => 1;
-Readonly our $FALSE => 0;
+Readonly::Scalar our $TRUE  => 1;
+Readonly::Scalar our $FALSE => 0;
 
 foreach my $k ( keys %EXPORT_TAGS ) {
   push @EXPORT_OK, @{ $EXPORT_TAGS{$k} };

@@ -51,10 +51,11 @@ use ReadonlyX;
 use charnames qw(:full);
 
 # package constants
-Readonly our $BOTO_PATH_OFFSET    => 3;
-Readonly our $SHAPE_FILE_TEMPLATE => '%sAmazon/API/Botocore/Shape/%s/';
+Readonly::Scalar our $BOTO_PATH_OFFSET => 3;
+Readonly::Scalar our $SHAPE_FILE_TEMPLATE =>
+  '%sAmazon/API/Botocore/Shape/%s/';
 
-Readonly our $REQUEST_CLASS_TEMPLATE =>
+Readonly::Scalar our $REQUEST_CLASS_TEMPLATE =>
   q{Amazon::API::Botocore::Shape::%s::%sRequest};
 
 use Amazon::API::Constants qw( :all );

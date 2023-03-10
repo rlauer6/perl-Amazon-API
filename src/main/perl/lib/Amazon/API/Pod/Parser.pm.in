@@ -11,7 +11,7 @@ use Carp;
 use IO::Scalar;
 use ReadonlyX;
 
-Readonly my $EMPTY => q{};
+Readonly::Scalar my $EMPTY => q{};
 
 our $VERSION = '0.01';
 

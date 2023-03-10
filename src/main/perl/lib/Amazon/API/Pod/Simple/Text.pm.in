@@ -9,9 +9,9 @@ use ReadonlyX;
 
 our @EXPORT = qw{ $SECTION };
 
-Readonly my $TRUE  => 1;
-Readonly my $FALSE => 0;
-Readonly my $EMPTY => q{};
+Readonly::Scalar my $TRUE  => 1;
+Readonly::Scalar my $FALSE => 0;
+Readonly::Scalar my $EMPTY => q{};
 
 our $VERSION = '0.01';
 

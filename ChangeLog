@@ -1,3 +1,23 @@
+Fri Mar 10 08:41:44 2023  Rob Lauer  <rlauer@usgn.net>
+
+	[2.0.3 - Readonly]:
+	* VERSION: bump
+	* README.md: generated
+	* bootstrap: use config options if found
+	* src/main/perl/lib/Amazon/API.pm.in
+	- Readonly => Readonly::Scalar
+	(_set_default_logger)
+	- add ability to log to files
+	- use default layout pattern
+	- add DEBUG, etc to package AND sub-classes?
+	(_create_stealth_logger): new
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in: Readonly => Readonly::Scalar
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Utils.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Constants.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Pod/Parser.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Pod/Simple/Text.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Template.pm.in: likewise
+
 Sat Feb 25 10:18:34 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.2 - Log::Log4perl]:

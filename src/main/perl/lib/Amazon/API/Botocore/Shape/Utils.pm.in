@@ -31,7 +31,8 @@ our @EXPORT_OK = qw(
 
 our %EXPORT_TAGS = ( all => [@EXPORT_OK] );
 
-Readonly our $SHAPE_NAME_TEMPLATE => 'Amazon::API::Botocore::Shape::%s::%s';
+Readonly::Scalar our $SHAPE_NAME_TEMPLATE =>
+  'Amazon::API::Botocore::Shape::%s::%s';
 
 our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
 

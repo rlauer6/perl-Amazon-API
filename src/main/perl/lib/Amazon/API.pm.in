@@ -58,11 +58,11 @@ use Time::Local;
 use Time::HiRes qw( gettimeofday tv_interval );
 use XML::Simple;
 
-Readonly my $DEFAULT_REGION   => 'us-east-1';
-Readonly my $REGIONAL_URL_FMT => '%s://%s.%s.amazonaws.com';
-Readonly my $GLOBAL_URL_FMT   => '%s://%s.amazonaws.com';
+Readonly::Scalar my $DEFAULT_REGION   => 'us-east-1';
+Readonly::Scalar my $REGIONAL_URL_FMT => '%s://%s.%s.amazonaws.com';
+Readonly::Scalar my $GLOBAL_URL_FMT   => '%s://%s.amazonaws.com';
 
-our $LAYOUT_PATTERN = '%d - %r - %R - %M[%L] - (%P) - %m';
+Readonly::Scalar my $DEFAULT_LAYOUT_PATTERN => '[%d] %p (%R/%r) %M:%L - %m%n';
 
 local $Data::Dumper::Pair  = $COLON;
 local $Data::Dumper::Useqq = $TRUE;
@@ -89,6 +89,8 @@ __PACKAGE__->mk_accessors(
     last_action
     _log_level
     logger
+    log_file
+    log_layout
     paginators
     print_error
     protocol
@@ -1467,6 +1469,30 @@ sub _create_methods {
 }
 
 ########################################################################
+sub _create_stealth_logger {
+########################################################################
+  my ( $self, $name, $level ) = @_;
+
+  my $sub_name = sprintf '%s::%s', $name, $level;
+
+  return
+    if defined *{$sub_name};
+
+  no strict 'refs'; ## no critic ProhibitNoStrict
+
+  *{$sub_name} = sub {
+    if ( $self->get_logger && $self->get_logger->can($level) ) {
+      $self->get_logger->$level(@_);
+    }
+    else {
+      return;
+    }
+  };
+
+  return;
+}
+
+########################################################################
 sub _set_default_logger {
 ########################################################################
   my ($self) = @_;
@@ -1477,23 +1503,20 @@ sub _set_default_logger {
       require Log::Log4perl;
 
       Log::Log4perl->import(':easy');
-      Log::Log4perl->easy_init( $LOG4PERL_LOG_LEVELS{'info'} );
+
+      Log::Log4perl->easy_init(
+        { level  => $LOG4PERL_LOG_LEVELS{'info'},
+          layout => $self->get_log_layout // $DEFAULT_LAYOUT_PATTERN,
+          ( $self->get_log_file ? ( file => $self->get_log_file ) : () ),
+
+        }
+      );
     };
   }
   else {
-    my $package = ref $self;
-
-    no strict 'refs'; ## no critic ProhibitNoStrict
-
     for my $level (qw(debug trace info warn error )) {
-      *{ $package . q{::} . uc $level } = sub {
-        if ( $self->get_logger && $self->get_logger->can($level) ) {
-          $self->get_logger->$level(@_);
-        }
-        else {
-          return;
-        }
-      }
+      $self->_create_stealth_logger( $level, __PACKAGE__ );
+      $self->_create_stealth_logger( $level, ref $self );
     }
   }
 

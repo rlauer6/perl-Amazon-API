@@ -6,6 +6,21 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.3 (2023-03-10)
+
+This version fixes a few bugs described below and adds more logging features.
+
+## Enhancements
+
+* log_file, log_layout options added to constructor for logging to
+  files and for customizing the log layout
+
+## Fixes
+
+* _set_default_logger() called by the constructor will add stealth
+  loggers for Amazon::API and its sub-classes (unless they already exist).
+* Readonly for scalars, changed to Readonly::Scalar
+
 # perl-Amazon-API 2.0.2 (2023-02-25)
 
 This version adds `Log::Log4perl` as a dependency. There are no code

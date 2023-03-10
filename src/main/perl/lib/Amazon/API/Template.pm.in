@@ -17,7 +17,7 @@ use Pod::HTML2Pod;
 use English qw(-no_match_vars);
 use Fcntl qw(:seek);
 
-Readonly my $TEMPLATE_DELIMITER => q{@};
+Readonly::Scalar my $TEMPLATE_DELIMITER => q{@};
 
 ########################################################################
 sub to_template_var {
