@@ -19,7 +19,7 @@ so you'll need the _autoconf/automake/libtools_ utilities.
 * `automake`
 * `make`
 
-## Perl modules
+## Perl Modules
 
 When you run `configure`, a check will be made for the Perl modules
 required for this project.  The requirement for Perl modules includes

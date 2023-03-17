@@ -70,6 +70,8 @@ do_subst_command='do_subst = sed \
   -e '"'"'s,[@]perlrun[@],$(perlrun),g'"'"' \
   -e '"'"'s,[@]ksh[@],$(ksh),g'"'"' \
   -e '"'"'s,[@]bashrun[@],$(bashrun),g'"'"' \
+  -e '"'"'s,[@]scandeps[@],$(scandeps),g'"'"' \
+  -e '"'"'s,[@]make_cpan_dist[@],$(make_cpan_dist),g'"'"' \
   -e '"'"'s,[@]logdir[@],$(logdir),g'"'"' \
 \
   -e '"'"'s,[@]SOME_THINGY[@],$(SOME_THINGY),g'"'"' \
@@ -108,7 +110,7 @@ if test -z "$POD2MARKDOWN" ; then
 fi
 
 AC_PATH_PROG([SCANDEPS],
-	[scandepsx-static.pl])
+	[scandeps-static.pl])
 
 if test -z "$SCANDEPS" ; then 
   AC_MSG_WARN([scandeps-static.pl not found...you won't be able generate project requirements])

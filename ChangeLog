@@ -1,4 +1,18 @@
-Fri Mar 10 08:41:44 2023  Rob Lauer  <rlauer@usgn.net>
+Fri Mar 17 14:19:55 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.4 - create-service]:
+	* NEWS.md: updated
+	* VERSION: bump
+	* configure.ac
+	(AC_PATH_PROG): scandeps-static.pl
+	(do_subst_command):
+	- scandeps, make_cpan_dist
+	* src/main/bash/bin/Makefile.am
+	- add create-service to build
+	- set automake variables scandeps, make_cpan_dist
+	* src/main/bash/bin/create-service.sh.in: new
+
+Fri Mar 10 08:41:44 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.3 - Readonly]:
 	* VERSION: bump

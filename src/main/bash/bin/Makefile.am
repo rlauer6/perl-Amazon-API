@@ -1,10 +1,13 @@
 SUBDIRS = . 
 
-perlrun = @PERL@
-bashrun = @BASHRUN@
+perlrun        = @PERL@
+bashrun        = @BASHRUN@
+scandeps       = @SCANDEPS@
+make_cpan_dist = @MAKE_CPAN_DIST@
 
 BASHSCRIPTS = \
-    amazon-api.sh.in
+    amazon-api.sh.in \
+    create-service.sh.in
 
 GBASHSCRIPTS = $(BASHSCRIPTS:.sh.in=.sh)
 bin_SCRIPTS = $(GBASHSCRIPTS:.sh=)
@@ -17,7 +20,11 @@ dist_noinst_DATA = $(BASHSCRIPTS)
 $(GBASHSCRIPTS): % : %.in
 	$(do_subst) $< > $@
 
-amazon-api: $(GBASHSCRIPTS)
+amazon-api: amazon-api.sh
+	cp $< $@
+	chmod +x $@
+
+create-service: create-service.sh
 	cp $< $@
 	chmod +x $@
 

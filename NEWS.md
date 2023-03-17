@@ -6,6 +6,44 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.4 (2023-03-17)
+
+This version instroduces the `create-service` utility for creating a
+CPAN distribution file for a specific AWS API.
+
+To use the utility you must have the Botocore project somewhere in
+an accessible path and a few additional required programs.
+
+```
+usage: ./create-service options
+
+Utility to create a CPAN distribution for an AWS API
+
+Options
+-------
+-h               help
+-b path          path to Botocore project
+-o path          path for for files (a CPAN distribution will not be create)
+-m module name   override of Perl module suffix
+-s service name  name of the AWS API service (lower case)
+-t               create a regular tarball
+
+Note: To use this utilty to create a CPAN distribution you must have
+'make-cpan-dist' which can be found here:
+
+ https://github.com/rlauer6/make-cpan-dist.git
+
+This utility is part of the Amazon::API distribtion (v2.0.4).
+```
+
+## Enhancements
+
+* new `create-service` utility
+
+## Fixes
+
+* `configure.ac` updated with correction to `scandeps-static.pl` test.
+
 # perl-Amazon-API 2.0.3 (2023-03-10)
 
 This version fixes a few bugs described below and adds more logging features.

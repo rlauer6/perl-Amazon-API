@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+#-*- mode: sh; -*-
+
+########################################################################
+function usage {
+########################################################################
+    test -n "$1" && echo "error: $1";
+    
+    cat <<EOT
+usage: $0 options
+
+Utility to create a CPAN distribution for an AWS API
+
+Options
+-------
+-h               help
+-b path          path to Botocore project
+-o path          path for for files (a CPAN distribution will not be create)
+-m module name   override of Perl module suffix
+-s service name  name of the AWS API service (lower case)
+-t               create a regular tarball
+
+Note: To use this utilty to create a CPAN distribution you must have
+'make-cpan-dist' which can be found here:
+
+ https://github.com/rlauer6/make-cpan-dist.git
+
+This utility is part of the Amazon::API distribtion (v@PACKAGE_VERSION@).
+EOT
+
+    exit;
+}
+
+
+########################################################################
+function verify_or_exit() {
+########################################################################
+    verify_message="$1"
+    
+    test -n "$1" && echo -e "\033[1m${verify_message}\033[0m"
+    echo -e "\033[1mContinue (y/n)?\033[0m"
+
+    read -n 1 -s ans
+
+    if ! test "$ans" = "y"; then
+        exit 1
+    fi
+}
+
+########################################################################
+function create_cpan_distribution  {
+########################################################################
+
+    if test -z "$MAKE_CPAN_DIST"; then
+        >&2 echo "WARNING: you need 'make-cpan-dist' to create CPAN distributions"
+        >&2 echo "creating a regular tarball containing all of the Perl modules"
+    fi
+    
+    if test -z "@scandeps"; then
+        >&2 "WARNING: no scandeps-static.pl found...guessing at requirements"
+        echo "Amazon::API 0" > requires
+        echo "JSON 0" >>requires
+    elsif test -n "$MAKE_CPAN_DIST"
+        >&2 echo "scanning for dependencies..."
+
+        requires=$(mktemp)
+        
+        $SCAN -r --no-core Amazon/API/$module_name.pm >$requires
+        $SCAN -r --no-core $(ls -1 Amazon/API/$module_name/*.pm | head -1) >>$requires
+        $SCAN -r --no-core $(ls -1 Amazon/API/Botocore/Shape/$module_name/*.pm | head -1) >>$requires
+        
+        sort -u $requires > requires
+        rm "$requires"
+    fi
+    
+    >&2 echo "creating package perl-Amazon-API-$module_name.tar.gz"
+
+    if test -z "$MAKE_CPAN_DIST"; then
+        tar cfvz perl-Amazon-API-$module_name.tar.gz \
+            Amazon/API/$module_name.pm \
+            Amazon/API/$module_name/ \
+            Amazon/API/Botocore/Shape/$module_name/ >/dev/null
+        return
+    fi
+    
+    description=$(amazon-api -s $module_name help | perl -0 -ne 'print $1 if /DESCRIPTION\n\s*([^\n]+)\n/;')
+
+    mkdir lib
+    mv Amazon lib/
+    mkdir bin/
+
+    PROJECT_HOME=$tmpdir $MAKE_CPAN_DIST \
+	                 -e bin \
+	                 -l lib \
+	                 -c \
+	                 -M 5.016 \
+	                 -m $PERL_MODULE \
+	                 -a 'Rob Lauer' \
+	                 -d "$description" \
+	                 -H $(pwd) \
+	                 -D requires 1>&2
+    return;
+}
+
+
+##########################
+# MAIN SCRIPT START HERE #
+##########################
+
+test -n "$DEBUG" && set -x
+
+BOTOCORE_PATH=${BOTOCORE_PATH:-$(pwd)/src/main/perl/lib/botocore}
+
+MAKE_CPAN_DIST=$(basename @make_cpan_dist@ .pl)
+SCAN="@scandeps@"
+
+while getopts "h?b:o:s:m:t" arg "$@"; do
+
+    case "${arg}" in
+
+        b)
+            BOTOCORE_PATH="$OPTARG";
+            ;;
+
+        m)
+            module_name="$OPTARG";
+            ;;
+
+        o)
+            output_path="$OPTARG";
+            if [ "$output_path" = "." ]; then
+                output_path=$(pwd);
+            fi
+            ;;
+        
+        s)
+            api_service="$OPTARG";
+            ;;
+        
+        t)
+            MAKE_CPAN_DIST=""
+            ;;
+
+        h)
+	    usage;
+	    ;;
+
+    esac
+done
+
+if ! test -d $BOTOCORE_PATH/botocore; then
+    >&2 echo "BOTOCORE_PATH invalid"
+    exit 1;
+fi
+
+if test -z "$api_service"; then
+    >&2 echo "usage: create-service -s service"
+    exit 1
+fi
+
+if test -n "$module_name"; then
+    MODULE="-m $module_name"
+fi
+
+if test -z "$output_path"; then
+    trap 'test -n "$tmpdir" && rm -rf $tmpdir' EXIT
+
+    tmpdir=$(mktemp -d)
+    output_path=$tmpdir
+    
+elif ! test -d "$output_path"; then
+    >&2 echo "no such path $output_path"
+
+    exit 1;
+fi
+
+if test -n "$tmpdir" && test -n "$MAKE_CPAN_DIST"; then
+    message="Create CPAN distribution for $api_service"
+elif test -z "$MAKE_CPAN_DIST"; then
+    message="Create tarball with Perl modules for $api_service"
+else
+    message="Create Perl modules for $api_service  in $output_path"
+fi
+
+verify_or_exit "$message"
+
+>&2 echo "creating stub for service ($api_service)"
+amazon-api -s $api_service $MODULE -o $output_path create-stub
+
+pushd $output_path >/dev/null
+
+if test -z "$module_name"; then
+    module_name=$(basename $(find  Amazon/API -type d | grep -v 'API$'))
+fi
+
+nmethods=$(ls -1 Amazon/API/$module_name/ | wc -l)
+>&2 echo "...$nmethods methods are implemented by Amazon::API::$module_name"
+PERL_MODULE="Amazon::API::$module_name";
+
+>&2 echo "creating shapes for $PERL_MODULE"
+amazon-api -s $api_service $MODULE -o $output_path create-shapes
+nshapes=$(ls -1 Amazon/API/Botocore/Shape/$module_name/* | wc -l)
+
+>&2 echo "...$nshapes shapes created for $PERL_MODULE"
+
+if test -n "$tmpdir"; then
+    create_cpan_distribution
+fi
+
+popd >/dev/null
+
+if test -n "$tmpdir"; then
+    tarball=$(basename $(ls -1 $tmpdir/*.tar.gz))
+    
+    cp $tmpdir/*.tar.gz .
+
+    ls -lart $tarball
+fi
+
+# rm -rf $tmpdir/
+
