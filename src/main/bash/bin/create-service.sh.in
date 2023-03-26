@@ -56,11 +56,11 @@ function create_cpan_distribution  {
         >&2 echo "creating a regular tarball containing all of the Perl modules"
     fi
     
-    if test -z "@scandeps"; then
+    if test -z "@scandeps@"; then
         >&2 "WARNING: no scandeps-static.pl found...guessing at requirements"
         echo "Amazon::API 0" > requires
         echo "JSON 0" >>requires
-    elsif test -n "$MAKE_CPAN_DIST"
+    elif test -n "$MAKE_CPAN_DIST"; then
         >&2 echo "scanning for dependencies..."
 
         requires=$(mktemp)
@@ -163,7 +163,7 @@ if test -n "$module_name"; then
 fi
 
 if test -z "$output_path"; then
-    trap 'test -n "$tmpdir" && rm -rf $tmpdir' EXIT
+    test -z "$DEBUG" && trap 'test -n "$tmpdir" && rm -rf $tmpdir' EXIT
 
     tmpdir=$(mktemp -d)
     output_path=$tmpdir

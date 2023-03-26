@@ -1,3 +1,12 @@
+Sun Mar 26 17:25:06 2023  Rob Lauer  <rlauer6@comcast.net>>
+
+	[2.0.5 - create-service]:
+	* VERSION: bump
+	* README.md: generated
+	* src/main/bash/bin/create-service.sh.in
+	- missing @ in automake @scandeps@ variable
+	- don't remove temp dir if DEBUG mode
+
 Fri Mar 17 14:19:55 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.4 - create-service]:
