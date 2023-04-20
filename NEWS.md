@@ -6,6 +6,36 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.6 (2023-04-20)
+
+This version corrects a bug in the `_create_stealth_logger()` method
+when a logger is passed.
+
+## Enhancements
+
+* None
+
+## Fixes
+
+* when passing a logger to the API, the `create_stealth_logger()`
+  method was incorrectly trying to detect whether the logging methods
+  (DEBUG, e.g.) existed in the namespace. It also failed to uppercase
+  the log level when creating the method name.
+
+# perl-Amazon-API 2.0.5 (2023-03-26)
+
+This version corrects a bug in the `create-service` script
+
+## Enhancements
+
+* None
+
+## Fixes
+
+* missing @ in automake variable prevented scandeps from working
+  properly
+* don't remove temp directory if DEBUG mode
+
 # perl-Amazon-API 2.0.4 (2023-03-17)
 
 This version instroduces the `create-service` utility for creating a

@@ -1473,12 +1473,12 @@ sub _create_stealth_logger {
 ########################################################################
   my ( $self, $name, $level ) = @_;
 
-  my $sub_name = sprintf '%s::%s', $name, $level;
-
-  return
-    if defined *{$sub_name};
+  my $sub_name = sprintf '%s::%s', $name, uc $level;
 
   no strict 'refs'; ## no critic ProhibitNoStrict
+
+  return
+    if defined *{$sub_name}{CODE};
 
   *{$sub_name} = sub {
     if ( $self->get_logger && $self->get_logger->can($level) ) {
@@ -1515,8 +1515,8 @@ sub _set_default_logger {
   }
   else {
     for my $level (qw(debug trace info warn error )) {
-      $self->_create_stealth_logger( $level, __PACKAGE__ );
-      $self->_create_stealth_logger( $level, ref $self );
+      $self->_create_stealth_logger( __PACKAGE__, $level );
+      $self->_create_stealth_logger( ref($self),  $level );
     }
   }
 
