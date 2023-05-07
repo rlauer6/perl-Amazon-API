@@ -23,15 +23,16 @@ BEGIN {
 
 use parent qw(Class::Accessor::Fast);
 
-use Amazon::API::Constants qw(:chars :booleans);
+use Amazon::API::Constants              qw(:chars :booleans);
 use Amazon::API::Botocore::Shape::Utils qw(require_shape);
 
 use Carp;
 use Data::Dumper;
-use English qw(-no_match_vars);
-use JSON qw(decode_json encode_json);
+use English      qw(-no_match_vars);
+use JSON         qw(decode_json encode_json);
 use Scalar::Util qw(reftype);
-use List::Util qw(any none);
+use List::Util   qw(any none);
+use POSIX        qw(strftime);
 
 use URL::Encode qw(url_decode_utf8);
 
@@ -336,12 +337,11 @@ sub serialize {
       $data =~ s/^(.*)[.]000Z$/$1\+00:00/xsm;
 
       if ( $data =~ /^[\d.]+$/xsm ) {
-        require DateTime;
+        my $epoch = $data;
+        my ( undef, $nanoseconds ) = split /[.]/xsm, $epoch;
 
-        my $dt = DateTime->from_epoch($data);
-
-        my $pattern = '%Y-%m-%dT%I:%M:%S.%6N%z';
-        $data = $dt->strftime($pattern);
+        $data = strftime( '%Y-%m-%dT%H:%M:%S.%%d%z', gmtime $epoch );
+        $data = sprintf $data, ".$nanoseconds" * 1_000_000;
       }
 
       return $data;

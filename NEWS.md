@@ -6,6 +6,23 @@ running list of changes from previous versions.  If critical bugs are found in
 any of the software, notice of such bugs and the versions in which they were
 fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.7 (2023-05-07)
+
+This version replaces the use of the `DateTime` module for formatting
+timestamps with `POSIX::strftime`.  `DateTime` introduces too many
+more dependencies than justified for simply formatting a timestamp.
+
+## Enhancements
+
+* remove `DateTime` dependency
+
+## Fixes
+
+* `create-service`
+  * pass BOTOCORE_PATH to amazon-api if set on command line
+  * export BOTOCORE_PATH for `create_cpan_distribution`
+  * exit if error creating stubs
+
 # perl-Amazon-API 2.0.6 (2023-04-20)
 
 This version corrects a bug in the `_create_stealth_logger()` method

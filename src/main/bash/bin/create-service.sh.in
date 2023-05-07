@@ -185,7 +185,9 @@ fi
 verify_or_exit "$message"
 
 >&2 echo "creating stub for service ($api_service)"
-amazon-api -s $api_service $MODULE -o $output_path create-stub
+if ! amazon-api -b $BOTOCORE_PATH -s $api_service $MODULE -o $output_path create-stub; then
+    exit
+fi
 
 pushd $output_path >/dev/null
 
@@ -198,12 +200,13 @@ nmethods=$(ls -1 Amazon/API/$module_name/ | wc -l)
 PERL_MODULE="Amazon::API::$module_name";
 
 >&2 echo "creating shapes for $PERL_MODULE"
-amazon-api -s $api_service $MODULE -o $output_path create-shapes
+amazon-api -b $BOTOCORE_PATH -s $api_service $MODULE -o $output_path create-shapes
 nshapes=$(ls -1 Amazon/API/Botocore/Shape/$module_name/* | wc -l)
 
 >&2 echo "...$nshapes shapes created for $PERL_MODULE"
 
 if test -n "$tmpdir"; then
+    export BOTOCORE_PATH=$BOTOCORE_PATH
     create_cpan_distribution
 fi
 

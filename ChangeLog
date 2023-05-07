@@ -1,3 +1,16 @@
+Sun May  7 14:02:56 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.7 - remove DateTime dependency]:
+	* VERSION: bump
+	* README.md: generated
+	* NEWS.md: updated
+	* src/main/bash/bin/create-service.sh.in
+	- exit if error from amazon-api
+	- pass BOTOCORE_PATH to amazon-api
+	- pass BOTOCORE_PATH to create_cpan_distribution
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(serialize): replace DateTime with POSIX::strftime
+
 Thu Apr 20 15:33:09 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.6 - create-service]:
