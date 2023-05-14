@@ -1,0 +1,30 @@
+FROM amazonlinux:2
+RUN amazon-linux-extras install epel -y
+
+COPY package-create-service.lst .
+RUN yum install -y $(cat package-create-service.lst)
+
+# cpanm
+RUN curl -L https://cpanmin.us | perl - App::cpanminus
+
+RUN cpanm -n -v \
+    File::Process \
+    YAML::Tiny \
+    Log::Log4perl \
+    Module::ScanDeps::Static
+
+RUN mkdir git; cd git; git clone https://github.com/rlauer6/make-cpan-dist.git; \
+    ls -alrt; \
+    cd make-cpan-dist; \
+    ./bootstrap; ./configure; \
+    make && make install
+
+RUN cd; mkdir git; cd git; \
+    git clone https://github.com/boto/botocore.git
+
+RUN cpanm -v -n Amazon::API
+
+COPY build-dist /usr/local/bin
+
+# cleanup 
+RUN yum clean all && rm -rf /var/cache/yum

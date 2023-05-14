@@ -7,7 +7,7 @@ package=@PACKAGE@
 
 # builds the distribution tarball and renames based on package version
 cpan: buildspec.yml
-	cd ..; \
+	cd $(top_srcdir); \
 	$(MAKE)
 
 	test -n "$$DEBUG" && set -x; \

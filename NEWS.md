@@ -1,10 +1,44 @@
 # NEWS
 
-This is the `NEWS` file for the `perl-Amazon-API` project. This file contains
-information on changes since the last release of the package, as well as a
-running list of changes from previous versions.  If critical bugs are found in
-any of the software, notice of such bugs and the versions in which they were
-fixed will be noted here, as well.
+This is the `NEWS` file for the `perl-Amazon-API` project. This file
+contains information on changes since the last release of the package,
+as well as a running list of changes from previous versions.  If
+critical bugs are found in any of the software, notice of such bugs
+and the versions in which they were fixed will be noted here, as well.
+
+# perl-Amazon-API 2.0.8 (2023-05-14)
+
+Version 2.0.8 contains Docker build files for creating Docker
+containers that can:
+
+* create an RPM for the `Amazon::API` distribution
+* run the `create-service` utility for creating single AWS API CPAN
+  distributions
+  
+## Enhancements
+
+* RPM builder
+* `create-service` Docker container. See [README.md](docker/README.md)
+
+## Fixes
+
+* use a value of 80 columns when formatting documentation if no screen
+  width can be detected.
+
+This version replaces the use of the `DateTime` module for formatting
+timestamps with `POSIX::strftime`.  `DateTime` introduces too many
+more dependencies than justified for simply formatting a timestamp.
+
+## Enhancements
+
+* remove `DateTime` dependency
+
+## Fixes
+
+* `create-service`
+  * pass BOTOCORE_PATH to amazon-api if set on command line
+  * export BOTOCORE_PATH for `create_cpan_distribution`
+  * exit if error creating stubs
 
 # perl-Amazon-API 2.0.7 (2023-05-07)
 

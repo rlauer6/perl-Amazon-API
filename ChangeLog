@@ -1,3 +1,29 @@
+Sat May 13 08:52:29 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.8]:
+	* VERSION: bump
+	* NEWS.md: updated
+	* configure: generated
+	* README.md: likewise
+	* README-BUILD.md: explain --enable-rpm-build-mode
+	* requires
+	- any version of Pod::Parser?
+	- bump version of Amazon::Credentials
+	* cpan/Makefile.am: top_srcdir, not ..
+	* .gitignore: *.tag, *.log
+	* docker/Dockerfile.create-service: new
+	* docker/Dockerfile.rpm-build: new
+	* docker/Makefile.docker: new
+	* docker/README.md: new
+	* docker/build-dist: new
+	* docker/create-cpan-dist: new
+	* docker/package-create-service.lst: new
+	* docker/package-rpm-build.lst: new
+	* docker/rpm-build: new
+	* create-service-sh.in: -f option (force)
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	(format_columns): use 80 if no tty
+
 Sun May  7 14:02:56 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.7 - remove DateTime dependency]:

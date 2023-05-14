@@ -48,6 +48,9 @@ dependency checking. A check will still be done, but
 checking for for HTTP::Request 6.37... (6.37) /home/rclauer/lib/perl5/HTTP/Request.pm
 checking for for IO::Pager 2.10... no (ok)
 ```
+The build also syntax checks Perl scripts and modules. If some
+dependencies are missing the build is likely to fail. You can prevent
+syntax checking using the `--enable-rpm-build-mode` option.
 
 Perl module requirements for the project may change over time. You
 can generate a new list of dependencies as shown below. Since the M4

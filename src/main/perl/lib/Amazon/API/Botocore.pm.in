@@ -31,7 +31,7 @@ use parent qw{ Exporter };
 use Amazon::API::Botocore::Shape::Utils
   qw(require_class create_shape create_module_name);
 
-use Amazon::API::Template qw(:all);
+use Amazon::API::Template    qw(:all);
 use Amazon::API::Pod::Parser qw(get_pod_section);
 
 use Carp;
@@ -40,11 +40,11 @@ use Cwd;
 use Data::Dumper;
 use English qw( -no_match_vars );
 use File::Find;
-use File::Path qw(make_path);
+use File::Path   qw(make_path);
 use Getopt::Long qw(:config no_ignore_case);
 use JSON;
 use List::MoreUtils qw( first_index );
-use List::Util qw( max );
+use List::Util      qw( max );
 use Pod::Usage;
 use Pod::Text;
 use ReadonlyX;
@@ -58,7 +58,7 @@ Readonly::Scalar our $SHAPE_FILE_TEMPLATE =>
 Readonly::Scalar our $REQUEST_CLASS_TEMPLATE =>
   q{Amazon::API::Botocore::Shape::%s::%sRequest};
 
-use Amazon::API::Constants qw( :all );
+use Amazon::API::Constants     qw( :all );
 use Amazon::API::Botocore::Pod qw( pod );
 
 our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
@@ -953,7 +953,8 @@ sub format_columns {
 
     Term::ReadKey->import('GetTerminalSize');
 
-    ($width) = GetTerminalSize();
+    ($width) = eval { GetTerminalSize() };
+    $width //= 80;
   }
 
   if ( !$column_width ) {

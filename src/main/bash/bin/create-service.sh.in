@@ -15,6 +15,7 @@ Options
 -------
 -h               help
 -b path          path to Botocore project
+-f force         don't ask, just do it
 -o path          path for for files (a CPAN distribution will not be create)
 -m module name   override of Perl module suffix
 -s service name  name of the AWS API service (lower case)
@@ -30,7 +31,6 @@ EOT
 
     exit;
 }
-
 
 ########################################################################
 function verify_or_exit() {
@@ -99,6 +99,7 @@ function create_cpan_distribution  {
 	                 -d "$description" \
 	                 -H $(pwd) \
 	                 -D requires 1>&2
+    
     return;
 }
 
@@ -114,7 +115,7 @@ BOTOCORE_PATH=${BOTOCORE_PATH:-$(pwd)/src/main/perl/lib/botocore}
 MAKE_CPAN_DIST=$(basename @make_cpan_dist@ .pl)
 SCAN="@scandeps@"
 
-while getopts "h?b:o:s:m:t" arg "$@"; do
+while getopts "h?fb:o:s:m:t" arg "$@"; do
 
     case "${arg}" in
 
@@ -133,6 +134,10 @@ while getopts "h?b:o:s:m:t" arg "$@"; do
             fi
             ;;
         
+        f)
+            FORCE="yes";
+            ;;
+
         s)
             api_service="$OPTARG";
             ;;
@@ -182,8 +187,10 @@ else
     message="Create Perl modules for $api_service  in $output_path"
 fi
 
-verify_or_exit "$message"
-
+if test -z "$FORCE"; then
+    verify_or_exit "$message"
+fi
+   
 >&2 echo "creating stub for service ($api_service)"
 if ! amazon-api -b $BOTOCORE_PATH -s $api_service $MODULE -o $output_path create-stub; then
     exit

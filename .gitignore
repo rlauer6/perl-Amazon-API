@@ -1,3 +1,5 @@
+**/*.tag
+**/*.log
 **/perltidy.err
 src/main/perl/lib/botocore
 src/main/perl/prove.*
