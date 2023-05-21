@@ -14,7 +14,7 @@ amazon-api.tag: create-service.log
 	perl -ne 'print "$$1" if /writing image sha256:([^\s]+) /;' < $< > $@
 
 create-service.log: $(CREATE_SERVICE_FILES)
-	docker build -f $< . -t amazon-api 2>&1 | tee $@
+	docker build $$NOCACHE -f $< . -t amazon-api 2>&1 | tee $@
 
 RPM_BUILD_FILES = \
     Dockerfile.rpm-build \

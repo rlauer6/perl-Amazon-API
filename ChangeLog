@@ -1,3 +1,17 @@
+Sun May 21 13:17:30 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.9]:
+	* VERSION: bump
+	* README.md: generated
+	* NEWS.md: updated
+	* src/main/perl/lib/Amazon/API.pm.in
+	(invoke_api)
+	- set paginator parameters from $parameters before it is unloaded
+	- only serialize content if it exists
+	(create_url_encoded_content): actually uri encode the parameters
+	* docker/Makefile.docker
+	- user NOCACHE if set in environment
+
 Sat May 13 08:52:29 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.8]:

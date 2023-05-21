@@ -56,6 +56,7 @@ use ReadonlyX;
 use Scalar::Util qw( reftype blessed );
 use Time::Local;
 use Time::HiRes qw( gettimeofday tv_interval );
+use URI::Encode qw(uri_encode);
 use XML::Simple;
 
 Readonly::Scalar my $DEFAULT_REGION   => 'us-east-1';
@@ -734,7 +735,7 @@ sub create_botocore_request {
   croak "could not create request shape: $shape\n$EVAL_ERROR"
     if !$class;
 
-  my $request = $class->new($parameters); # request class
+  my $request = $class->new($parameters);  # request class
 
   return $request;
 }
@@ -818,7 +819,14 @@ sub init_botocore_request {
     }
 
     DEBUG(
-      sub { return Dumper( [ 'finalized request:', $finalized_request ] ) } );
+      sub {
+        return Dumper(
+          [ finalized_request => $finalized_request,
+            protocol          => $protocol,
+          ]
+        );
+      }
+    );
 
     %parameters = %{$finalized_request};
 
@@ -870,7 +878,7 @@ sub init_botocore_request {
 
       if ($request_shape_name) {
 
-        $uri = $http->{requestUri}; # use the Botocore template
+        $uri = $http->{requestUri};  # use the Botocore template
 
         my $shape_parameters = $parameters{$shape};
 
@@ -954,7 +962,7 @@ sub init_botocore_request {
     $content = undef;
   }
 
-  DEBUG( sub { return 'content ' . Dumper( [$content] ) } );
+  DEBUG( sub { return Dumper( [ content => $content, uri => $uri ] ) } );
 
   return $content;
 }
@@ -980,7 +988,10 @@ sub serialize_content {
   DEBUG(
     sub {
       return Dumper(
-        [ 'serialize_content', $parameters, 'service', $self->get_service ] );
+        [ 'serialize_content' => $parameters,
+          service             => $self->get_service
+        ]
+      );
     }
   );
 
@@ -1028,7 +1039,10 @@ sub invoke_api {
   DEBUG(
     sub {
       return Dumper(
-        [ 'parameters', $parameters, 'content-type', $content_type ] );
+        [ parameters     => $parameters,
+          'content-type' => $content_type,
+        ]
+      );
     }
   );
 
@@ -1051,10 +1065,6 @@ sub invoke_api {
 
   # See if this was generated w/Botocore
   if ( $self->is_botocore_api ) {
-    $parameters = $self->init_botocore_request($parameters);
-
-    $content_type = $self->get_content_type;
-
     if ($use_paginator) {
 
       $paginator->{more_results} //= $paginator->{output_token};
@@ -1062,19 +1072,48 @@ sub invoke_api {
       $limit = $parameters->{ $paginator->{limit_key} };
 
       DEBUG(
-        sub { return Dumper( [ 'paginator', $paginator, 'limit', $limit ] ) }
+        sub {
+          return Dumper(
+            [ paginator  => $paginator,
+              limit      => $limit,
+              parameters => $parameters,
+            ]
+          );
+        }
       );
     }
+    $parameters = $self->init_botocore_request($parameters);
+
+    $content_type = $self->get_content_type;
+
+    DEBUG(
+      sub {
+        return Dumper(
+          [ parameters   => $parameters,
+            content_type => $content_type
+          ]
+        );
+      }
+    );
+
   }
   elsif ( !$content_type ) {
     $content_type = $self->set_content_type( $self->_set_content_type );
   }
 
-  my $serialized_content = $self->serialize_content($parameters);
+  my $serialized_content;
+
+  if ($parameters) {
+    $serialized_content = $self->serialize_content($parameters);
+  }
 
   DEBUG(
     sub {
-      Dumper [ $content_type, $parameters, $serialized_content ];
+      Dumper [
+        content_type       => $content_type,
+        parameters         => $parameters,
+        serialized_content => $serialized_content
+      ];
     }
   );
 
@@ -1110,7 +1149,7 @@ sub invoke_api {
     }
 
     if ( $self->get_raise_error ) {
-      die $self->get_error; ## no critic (RequireCarping)
+      die $self->get_error;  ## no critic (RequireCarping)
     }
   }
 
@@ -1136,12 +1175,9 @@ sub invoke_api {
       DEBUG(
         sub {
           return Dumper(
-            [ 'paginating...',
-              $result,
-              'paged results',
-              \@paged_results,
-              $paginator->{more_results},
-              !$result->{ $paginator->{more_results} }
+            [ result        => $result,
+              paged_results => \@paged_results,
+              more_results  => $paginator->{more_results},
             ]
           );
         }
@@ -1360,13 +1396,13 @@ sub create_urlencoded_content {
     # if any are refs then they should be hashes...
     if ( any {ref} @{$parameters} ) {
 
-      @args = map { %{$_} } @{$parameters}; # list of hashes
+      @args = map { %{$_} } @{$parameters};  # list of hashes
     }
     elsif ( any {/=/xsm} @{$parameters} ) {
-      @args = map { split /=/xsm } @{$parameters}; # formatted list
+      @args = map { split /=/xsm } @{$parameters};  # formatted list
     }
     else {
-      @args = @{$parameters};                      # simple list
+      @args = @{$parameters};                       # simple list
     }
   }
 
@@ -1380,7 +1416,10 @@ sub create_urlencoded_content {
     push @args, 'Version', $version;
   }
 
-  return join $AMPERSAND, map { sprintf '%s=%s', @{$_} } pairs @args;
+  return join $AMPERSAND, map {
+    sprintf '%s=%s', $_->[0],
+      uri_encode( $_->[1], { encode_reserved => $TRUE } )
+  } pairs @args;
 }
 
 ########################################################################
@@ -1428,8 +1467,8 @@ sub _create_methods {
   my $class = ref $self || $self;
 
   if ( $self->get_api_methods ) {
-    no strict 'refs';       ## no critic (TestingAndDebugging::ProhibitNoStrict)
-    no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings)
+    no strict 'refs';        ## no critic (TestingAndDebugging::ProhibitNoStrict)
+    no warnings 'redefine';  ## no critic (TestingAndDebugging::ProhibitNoWarnings)
 
     my $stash = \%{ __PACKAGE__ . $DOUBLE_COLON };
 
@@ -1475,7 +1514,7 @@ sub _create_stealth_logger {
 
   my $sub_name = sprintf '%s::%s', $name, uc $level;
 
-  no strict 'refs'; ## no critic ProhibitNoStrict
+  no strict 'refs';  ## no critic ProhibitNoStrict
 
   return
     if defined *{$sub_name}{CODE};
@@ -1641,7 +1680,7 @@ sub _set_url {
   }
   else {
     if ( $url !~ /^https?/xmsi ) {
-      $url =~ s/^\///xms; # just remove leading slash...
+      $url =~ s/^\///xms;  # just remove leading slash...
       $url = $self->get_protocol . '://' . $url;
     }
 

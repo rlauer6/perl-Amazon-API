@@ -6,6 +6,26 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.9 (2023-05-21)
+
+Version 2.0.9 fixes a bug for API rest-json API services that also use
+query parameters
+
+* fixes to Amazon::API::invoke_api (see ChangeLog)
+  
+## Enhancements
+
+* None
+
+## Fixes
+
+* use a value of 80 columns when formatting documentation if no screen
+  width can be detected.
+
+This version replaces the use of the `DateTime` module for formatting
+timestamps with `POSIX::strftime`.  `DateTime` introduces too many
+more dependencies than justified for simply formatting a timestamp.
+
 # perl-Amazon-API 2.0.8 (2023-05-14)
 
 Version 2.0.8 contains Docker build files for creating Docker
