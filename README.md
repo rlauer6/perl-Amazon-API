@@ -44,6 +44,8 @@ Then...
 
 # DESCRIPTION
 
+[![amazon-api](https://github.com/rlauer6/perl-Amazon-API/actions/workflows/build.yml/badge.svg)](https://github.com/rlauer6/perl-Amazon-API/actions/workflows/build.yml)
+
 Generic class for constructing AWS API interfaces. Typically used as a
 parent class, but can be used directly. This package can also
 generates stubs for Amazon APIs using the Botocore project's
@@ -942,7 +944,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.0.9 of `Amazon::API`.
+This documentation refers to version 2.0.10 of `Amazon::API`.
 
 # DIAGNOSTICS
 

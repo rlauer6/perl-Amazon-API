@@ -17,7 +17,7 @@ use Data::Dumper;
 use English qw(-no_match_vars);
 use ReadonlyX;
 use Scalar::Util qw( reftype blessed );
-use List::Util qw( any );
+use List::Util   qw( any );
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(
@@ -242,6 +242,7 @@ sub _init_value {
     timestamp => 'SCALAR',
     double    => 'SCALAR',
     boolean   => 'SCALAR',
+    blob      => 'SCALAR',
   );
 
   my $required_type = $types{ $self->get_type };

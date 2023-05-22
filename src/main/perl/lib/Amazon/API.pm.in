@@ -56,7 +56,7 @@ use ReadonlyX;
 use Scalar::Util qw( reftype blessed );
 use Time::Local;
 use Time::HiRes qw( gettimeofday tv_interval );
-use URI::Encode qw(uri_encode);
+use URL::Encode qw(url_encode);
 use XML::Simple;
 
 Readonly::Scalar my $DEFAULT_REGION   => 'us-east-1';
@@ -1418,7 +1418,7 @@ sub create_urlencoded_content {
 
   return join $AMPERSAND, map {
     sprintf '%s=%s', $_->[0],
-      uri_encode( $_->[1], { encode_reserved => $TRUE } )
+      url_encode( $_->[1], { encode_reserved => $TRUE } )
   } pairs @args;
 }
 
@@ -1794,6 +1794,12 @@ Then...
   )->invoke_api( 'ListRules', {} );
 
 =head1 DESCRIPTION
+
+=begin markdown
+
+[![amazon-api](https://github.com/rlauer6/perl-Amazon-API/actions/workflows/build.yml/badge.svg)](https://github.com/rlauer6/perl-Amazon-API/actions/workflows/build.yml)
+
+=end markdown
 
 Generic class for constructing AWS API interfaces. Typically used as a
 parent class, but can be used directly. This package can also

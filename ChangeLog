@@ -1,3 +1,19 @@
+Mon May 22 07:34:06 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.10]:
+	* VERSION: bump
+	* README.md: generated
+	* NEWS.md: updated
+	* src/main/perl/lib/README.md: likewise
+	* src/main/perl/lib/Amazon/API.pm.in
+	- include badge in pod
+	(create_urlencoded_content): url_encode query string parameters
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	(_init_value): include blob in valid types
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Utils.pm.in
+	(__DATA__)
+	- update shape template (new()) to initialize structures when undefined
+
 Sun May 21 13:17:30 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.9]:

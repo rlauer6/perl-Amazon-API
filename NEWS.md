@@ -6,6 +6,30 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.10 (2023-05-22)
+
+* Version 2.0.10 fixes these bugs
+
+* error when a shape is a blob type
+* error when no value is passed into some request methods
+  ```
+  my $subnets = $ec2->DescribeSubnets();
+  ```
+
+## Enhancements
+
+* added .github/workflows/build.yml to project to test distribution
+  before release
+
+## Fixes
+
+* initialize shapes to empty hash if type is structure and passed
+  argument is undefined.
+* use URL::Encode::url_encode to encode query string values (not `URI::Encode`)
+* `Amazon::API::Botocore::Shape::_init_value()` - recognize blob types
+* `Amazon::API::Botocore::Shape::Utils` - change new() in template to
+  initialize structures when passed argument is undefined
+
 # perl-Amazon-API 2.0.9 (2023-05-21)
 
 Version 2.0.9 fixes a bug for API rest-json API services that also use
@@ -21,10 +45,6 @@ query parameters
 
 * use a value of 80 columns when formatting documentation if no screen
   width can be detected.
-
-This version replaces the use of the `DateTime` module for formatting
-timestamps with `POSIX::strftime`.  `DateTime` introduces too many
-more dependencies than justified for simply formatting a timestamp.
 
 # perl-Amazon-API 2.0.8 (2023-05-14)
 
