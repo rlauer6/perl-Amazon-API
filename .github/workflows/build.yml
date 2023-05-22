@@ -16,14 +16,26 @@ jobs:
           options: -v ${{github.workspace}}:/codebase
           run: |
             set -x
+            yum install -y git
             export PATH=$PATH:/opt/perl-5.36.0/bin
+            cpanm -n -v \
+            JSON::PP \
+            File::Process \
+            YAML::Tiny \
+            Log::Log4perl \
+            Module::ScanDeps::Static
+            cd /codebase
+            git clone https://github.com/rlauer6/make-cpan-dist.git
+            cd make-cpan-dist; \
+            ./bootstrap
+            ./configure --with-perl5libdir=$(perl -MConfig -wle 'print $Config{sitelib};')
+            make && make install
             cd /codebase
             ./bootstrap
             for a in $(cat cpan/requires cpan/test-requires| perl -ne 'chomp; s/\^+//; my ($m,$v) = split / /; $v = ( $v && $v > 0) ? "\@$v" : "";  printf "%s%s ", $m, $v;'); do \
-              cpanm -v $a; \
+              cpanm -n -v $a; \
             done
             ./configure
             make dist
             cd cpan
             make cpan
-

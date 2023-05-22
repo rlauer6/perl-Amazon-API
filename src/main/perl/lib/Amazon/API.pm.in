@@ -1416,10 +1416,8 @@ sub create_urlencoded_content {
     push @args, 'Version', $version;
   }
 
-  return join $AMPERSAND, map {
-    sprintf '%s=%s', $_->[0],
-      url_encode( $_->[1], { encode_reserved => $TRUE } )
-  } pairs @args;
+  return join $AMPERSAND,
+    map { sprintf '%s=%s', $_->[0], url_encode( $_->[1] ) } pairs @args;
 }
 
 ########################################################################
