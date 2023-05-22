@@ -24,4 +24,6 @@ jobs:
             done
             ./configure
             make dist
+            cd cpan
+            make cpan
 

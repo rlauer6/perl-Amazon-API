@@ -11,6 +11,7 @@ AC_DEFUN([AX_REQUIREMENTS_CHECK],[
   ads_PERL_MODULE([List::MoreUtils], [], [0.430])
   ads_PERL_MODULE([List::Util], [], [1.33])
   ads_PERL_MODULE([Pod::HTML2Pod], [], [4.05])
+  ads_PERL_MODULE([Pod::Markdown], [], [])
   ads_PERL_MODULE([Pod::Simple::Text], [], [3.40])
   ads_PERL_MODULE([ReadonlyX], [], [1.04])
   ads_PERL_MODULE([URL::Encode], [], [0.03])
