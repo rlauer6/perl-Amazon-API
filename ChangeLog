@@ -1,3 +1,21 @@
+Mon Aug 21 14:33:58 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.11]:
+	* VERSION: bump
+	* README.md: generated
+	* NEWS.md: updated
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(serialize)
+	- format with nanoseconds only if present in timestamp
+	- fixed regexp related to above
+	* src/main/perl/lib/Amazon/API.pm.in
+	(init_botocore_request)
+	- disable creation of Botocore request object if !use_botocore or
+	if request is not a HASH ref
+	- remove marker when using paginator
+	* src/examples/ec2.pm
+	- fixed non-Botocore request (DescribeSubnets, DescribeSecurityGroups)
+
 Mon May 22 07:34:06 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.10]:

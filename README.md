@@ -944,7 +944,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.0.10 of `Amazon::API`.
+This documentation refers to version 2.0.11 of `Amazon::API`.
 
 # DIAGNOSTICS
 

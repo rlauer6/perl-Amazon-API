@@ -106,6 +106,7 @@ __PACKAGE__->mk_accessors(
     target
     target_prefix
     url
+    use_botocore
     user_agent
     use_paginator
     version
@@ -735,7 +736,7 @@ sub create_botocore_request {
   croak "could not create request shape: $shape\n$EVAL_ERROR"
     if !$class;
 
-  my $request = $class->new($parameters);  # request class
+  my $request = $class->new($parameters); # request class
 
   return $request;
 }
@@ -878,7 +879,7 @@ sub init_botocore_request {
 
       if ($request_shape_name) {
 
-        $uri = $http->{requestUri};  # use the Botocore template
+        $uri = $http->{requestUri}; # use the Botocore template
 
         my $shape_parameters = $parameters{$shape};
 
@@ -1028,11 +1029,19 @@ sub invoke_api {
 
   my ( $action, $parameters, $content_type, $headers );
 
+  # use_botocore overrides the creation of a Botocore request
+  # object. In that case the arguments are expected to conform to the
+  # format specified for this particular AWS API.
+
+  my $use_botocore = $self->get_use_botocore // $self->is_botocore_api;
+
   if ( ref $args[0] && reftype( $args[0] ) eq 'HASH' ) {
     ( $action, $parameters, $content_type, $headers )
       = @{ $args[0] }{qw( action parameters content_type headers)};
   }
   else {
+    # only HASH refs can be promoted to a Botocore request object
+    $use_botocore = $FALSE;
     ( $action, $parameters, $content_type, $headers ) = @args;
   }
 
@@ -1052,20 +1061,26 @@ sub invoke_api {
 
   my $decode_response = $self->get_decode_always;
 
+  # someone is trying to send a blessed object, possibly a Botocore
+  # request object using a class that does not have the Botocore
+  # metadata
   croak sprintf qq{"%s" was not generated with Botocore support.\n}
     . qq{Parameters should be simple objects, not blessed.\n}, ref $self
     if blessed($parameters) && !$self->is_botocore_api;
 
   my @paged_results;
 
-  my $paginator = $self->get_paginators && $self->get_paginators->{$action};
-  my $use_paginator = $paginator        && $self->get_use_paginator;
+  # auto pagination is only available when using the Botocore metadata
+  my ( $paginator, $use_paginator, $limit );
 
-  my $limit;
+  if ( $use_botocore && $self->get_use_paginator ) {
+    $paginator = $self->get_paginators && $self->get_paginators->{$action};
+    $use_paginator = $self->get_use_paginator;
+  }
 
-  # See if this was generated w/Botocore
-  if ( $self->is_botocore_api ) {
-    if ($use_paginator) {
+  # if we're using the Botocore metadata, create a request object
+  if ($use_botocore) {
+    if ($paginator) {
 
       $paginator->{more_results} //= $paginator->{output_token};
 
@@ -1082,6 +1097,7 @@ sub invoke_api {
         }
       );
     }
+
     $parameters = $self->init_botocore_request($parameters);
 
     $content_type = $self->get_content_type;
@@ -1149,7 +1165,7 @@ sub invoke_api {
     }
 
     if ( $self->get_raise_error ) {
-      die $self->get_error;  ## no critic (RequireCarping)
+      die $self->get_error; ## no critic (RequireCarping)
     }
   }
 
@@ -1183,8 +1199,11 @@ sub invoke_api {
         }
       );
 
-      return \@paged_results
-        if !$result->{ $paginator->{more_results} };
+      if ( !$result->{ $paginator->{more_results} } ) {
+        delete $result->{ $paginator->{more_results} };
+
+        return \@paged_results;
+      }
 
       $limit = $limit // $result->{ $paginator->{limit_key} };
 
@@ -1220,6 +1239,11 @@ sub invoke_api {
 
   # you must have a paginator, but told me not to use it, delete
   # blank/null markers
+
+  # TODO: figure out the comment above because it does not match the code
+  # 'use_paginator' is tested above and if it is false (you told me not to use the
+  # paginator) we return the results...
+
   if ( !$results->{ $paginator->{more_results} } ) {
     delete $results->{ $paginator->{more_results} };
     delete $results->{ $paginator->{input_token} };
@@ -1396,13 +1420,13 @@ sub create_urlencoded_content {
     # if any are refs then they should be hashes...
     if ( any {ref} @{$parameters} ) {
 
-      @args = map { %{$_} } @{$parameters};  # list of hashes
+      @args = map { %{$_} } @{$parameters}; # list of hashes
     }
     elsif ( any {/=/xsm} @{$parameters} ) {
-      @args = map { split /=/xsm } @{$parameters};  # formatted list
+      @args = map { split /=/xsm } @{$parameters}; # formatted list
     }
     else {
-      @args = @{$parameters};                       # simple list
+      @args = @{$parameters};                      # simple list
     }
   }
 
@@ -1465,8 +1489,8 @@ sub _create_methods {
   my $class = ref $self || $self;
 
   if ( $self->get_api_methods ) {
-    no strict 'refs';        ## no critic (TestingAndDebugging::ProhibitNoStrict)
-    no warnings 'redefine';  ## no critic (TestingAndDebugging::ProhibitNoWarnings)
+    no strict 'refs';       ## no critic (TestingAndDebugging::ProhibitNoStrict)
+    no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings)
 
     my $stash = \%{ __PACKAGE__ . $DOUBLE_COLON };
 
@@ -1512,7 +1536,7 @@ sub _create_stealth_logger {
 
   my $sub_name = sprintf '%s::%s', $name, uc $level;
 
-  no strict 'refs';  ## no critic ProhibitNoStrict
+  no strict 'refs'; ## no critic ProhibitNoStrict
 
   return
     if defined *{$sub_name}{CODE};
@@ -1678,7 +1702,7 @@ sub _set_url {
   }
   else {
     if ( $url !~ /^https?/xmsi ) {
-      $url =~ s/^\///xms;  # just remove leading slash...
+      $url =~ s/^\///xms; # just remove leading slash...
       $url = $self->get_protocol . '://' . $url;
     }
 

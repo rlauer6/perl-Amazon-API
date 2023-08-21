@@ -6,6 +6,20 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.11 (2023-08-21)
+
+* Version 2.0.11 fixes these bugs
+
+* uninitialized error for data with nanoseconds
+
+## Enhancements
+
+* added option `use_botocore` which defaults to true but can be used
+to disable the creation of a Botocore request object for APIs that
+require parameters that cannot be formatted correctly (yet) by this
+module
+* remove the paginator marker when using paginator
+
 # perl-Amazon-API 2.0.10 (2023-05-22)
 
 * Version 2.0.10 fixes these bugs

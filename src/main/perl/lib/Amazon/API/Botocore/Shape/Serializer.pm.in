@@ -336,12 +336,19 @@ sub serialize {
 
       $data =~ s/^(.*)[.]000Z$/$1\+00:00/xsm;
 
-      if ( $data =~ /^[\d.]+$/xsm ) {
+      if ( $data =~ /^[\d]+[.]$/xsm ) {
         my $epoch = $data;
+
         my ( undef, $nanoseconds ) = split /[.]/xsm, $epoch;
 
-        $data = strftime( '%Y-%m-%dT%H:%M:%S.%%d%z', gmtime $epoch );
-        $data = sprintf $data, ".$nanoseconds" * 1_000_000;
+        if ( defined $nanoseconds ) {
+          $data = strftime( '%Y-%m-%dT%H:%M:%S.%%d%z', gmtime $epoch );
+          $data = sprintf $data, ".$nanoseconds" * 1_000_000;
+        }
+        else {
+          $data = strftime( '%Y-%m-%dT%H:%M:%S%z', gmtime $epoch );
+        }
+
       }
 
       return $data;
