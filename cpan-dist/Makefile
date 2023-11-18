@@ -34,9 +34,12 @@ api: $(BOTOCORE)
 service: service-listing.json
 	@if test -n "$(SERVICE)"; then \
 	  echo "$(SERVICE)" | tr [A-Z] [a-z] > $@; \
-	else \
+	elif test -n "$(MODULE_NAME)"; then \
 	  echo "$(MODULE_NAME)" | tr [A-Z] [a-z] > $@; \
-	fi; \
+	else \
+	  echo "ERROR: usage: make MODULE_NAME=module or SERVICE=service"; \
+	  false; \
+	fi
 	service=$$(cat $@); \
 	if test -z $$(find botocore/botocore/data -type d -name $$service 2>/dev/null); then \
 	  >&2 echo "ERROR: no such service $$service"; \
@@ -45,6 +48,8 @@ service: service-listing.json
 	fi
 
 define script
+require Text::ASCIITable;
+
 my $s = <>;
 
 $s = JSON::PP->new->decode($s);

@@ -1,9 +1,11 @@
 package Amazon::SSM;
 
+# example of 'rolling your own' API
+
 use strict;
 use warnings;
 
-use parent qw(Amazon::API APIExample);
+use parent qw(APIExample Amazon::API);
 
 use JSON::PP;
 use Data::Dumper;

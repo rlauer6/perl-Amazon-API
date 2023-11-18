@@ -82,8 +82,11 @@ sub new {
 ########################################################################
 sub _GetAuthorizationToken {
 ########################################################################
+  my ( $package, $options ) = @_;
 
-  my $rsp = Amazon::ECR->new->GetAuthorizationToken( {} );
+  my $ecr = $package->service($options);
+
+  my $rsp = $ecr->GetAuthorizationToken();
 
   return print {*STDOUT} JSON->new->pretty->encode($rsp);
 }

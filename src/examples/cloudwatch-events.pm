@@ -1,13 +1,17 @@
 package Amazon::CloudWatchEvents;
 
+# this is an example of using the Amazon::API class without using the
+# Botocore metadata
+
 use strict;
 use warnings;
 
-use parent qw(Amazon::API APIExample);
-
 use Data::Dumper;
+use JSON::PP;
 
-our @API_METHODS = qw { DescribeRule ListRules ListTargetsByRule };
+our @API_METHODS = qw ( DescribeRule ListRules ListTargetsByRule );
+
+use parent qw(Amazon::API APIExample);
 
 our $DESCRIPTIONS = {
   ListRules    => q{Executes the Events API 'ListRules': run ListRules},
@@ -31,7 +35,7 @@ sub new {
     { api         => 'AWSEvents',
       service     => 'events',
       api_methods => \@API_METHODS,
-      %options
+      %options,
     }
   );
 
@@ -43,9 +47,9 @@ sub _ListRules {
 ########################################################################
   my ( $package, $options, @args ) = @_;
 
-  my $cwe = $package->new( url => $options->{'endpoint-url'} );
+  my $cwe = $package->service($options);
 
-  return print {*STDOUT} Dumper( $cwe->ListRules( {} ) );
+  return print {*STDOUT} JSON::PP->new->pretty->encode( $cwe->ListRules() );
 }
 
 ########################################################################
@@ -53,7 +57,7 @@ sub _DescribeRule {
 ########################################################################
   my ( $package, $options, $name ) = @_;
 
-  my $cwe = $package->new( url => $options->{'endpoint-url'} );
+  my $cwe = $package->service($options);
 
   return print {*STDOUT} Dumper( $cwe->DescribeRule( { Name => $name } ) );
 }
@@ -63,7 +67,7 @@ sub _ListTargetsByRule {
 ########################################################################
   my ( $package, $options, $rule ) = @_;
 
-  my $cwe = $package->new( url => $options->{'endpoint-url'} );
+  my $cwe = $package->service($options);
 
   return
     print {*STDOUT} Dumper( $cwe->ListTargetsByRule( { Rule => $rule } ) );

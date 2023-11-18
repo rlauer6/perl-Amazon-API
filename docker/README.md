@@ -1,10 +1,15 @@
 # README
 
 This is the README file for the `docker` directory.  In this directory
-you will find a Docker build file for building an rpm version of the
-`Amazon::API` Perl module and a build file for creating a container
+you will find:
+
+* a Docker build file for building an rpm version of the
+`Amazon::API` Perl module
+* a Docker build file for creating a container
 that can execute the `create-service` utility allowing you to create
 CPAN distributions for individual AWS services.
+* a `docker-compose` configuration for bringing up LocalStack for
+  testing
 
 # Requirements
 

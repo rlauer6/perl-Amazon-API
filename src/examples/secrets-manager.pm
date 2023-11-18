@@ -3,9 +3,9 @@ package Amazon::SecretsManager;
 use strict;
 use warnings;
 
-use APIExample qw(:booleans);
+use APIExample qw(:booleans dump_json);
 
-use parent qw(Amazon::API APIExample);
+use parent qw(APIExample Amazon::API);
 
 use Data::Dumper;
 use JSON::PP;
@@ -51,6 +51,7 @@ sub new {
     { decode_always => $TRUE,
       service       => 'secretsmanager',
       api           => 'secretsmanager',
+      use_botocore  => 1,
       api_methods   => \@API_METHODS,
       debug         => $ENV{DEBUG},
       %options
@@ -65,10 +66,9 @@ sub _ListSecrets {
 ########################################################################
   my ( $package, $options, @args ) = @_;
 
-  my $secrets_mgr
-    = Amazon::SecretsManager->new( url => $options->{'endpoint-url'} );
+  my $secrets_mgr = $package->service($options);
 
-  return print {*STDOUT} Dumper $secrets_mgr->ListSecrets( {} );
+  return print {*STDOUT} dump_json( $secrets_mgr->ListSecrets() );
 }
 
 ########################################################################
@@ -76,10 +76,10 @@ sub _DeleteSecret {
 ########################################################################
   my ( $package, $options, $secret ) = @_;
 
-  my $secrets_mgr
-    = Amazon::SecretsManager->new( url => $options->{'endpoint-url'} );
+  my $secrets_mgr = $package->service($options);
 
-  my $secret_list = $secrets_mgr->ListSecrets( {} );
+  my $secret_list = $secrets_mgr->ListSecrets();
+
   $secret_list = $secret_list->{SecretList};
 
   return
@@ -90,7 +90,7 @@ sub _DeleteSecret {
   return
     if none { $secret eq $_ } @names;
 
-  return print {*STDOUT} Dumper(
+  return print {*STDOUT} dump_json(
     $secrets_mgr->DeleteSecret(
       { SecretId                   => $secret,
         ForceDeleteWithoutRecovery => JSON::PP::true
@@ -105,14 +105,15 @@ sub _CreateSecret {
 ########################################################################
   my ( $package, $options, $secret, $value ) = @_;
 
-  my $secrets_mgr
-    = Amazon::SecretsManager->new( url => $options->{'endpoint-url'} );
+  my $secrets_mgr = $package->service($options);
 
-  return print {*STDOUT} Dumper $secrets_mgr->CreateSecret(
-    { Name               => $secret,
-      SecretString       => $value,
-      ClientRequestToken => Data::UUID->new->create_str
-    },
+  return print {*STDOUT} dump_json(
+    $secrets_mgr->CreateSecret(
+      { Name               => $secret,
+        SecretString       => $value,
+        ClientRequestToken => Data::UUID->new->create_str
+      },
+    )
   );
 }
 
@@ -121,14 +122,15 @@ sub _UpdateSecret {
 ########################################################################
   my ( $package, $options, $secret, $value ) = @_;
 
-  my $secrets_mgr
-    = Amazon::SecretsManager->new( url => $options->{'endpoint-url'} );
+  my $secrets_mgr = $package->service($options);
 
-  return print {*STDOUT} Dumper $secrets_mgr->UpdateSecret(
-    { SecretId           => $secret,
-      SecretString       => $value,
-      ClientRequestToken => Data::UUID->new->create_str
-    },
+  return print {*STDOUT} dump_json(
+    $secrets_mgr->UpdateSecret(
+      { SecretId           => $secret,
+        SecretString       => $value,
+        ClientRequestToken => Data::UUID->new->create_str
+      },
+    )
   );
 }
 
@@ -137,12 +139,11 @@ sub _GetSecretValue {
 ########################################################################
   my ( $package, $options, $secret, $value ) = @_;
 
-  my $secrets_mgr
-    = Amazon::SecretsManager->new( url => $options->{'endpoint-url'} );
+  my $secrets_mgr = $package->service($options);
 
   return
     print {*STDOUT}
-    Dumper $secrets_mgr->GetSecretValue( { SecretId => $secret } );
+    dump_json( $secrets_mgr->GetSecretValue( { SecretId => $secret } ) );
 }
 
 1;

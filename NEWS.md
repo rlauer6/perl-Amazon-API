@@ -6,9 +6,31 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.12 (2023-10-26)
+
+_Version 2.0.12 fixes bugs and improves on request and response serialization_
+
+## Fixes
+
+* `amazon-api` help for shapes fixed (example: `amazon-api -s sqs ListQueuesRequest`)
+* `create-service` - uses `realpath` to verify BOTOCORE_PATH
+*  fixes for many serialization issues including:
+   * incorrect interpretation of timestamp types
+   * inclusion of response members that were not actually in the
+     response
+     
+## Enhancements
+
+* serialization of requests and responses has been significantly
+improved - _please report issues_
+* updated examples
+
 # perl-Amazon-API 2.0.11 (2023-08-21)
 
-* Version 2.0.11 fixes these bugs
+_Version 2.0.11 fixes buts and add option for disabling use of
+Botocore support_
+
+## Fixes
 
 * uninitialized error for data with nanoseconds
 
@@ -22,7 +44,10 @@ module
 
 # perl-Amazon-API 2.0.10 (2023-05-22)
 
-* Version 2.0.10 fixes these bugs
+## Fixes
+
+_Version 2.0.10 fixes bugs and adds a build file for testing
+distribution prior to release_
 
 * error when a shape is a blob type
 * error when no value is passed into some request methods
@@ -46,8 +71,8 @@ module
 
 # perl-Amazon-API 2.0.9 (2023-05-21)
 
-Version 2.0.9 fixes a bug for API rest-json API services that also use
-query parameters
+_Version 2.0.9 fixes bug for API rest-json API services that also use
+query parameters_
 
 * fixes to Amazon::API::invoke_api (see ChangeLog)
   
@@ -62,8 +87,8 @@ query parameters
 
 # perl-Amazon-API 2.0.8 (2023-05-14)
 
-Version 2.0.8 contains Docker build files for creating Docker
-containers that can:
+_Version 2.0.8 contains Docker build files for creating Docker
+containers that can:_
 
 * create an RPM for the `Amazon::API` distribution
 * run the `create-service` utility for creating single AWS API CPAN
@@ -96,9 +121,9 @@ more dependencies than justified for simply formatting a timestamp.
 
 # perl-Amazon-API 2.0.7 (2023-05-07)
 
-This version replaces the use of the `DateTime` module for formatting
+_This version replaces the use of the `DateTime` module for formatting
 timestamps with `POSIX::strftime`.  `DateTime` introduces too many
-more dependencies than justified for simply formatting a timestamp.
+more dependencies than justified for simply formatting a timestamp._
 
 ## Enhancements
 
@@ -113,8 +138,8 @@ more dependencies than justified for simply formatting a timestamp.
 
 # perl-Amazon-API 2.0.6 (2023-04-20)
 
-This version corrects a bug in the `_create_stealth_logger()` method
-when a logger is passed.
+_This version corrects a bug in the `_create_stealth_logger()` method
+when a logger is passed._
 
 ## Enhancements
 
@@ -129,7 +154,7 @@ when a logger is passed.
 
 # perl-Amazon-API 2.0.5 (2023-03-26)
 
-This version corrects a bug in the `create-service` script
+_This version corrects a bug in the `create-service` script_
 
 ## Enhancements
 
@@ -143,8 +168,8 @@ This version corrects a bug in the `create-service` script
 
 # perl-Amazon-API 2.0.4 (2023-03-17)
 
-This version instroduces the `create-service` utility for creating a
-CPAN distribution file for a specific AWS API.
+_This version instroduces the `create-service` utility for creating a
+CPAN distribution file for a specific AWS API._
 
 To use the utility you must have the Botocore project somewhere in
 an accessible path and a few additional required programs.
@@ -181,7 +206,7 @@ This utility is part of the Amazon::API distribtion (v2.0.4).
 
 # perl-Amazon-API 2.0.3 (2023-03-10)
 
-This version fixes a few bugs described below and adds more logging features.
+_This version fixes a few bugs described below and adds more logging features._
 
 ## Enhancements
 
@@ -225,8 +250,8 @@ changed.
 
 # perl-Amazon-API 2.0.0 (2023-02-18)
 
-This is the first official release of the experimental version that
-employs botocore metadata to create classes for accessing AWS API services.
+_This is the first official release of the experimental version that
+employs botocore metadata to create classes for accessing AWS API services._
 
 ## Enhancements
 
@@ -248,8 +273,8 @@ This is a minor release which includes edits to documentation
 
 # perl-Amazon-API 1.4.8 (2023-01-25)
 
-This version removes improves support for creating stubs and shapes
-and fixes the serializer when shapes are of type `blob`
+_This version removes improves support for creating stubs and shapes
+and fixes the serializer when shapes are of type `blob`_
 
 ## Enhancements
 
@@ -262,8 +287,8 @@ and fixes the serializer when shapes are of type `blob`
 
 # perl-Amazon-API 1.4.7 (2023-01-25)
 
-This version removes fixes problem setting log levels and bug when
-paginators exist but `use_paginator` is false
+_This version removes fixes problem setting log levels and bug when
+paginators exist but `use_paginator` is false_
 
 ## Enhancements
 
@@ -276,8 +301,8 @@ paginators exist but `use_paginator` is false
 
 # perl-Amazon-API 1.4.6 (2023-01-25)
 
-This version removes the default logger and uses Log::Log4perl
-or a logger passed in by caller.
+_This version removes the default logger and uses Log::Log4perl
+or a logger passed in by caller._
 
 ## Enhancements
 
@@ -289,8 +314,8 @@ or a logger passed in by caller.
 
 # perl-Amazon-API 1.4.5 (2023-01-20)
 
-This version introduces automatic pagination for APIs that require the
-use of paginators.
+_This version introduces automatic pagination for APIs that require the
+use of paginators._
 
 ## Enhancements
 
@@ -303,9 +328,9 @@ use of paginators.
 
 # perl-Amazon-API 1.4.4 (2023-01-15)
 
-This version introduces a `paginator()` helper method that will return an
+_This version introduces a `paginator()` helper method that will return an
 array from an API request that paginates (e.g. Route53's
-`ListHostedZones`):
+`ListHostedZones`):_
 
 ```
 my $rt53 = Amazon::API::Route53->new;
@@ -331,8 +356,8 @@ or CamelCased) provided to serve up documentation on service methods.
 
 # perl-Amazon-API 1.4.3 (2023-01-14)
 
-This version introduces fixes a bug in the way `Amazon::API` treats
-null content.
+_This version introduces fixes a bug in the way `Amazon::API` treats
+null content._
 
 ## Enhancements
 
@@ -346,8 +371,8 @@ None
 
 # perl-Amazon-API 1.4.2 (2023-01-12)
 
-This version introduces a way to create CPAN distributions for
-individual AWS APIs.
+_This version introduces a way to create CPAN distributions for
+individual AWS APIs._
 
 ## Enhancements
 
@@ -376,13 +401,13 @@ None
 
 # perl-Amazon-API 1.4.0 (2023-01-11)
 
-This version most notablly presents some improvements for the
+_This version most notablly presents some improvements for the
 experimental Botocore support. `Amazon::API` can now make use of
 the shapes metadata from Botocore the project when making requests and
 decoding responses. This version removes generated example APIs
 (`Amazon::API::EC2`, etc) and instead includes a utility for creating
 service API.  See `ChangeLog` for a detailed inventory of
-changes.
+changes._
 
 ## Enhancements
 
@@ -430,8 +455,8 @@ changes.
 
 # perl-Amazon-API 1.2.6 (2022-03-31)
 
-This version does not provide any fixes or significant
-improvements. It contains slighly better documentation. 
+_This version does not provide any fixes or significant
+improvements. It contains slighly better documentation. _
 
 ## Enhancements
 

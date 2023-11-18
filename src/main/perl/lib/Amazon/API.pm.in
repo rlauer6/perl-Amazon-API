@@ -120,6 +120,7 @@ our @EXPORT_OK = qw(
   get_api_service
   param_n
   paginator
+  service
 );
 
 our $START_TIME    = [gettimeofday];
@@ -512,8 +513,8 @@ sub set_log_level {
 
   $self->set__log_level($log_level);
 
-  if ( Log::Log4perl->initialized() ) {
-    Log::Log4perl->get_logger->level( $LOG4PERL_LOG_LEVELS{$log_level} );
+  if ( Log::Log4perl->initialized() && $self->get_logger ) {
+    $self->get_logger->level( $LOG4PERL_LOG_LEVELS{$log_level} );
   }
   else {
     my $logger = $self->get_logger;
@@ -535,23 +536,29 @@ sub get_log_level {
 }
 
 ########################################################################
+sub service { goto &get_api_service; }
+########################################################################
+
+########################################################################
 sub get_api_service {
 ########################################################################
-  my ( $service, %args ) = @_;
+  my ( $service_name, @args ) = @_;
 
-  $service = create_module_name lc $service;
+  $service_name = create_module_name $service_name;
 
-  my $class = sprintf 'Amazon::API::%s', $service;
+  my $class = sprintf 'Amazon::API::%s', $service_name;
 
   require_class $class;
 
-  return $class->new(%args);
+  return $class->new(@args);
 }
 
 ########################################################################
 sub decode_response {
 ########################################################################
-  my ( $self, $response ) = @_;
+  my ( $self, $response, $serialize ) = @_;
+
+  $serialize //= $TRUE;
 
   $response = $response || $self->get_response;
 
@@ -565,6 +572,19 @@ sub decode_response {
 
   my $decoded_content;
 
+  my $protocol = eval { return $self->get_botocore_metadata->{protocol}; };
+  my $botocore_action = $self->get_botocore_action;
+
+  TRACE(
+    sub {
+      return Dumper(
+        [ protocol => $protocol,
+          content  => $content
+        ]
+      );
+    }
+  );
+
   if ($content) {
 
     $decoded_content = eval {
@@ -575,8 +595,10 @@ sub decode_response {
 
         XMLin(
           $content,
-          ForceContent => $self->is_botocore_api,
-          ForceArray   => ['item'],
+          SuppressEmpty => 0,                    # $protocol eq 'ec2' ? $FALSE : $TRUE,
+          ForceContent  => $self->is_botocore_api
+            && $botocore_action->{output},
+          ForceArray => ['item'],
           #          $self->get_force_array ? ( ForceArray => ['item'] ) : ()
         );
       }
@@ -590,7 +612,7 @@ sub decode_response {
         $decoded_content = eval {
           return XMLin(
             $content,
-            SuppressEmpty => undef,
+            SuppressEmpty => 0, # $protocol eq 'ec2' ? $FALSE : $TRUE,
             $self->get_force_array ? ( ForceArray => ['item'] ) : ()
           );
         };
@@ -605,40 +627,48 @@ sub decode_response {
   # we'll only have a "serializer" if this is a Botocore generated API
   my $serializer = $self->get_serializer;
 
-  if ( ref $content && $serializer ) {
+  return $content
+    if !ref $content || !$serializer || !$serialize;
 
-    my $botocore_action = $self->get_botocore_action;
+  my $output = $botocore_action->{output};
 
-    my $output = $botocore_action->{'output'};
+  return $decoded_content
+    if !$output;
 
-    my $orig_content = $content;
+  my $orig_content = $content;
 
-    if ( $output->{resultWrapper} ) {
-      $content = $content->{ $output->{resultWrapper} };
-    }
+  if ( $output->{resultWrapper} ) {
+    $content = $content->{ $output->{resultWrapper} };
+  }
 
-    DEBUG( sub { return Dumper( [ 'content', $content, $output ] ) } );
-
-    $serializer->set_logger( $self->get_logger );
-
-    $content = eval {
-      $serializer->serialize(
-        service => get_service_from_class( ref $self ),
-        shape   => $output->{shape},
-        data    => $content
+  DEBUG(
+    sub {
+      return Dumper(
+        [ content => $content,
+          output  => $output
+        ]
       );
-    };
+    }
+  );
 
-    # ...but this isn't necessarily where things STB
-    if ( !$content || $EVAL_ERROR ) {
-      if ( $self->get_raise_serialization_errors ) {
-        die $EVAL_ERROR;
-      }
-      else {
-        warn
-          "error serializing content: please report this error\n$EVAL_ERROR";
-        $content = $orig_content;
-      }
+  $serializer->set_logger( $self->get_logger );
+
+  $content = eval {
+    $serializer->serialize(
+      service => get_service_from_class( ref $self ),
+      shape   => $output->{shape},
+      data    => $content
+    );
+  };
+
+  # ...but this isn't necessarily where things STB
+  if ( !$content || $EVAL_ERROR ) {
+    if ( $self->get_raise_serialization_errors ) {
+      die $EVAL_ERROR;
+    }
+    elsif ($EVAL_ERROR) {
+      carp "error serializing content: please report this error\n$EVAL_ERROR";
+      $content = $orig_content;
     }
   }
 
@@ -680,10 +710,17 @@ sub is_param_type {
 
   my $location = $member->{location};
 
-  TRACE(
+  DEBUG(
     sub {
-      return Dumper( $members, $member, $location, $param, $type,
-        $shape_name );
+      return Dumper(
+        [ members    => $members,
+          member     => $member,
+          location   => $location,
+          param      => $param,
+          type       => $type,
+          shape_name => $shape_name
+        ]
+      );
     }
   );
 
@@ -758,6 +795,16 @@ sub init_botocore_request {
 ########################################################################
   my ( $self, $request ) = @_;
 
+  my $json_version = $self->get_botocore_metadata->{'jsonVersion'} // '1.0';
+
+  my %content_types = (
+    ec2         => 'application/x-www-form-urlencoded',
+    query       => 'application/x-www-form-urlencoded',
+    'rest-json' => 'application/json',
+    json        => 'application/x-amz-json-' . $json_version,
+    'rest-xml'  => 'application/xml',
+  );
+
   $request //= {};
 
   my $action = $self->get_action;
@@ -774,9 +821,9 @@ sub init_botocore_request {
     }
   );
 
-  my $protocol = $self->get_botocore_metadata->{'protocol'};
+  my $protocol = $self->get_botocore_metadata->{protocol};
 
-  my $input = $botocore_operations->{'input'};
+  my $input = $botocore_operations->{input};
 
   my $shape = $input->{'shape'};
 
@@ -790,7 +837,9 @@ sub init_botocore_request {
   my $boto_request;
 
   if ( !$request_shape_name && $self->is_botocore_api ) {
+
     $boto_request = $self->create_botocore_request( parameters => $request );
+
     if ( !$boto_request ) {
       carp "could not create a botocore request object\n$EVAL_ERROR\n";
     }
@@ -815,8 +864,26 @@ sub init_botocore_request {
   else {
     my $finalized_request = $request->finalize;
 
+    DEBUG(
+      sub {
+        return Dumper(
+          [ request           => $request,
+            finalized_request => $finalized_request,
+          ]
+        );
+      }
+    );
+
     if ( $protocol =~ /rest\-(xml|json)/xsm ) {
       $finalized_request = { $request_shape_name => $finalized_request };
+    }
+    elsif ( $protocol eq 'ec2' ) {
+      $finalized_request = [ param_n($finalized_request) ];
+
+      $self->set_http_method($method);
+      $self->set_content_type( $content_types{$protocol} );
+
+      return $finalized_request;
     }
 
     DEBUG(
@@ -824,44 +891,46 @@ sub init_botocore_request {
         return Dumper(
           [ finalized_request => $finalized_request,
             protocol          => $protocol,
+            method            => $method,
+            'content-type'    => $self->get_content_type,
           ]
         );
       }
     );
 
-    %parameters = %{$finalized_request};
+    if ( ref($finalized_request) eq 'HASH' ) {
+      %parameters = %{$finalized_request};
 
-    if ( defined $input->{'xmlNamespace'} ) {
-      $parameters{$request_shape_name}->{'xmlns'}
-        = $input->{'xmlNamespace'}->{uri};
+      if ( defined $input->{'xmlNamespace'} ) {
+        $parameters{$request_shape_name}->{'xmlns'}
+          = $input->{'xmlNamespace'}->{uri};
+      }
+
+      DEBUG( sub { return Dumper( [ parameters => \%parameters ] ) } );
     }
 
-    DEBUG( sub { return Dumper( [ 'parameters:', \%parameters ] ) } );
   }
-
-  my $json_version = $self->get_botocore_metadata->{'jsonVersion'} // '1.0';
-
-  my %content_types = (
-    'ec2'       => 'application/x-www-form-urlencoded',
-    'query'     => 'application/x-www-form-urlencoded',
-    'rest-json' => 'application/json',
-    'json'      => 'application/x-amz-json-' . $json_version,
-    'rest-xml'  => 'application/xml',
-  );
 
   $self->set_http_method($method);
   $self->set_content_type( $content_types{$protocol} );
 
-  DEBUG("protocol: $protocol");
-  DEBUG("method: $method");
-  DEBUG( 'content-type: ' . $self->get_content_type );
-
   my $uri;
 
   if ( $protocol =~ /^rest\-(json|xml)/xsm ) {
-    my @args = @{ $http->{'parsed_request_uri'}->{'parameters'} };
+    my @args = @{ $http->{'parsed_request_uri'}->{parameters} };
 
     my $request_uri_tpl = $http->{'parsed_request_uri'}->{'request_uri_tpl'};
+
+    DEBUG(
+      sub {
+        return Dumper(
+          [ args               => \@args,
+            request_uri_tpl    => $request_uri_tpl,
+            request_shape_name => $request_shape_name,
+          ]
+        );
+      }
+    );
 
     # if the request is a shape, we've already checked for required parameters
     if ( !$request_shape_name ) {
@@ -876,39 +945,39 @@ sub init_botocore_request {
       delete @parameters{@args};
     }
     else {
+      $uri = $http->{requestUri}; # use the Botocore template
 
-      if ($request_shape_name) {
+      my $shape_parameters = $parameters{$shape};
 
-        $uri = $http->{requestUri}; # use the Botocore template
-
-        my $shape_parameters = $parameters{$shape};
-
-        DEBUG(
-          sub {
-            return sprintf "requestUri: %s\nshape parameter: %s", $uri,
-              Dumper($shape_parameters);
-          }
-
-        );
-
-        foreach my $p ( keys %{$shape_parameters} ) {
-          DEBUG("parameter: $p");
-
-          if ( my $var = $self->is_uri_param( $request_shape_name, $p ) ) {
-
-            my $val = $shape_parameters->{$p};
-
-            DEBUG("var: $var val: $val");
-
-            $uri =~ s/[{]$var[}]/$val/xsm;
-
-            delete $shape_parameters->{$p};
-          }
+      DEBUG(
+        sub {
+          return Dumper(
+            [ requestUri       => $uri,
+              shape_parameters => $shape_parameters
+            ]
+          );
         }
-      }
-      else {
-        $uri = sprintf $request_uri_tpl, @{ $parameters{$shape} }{@args};
-        delete @{ $parameters{$shape} }{@args};
+      );
+
+      foreach my $p ( keys %{$shape_parameters} ) {
+        DEBUG( Dumper( [ parameter => $p ] ) );
+
+        if ( my $var = $self->is_uri_param( $request_shape_name, $p ) ) {
+
+          my $val = $shape_parameters->{$p};
+
+          DEBUG(
+            Dumper(
+              [ var => $var,
+                val => $val,
+              ]
+            )
+          );
+
+          $uri =~ s/[{]$var[}]/$val/xsm;
+
+          delete $shape_parameters->{$p};
+        }
       }
 
       # we're not done yet...just to make things interesting, some
@@ -998,9 +1067,10 @@ sub serialize_content {
 
   # if the API is a query API, url encode parameters
   if ( any { $_ eq lc $self->get_service } @{ $API_TYPES{query} } ) {
+    $parameters //= [];
     $content = create_urlencoded_content( $parameters, $action, $version );
   }
-  elsif ( ref $parameters && reftype($parameters) eq 'HASH' ) {
+  elsif ( $parameters && ref $parameters && reftype($parameters) eq 'HASH' ) {
     if ( $content_type =~ /json/xsm ) {
       $content = encode_json($parameters);
     }
@@ -1027,29 +1097,48 @@ sub invoke_api {
 ########################################################################
   my ( $self, @args ) = @_;
 
+  DEBUG(
+    sub {
+      return Dumper( [ args => \@args ] );
+    }
+  );
+
   my ( $action, $parameters, $content_type, $headers );
 
   # use_botocore overrides the creation of a Botocore request
   # object. In that case the arguments are expected to conform to the
   # format specified for this particular AWS API.
 
-  my $use_botocore = $self->get_use_botocore // $self->is_botocore_api;
-
   if ( ref $args[0] && reftype( $args[0] ) eq 'HASH' ) {
     ( $action, $parameters, $content_type, $headers )
       = @{ $args[0] }{qw( action parameters content_type headers)};
   }
   else {
-    # only HASH refs can be promoted to a Botocore request object
-    $use_botocore = $FALSE;
     ( $action, $parameters, $content_type, $headers ) = @args;
   }
+
+  my $use_botocore;
+
+  if ( $parameters && !ref $parameters ) {
+    $use_botocore = $FALSE;
+  }
+  elsif ( $parameters && reftype($parameters) ne 'HASH' ) {
+    $use_botocore = $FALSE;
+  }
+  else {
+    $use_botocore = $self->is_botocore_api;
+  }
+
+  my $protocol = eval { $self->get_botocore_metadata->{protocol}; };
 
   DEBUG(
     sub {
       return Dumper(
-        [ parameters     => $parameters,
-          'content-type' => $content_type,
+        [ parameters      => $parameters,
+          'content-type'  => $content_type,
+          protocol        => $protocol,
+          use_botocore    => $use_botocore,
+          is_botocore_api => $self->is_botocore_api,
         ]
       );
     }
@@ -1075,7 +1164,7 @@ sub invoke_api {
 
   if ( $use_botocore && $self->get_use_paginator ) {
     $paginator = $self->get_paginators && $self->get_paginators->{$action};
-    $use_paginator = $self->get_use_paginator;
+    $use_paginator = $paginator;
   }
 
   # if we're using the Botocore metadata, create a request object
@@ -1117,11 +1206,11 @@ sub invoke_api {
     $content_type = $self->set_content_type( $self->_set_content_type );
   }
 
-  my $serialized_content;
-
-  if ($parameters) {
-    $serialized_content = $self->serialize_content($parameters);
+  if ( !$parameters && !$use_botocore && $content_type =~ /json/xsm ) {
+    $parameters = {};
   }
+
+  my $serialized_content = $self->serialize_content($parameters);
 
   DEBUG(
     sub {
@@ -1186,14 +1275,23 @@ sub invoke_api {
     if ($use_paginator) {
       my $result = $self->decode_response;
 
+      return \@paged_results
+        if !$result->{ $paginator->{result_key} };
+
+      DEBUG(
+        sub {
+          return Dumper( [ result => $result, ] );
+        }
+      );
+
       push @paged_results, @{ $result->{ $paginator->{result_key} } };
 
       DEBUG(
         sub {
           return Dumper(
-            [ result        => $result,
-              paged_results => \@paged_results,
+            [ paged_results => \@paged_results,
               more_results  => $paginator->{more_results},
+              paginator     => $paginator,
             ]
           );
         }
@@ -1201,6 +1299,7 @@ sub invoke_api {
 
       if ( !$result->{ $paginator->{more_results} } ) {
         delete $result->{ $paginator->{more_results} };
+        delete $result->{ $paginator->{limit_key} };
 
         return \@paged_results;
       }
@@ -1229,8 +1328,9 @@ sub invoke_api {
     }
   }
 
-  return \@paged_results
-    if $use_paginator;
+  if ($use_paginator) {
+    return { $paginator->{result_key} => \@paged_results };
+  }
 
   my $results = $self->decode_response;
 
@@ -1247,6 +1347,7 @@ sub invoke_api {
   if ( !$results->{ $paginator->{more_results} } ) {
     delete $results->{ $paginator->{more_results} };
     delete $results->{ $paginator->{input_token} };
+    delete $results->{ $paginator->{limit_key} };
   }
 
   return $results;
@@ -1633,6 +1734,7 @@ sub _set_defaults {
             aws_access_key_id     => $options{'aws_access_key_id'},
             token                 => $options{'token'},
             region                => $self->get_region,
+            no_passkey_warning    => $options{'no_passkey_warning'},
           }
         )
       );
@@ -1640,8 +1742,9 @@ sub _set_defaults {
     else {
       $self->set_credentials(
         Amazon::Credentials->new(
-          order  => $options{'order'},
-          region => $options{'region'},
+          order              => $options{'order'},
+          region             => $options{'region'},
+          no_passkey_warning => $options{'no_passkey_warning'},
         )
       );
 
@@ -1791,13 +1894,14 @@ Amazon::API - A generic base class for AWS Services
  );
 
  sub new {
-   my $class = shift;
+   my ($class, %options) = @_;
 
    $class->SUPER::new(
      service       => 'events',
      api           => 'AWSEvents',
      api_methods   => \@API_METHODS,
-     decode_always => 1
+     decode_always => 1,
+     %options,
    );
  }
 
@@ -1805,7 +1909,7 @@ Amazon::API - A generic base class for AWS Services
 
 Then...
 
- my $rules = Amazon::CloudWatchEvents->new->ListRules({});
+ my $rules = Amazon::CloudWatchEvents->new->ListRules();
 
 ...or
 
@@ -1813,7 +1917,7 @@ Then...
     { service => 'events',
       api     => 'AWSEvents',
     }
-  )->invoke_api( 'ListRules', {} );
+  )->invoke_api( 'ListRules' );
 
 =head1 DESCRIPTION
 
@@ -2064,17 +2168,18 @@ classes to serialize requests and responses.
 For more information on generating API classes, see
 L<Amazon::API::Botocore::Pod>.
 
-=head2 Serialization Errors
+=head2 Response Serialization
 
-With little documentation to go on, Interpretting the Botocore
-metadata and deducing how to serialize shapes from Perl objects has
-been a difficult task. It's likely that there are still some edge
-cases and bugs lurking in the serialization methods. Accordingly,
-starting with version 1.4.5, serialization exceptions or exceptions
-that occur while attempting to decode a response, will result in the
-raw response being returned to the caller. The idea being that getting
-something back that allows you figure out what to do with the response
-might be better than receiving an error.
+With little documentation to go on, interpretting the Botocore
+metadata and deducing how to serialize Botocore shapes (using a single
+serializer) from Perl objects has been a difficult task. It's likely
+that there are still some edge cases and bugs lurking in the
+serialization methods. Accordingly, starting with version 1.4.5,
+serialization exceptions or exceptions that occur while attempting to
+decode a response, will result in the raw response being returned to
+the caller. The idea being that getting something back that allows you
+figure out what to do with the response might be better than receiving
+an error.
 
 OTOH, you might want to see the error, report it, or possibly
 contribute to its resolution.  You can prevent errors from being
@@ -2085,11 +2190,16 @@ I<Throughout the rest of this documentation a request made using one
 of the classes created by the Botocore support scripts will be
 referred to as a B<Botocore request> or B<Botocore API>.>
 
-=over 5
+Starting with version 2.0.12 serialization has become B<much more reliable>,
+but there are still some differences in the way the Python Botocore
+library serialize responses. For example, some serializers may include
+or exclude members that are not present in the response payload. If
+you are testing a response element, the best approach is to first test
+the truthiness and then test the presence of content.
 
-=item * 
+  if ( $result->{$key} && @{$result->{$key}} ) 
 
-=back
+  if ( $result->{$key} && %{result->{$key}} ) 
 
 =head1 ERRORS
 
@@ -2251,6 +2361,10 @@ default: POST
 =item last_action
 
 The last method call invoked.
+
+=item no_passkey_warning
+
+Prevent passkey warning. This is an option to C<Amazon::Credentials>.
 
 =item print_error
 
@@ -2807,7 +2921,7 @@ response.
 
 =head1 VERSION
 
-This documentation refers to version @PACKAGE_VERSION@ of C<Amazon::API>.
+This documentation refers to version @PACKAGE_VERSION@  of C<Amazon::API>.
 
 =head1 DIAGNOSTICS
 
@@ -2928,7 +3042,7 @@ L<Net::Amazon::S3>. Use them.
 a service?
 
 Possibly. If you create stubs manually, then you do not need the shape
-classes. If you use the scripts provide to create the API stubs using
+classes. If you use the scripts provided to create the API stubs using
 Botocore metadata, then yes, you must create the shapes so that the
 Botocore API methods know how to serialize requests. Note that you can
 create the shape stubs using the Botocore metadata while not creating
@@ -2946,8 +3060,8 @@ documentation.
 
  $sqs->CreateQueue(
   { QueueName => $queue_name,
-    Tag       => [ { Name => 'my-new-queue' }, { Env => 'dev' } ],
-    Attribute => [ { VisibilityTimeout => 40 }, { DelaySeconds => 60 } ]
+    tags       => { Name => 'my-new-queue' }, { Env => 'dev' },
+    Attributes =>  { VisibilityTimeout => 40 }, { DelaySeconds => 60 }
   });
 
 If you do not use the shape classes, then you must pass the arguments
@@ -3000,16 +3114,20 @@ almost do the same thing.
 =head2 I tried to use this with XYZ service and it barfed. What do I do?
 
 That's not too surprising. There are several reasons why your call
-might not have worked.
-
-Did you enable debugging? Tracing?
+might not have worked. The most likely place for API calls to fail is
+when serializing requests or serializing results. Enable debugging and
+see how far the API gets.  Report whether the serialization on the
+request or response failed.  If the serialization of the results
+failed, you can set C<decode_always> to false which will prevent
+serialization of the result.
 
 =over 5
 
 =item * You passed bad data
 
 Take a look at the data you passed, how was it serialized and
-ultimately passed to the API?
+ultimately passed to the API?  Setting the C<debug> flag is usually
+helpful in understanding how requests and responses are serialized.
 
 =item * You didn't read the docs and passed bad data
 
@@ -3017,18 +3135,19 @@ ultimately passed to the API?
 
 =item * The serialization of Amazon::API::Botocore::Shape is busted
 
-I have not tested every class generated for every API. You may find
-that some API methods return C<Bad Request> or do not serialize the
-results in the manner expected. Requests are serialized based on the
-metadata found in the Botocore project. There lie the clues for each
-API (protocol, end points, etc) and the models (shapes) for requests
-and response elements.
+Serialization output for every class for every API has not been
+tested. You may find that some API methods return C<Bad Request> or do
+not serialize the results (or more likely requests) in the manner
+expected. Requests are serialized based I<solely> on the metadata
+found in the Botocore project. There lie the clues for each API
+(protocol, end points, etc) and the models (shapes) for requests and
+response elements. 
 
 Some requests require a query string, some an XML or JSON payload. The
 Botocore based API classes use the metadata to determine how to send a
 request and how to interpret the results. This module uses
 L<XML::Simple> or L<JSON> to parse the results. It then uses the
-C<Amazon::API::Bottocore::Serializer> to turn the parsed results into
+L<Amazon::API::Botocore::Serializer> to turn the parsed results into
 a Perl object that respresents the response shape. It's likely that
 this module has bugs and the shapes returned might not exactly match the
 return response from the C<aws> command line interface version.
@@ -3037,6 +3156,95 @@ What should be returned by an API request method is documented in
 these modules and Amazon's CLI.
 
  perldoc Amazon::API::Botocore::Shape::EC2:DescribeInstancesRequest
+
+Make sure you understand what the API request should look
+like. C<amazon_api> will help illuminate values you should be sending
+to APIs.
+
+ amazon-api -s sqs help CreateQueue
+
+=over 10
+
+=item Additional Details
+
+Some APIs, most notably query protocol APIs like EC2 seem to require
+special serializers. Looking at the Python implementation of the
+Botocore library reveals a separate EC2 serializer.  This API has no
+such "hook" for APIs that require a unique intepretation of the
+Botocore metadata. 
+
+You can however create the correct payloads expected by an API and
+pass those when you make a request. For example, the EC2
+DescribeSecurityGroups API accepts a Filter object to filter the
+results. The Python Botocore signature looks like this:
+
+  response = client.describe_security_groups(
+      Filters=[
+          {
+              'Name': 'string',
+              'Values': [
+                  'string',
+              ]
+          },
+      ],
+      GroupIds=[
+          'string',
+      ],
+      GroupNames=[
+          'string',
+      ],
+      DryRun=True|False,
+      NextToken='string',
+      MaxResults=123
+  )
+
+That signature provides a convenient way to pass the required
+parameters to the API. However, when actually passed to the API the
+payload is serialized into a query string parameter that might look something like:
+
+ Filter.1.Name=group-name&Filter.1.Value.1=some-value&Action=DescribeSecurityGroups&Version=2016-11-15
+
+The Filters object you passed gets serialized into I<param.n> notation
+as describe earlier in this documentation. Knowing that fact (by
+looking at the AWS API for DescribeSecurityGroups) and experiencing a
+failure when sending what should be the correct request to the API
+using this class, you could send correctly formatted payloads to query
+protocol APIs like this one.
+
+ my @filter = param_n(
+    { Filter => [
+        { Name  => 'group-name',
+          Value => ['tbc-ssh-only']
+        }
+      ]
+    }
+  );
+
+ print Dumper([filter => \@filter]);
+
+Would result in:
+
+ $VAR1 = [
+           'filter',
+           [
+             'Filter.1.Name=group-name',
+             'Filter.1.Value.1=tbc-ssh-only'
+           ]
+         ];
+
+Arrays passed to query protocol requests are assumed to be lists of
+query variables and values and are added to the URL when the request
+is made.
+
+I<Hopefully, as more is learned about serializing those kinds of API
+requests this class will be able to successfully make those API
+calls.>
+
+I<UPDATE: Try using the Botocore protocol for APIs by passing a hash
+reference of expected variables first. Recent updates have been made
+to create special serializers for these older query protocol APIs.>
+
+=back
 
 If you find this project's serializer deficient, please log an issue
 and I will attempt to address it.

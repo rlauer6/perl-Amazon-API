@@ -18,13 +18,14 @@ Amazon::API - A generic base class for AWS Services
     );
 
     sub new {
-      my $class = shift;
+      my ($class, %options) = @_;
 
       $class->SUPER::new(
         service       => 'events',
         api           => 'AWSEvents',
         api_methods   => \@API_METHODS,
-        decode_always => 1
+        decode_always => 1,
+        %options,
       );
     }
 
@@ -32,7 +33,7 @@ Amazon::API - A generic base class for AWS Services
 
 Then...
 
-    my $rules = Amazon::CloudWatchEvents->new->ListRules({});
+    my $rules = Amazon::CloudWatchEvents->new->ListRules();
 
 ...or
 
@@ -40,7 +41,7 @@ Then...
       { service => 'events',
         api     => 'AWSEvents',
       }
-    )->invoke_api( 'ListRules', {} );
+    )->invoke_api( 'ListRules' );
 
 # DESCRIPTION
 
@@ -261,17 +262,18 @@ classes to serialize requests and responses.
 For more information on generating API classes, see
 [Amazon::API::Botocore::Pod](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3APod).
 
-## Serialization Errors
+## Response Serialization
 
-With little documentation to go on, Interpretting the Botocore
-metadata and deducing how to serialize shapes from Perl objects has
-been a difficult task. It's likely that there are still some edge
-cases and bugs lurking in the serialization methods. Accordingly,
-starting with version 1.4.5, serialization exceptions or exceptions
-that occur while attempting to decode a response, will result in the
-raw response being returned to the caller. The idea being that getting
-something back that allows you figure out what to do with the response
-might be better than receiving an error.
+With little documentation to go on, interpretting the Botocore
+metadata and deducing how to serialize Botocore shapes (using a single
+serializer) from Perl objects has been a difficult task. It's likely
+that there are still some edge cases and bugs lurking in the
+serialization methods. Accordingly, starting with version 1.4.5,
+serialization exceptions or exceptions that occur while attempting to
+decode a response, will result in the raw response being returned to
+the caller. The idea being that getting something back that allows you
+figure out what to do with the response might be better than receiving
+an error.
 
 OTOH, you might want to see the error, report it, or possibly
 contribute to its resolution.  You can prevent errors from being
@@ -282,7 +284,16 @@ _Throughout the rest of this documentation a request made using one
 of the classes created by the Botocore support scripts will be
 referred to as a **Botocore request** or **Botocore API**._
 
--
+Starting with version 2.0.12 serialization has become **much more reliable**,
+but there are still some differences in the way the Python Botocore
+library serialize responses. For example, some serializers may include
+or exclude members that are not present in the response payload. If
+you are testing a response element, the best approach is to first test
+the truthiness and then test the presence of content.
+
+    if ( $result->{$key} && @{$result->{$key}} ) 
+
+    if ( $result->{$key} && %{result->{$key}} ) 
 
 # ERRORS
 
@@ -437,6 +448,10 @@ key/values or hash reference.
 - last\_action
 
     The last method call invoked.
+
+- no\_passkey\_warning
+
+    Prevent passkey warning. This is an option to `Amazon::Credentials`.
 
 - print\_error
 
@@ -944,7 +959,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.0.11 of `Amazon::API`.
+This documentation refers to version 2.0.12  of `Amazon::API`.
 
 # DIAGNOSTICS
 
@@ -1050,7 +1065,7 @@ modules designed specifically for S3; [Amazon::S3](https://metacpan.org/pod/Amaz
 a service?
 
 Possibly. If you create stubs manually, then you do not need the shape
-classes. If you use the scripts provide to create the API stubs using
+classes. If you use the scripts provided to create the API stubs using
 Botocore metadata, then yes, you must create the shapes so that the
 Botocore API methods know how to serialize requests. Note that you can
 create the shape stubs using the Botocore metadata while not creating
@@ -1068,8 +1083,8 @@ documentation.
 
     $sqs->CreateQueue(
      { QueueName => $queue_name,
-       Tag       => [ { Name => 'my-new-queue' }, { Env => 'dev' } ],
-       Attribute => [ { VisibilityTimeout => 40 }, { DelaySeconds => 60 } ]
+       tags       => { Name => 'my-new-queue' }, { Env => 'dev' },
+       Attributes =>  { VisibilityTimeout => 40 }, { DelaySeconds => 60 }
      });
 
 If you do not use the shape classes, then you must pass the arguments
@@ -1122,14 +1137,18 @@ almost do the same thing.
 ## I tried to use this with XYZ service and it barfed. What do I do?
 
 That's not too surprising. There are several reasons why your call
-might not have worked.
-
-Did you enable debugging? Tracing?
+might not have worked. The most likely place for API calls to fail is
+when serializing requests or serializing results. Enable debugging and
+see how far the API gets.  Report whether the serialization on the
+request or response failed.  If the serialization of the results
+failed, you can set `decode_always` to false which will prevent
+serialization of the result.
 
 - You passed bad data
 
     Take a look at the data you passed, how was it serialized and
-    ultimately passed to the API?
+    ultimately passed to the API?  Setting the `debug` flag is usually
+    helpful in understanding how requests and responses are serialized.
 
 - You didn't read the docs and passed bad data
 
@@ -1137,18 +1156,19 @@ Did you enable debugging? Tracing?
 
 - The serialization of Amazon::API::Botocore::Shape is busted
 
-    I have not tested every class generated for every API. You may find
-    that some API methods return `Bad Request` or do not serialize the
-    results in the manner expected. Requests are serialized based on the
-    metadata found in the Botocore project. There lie the clues for each
-    API (protocol, end points, etc) and the models (shapes) for requests
-    and response elements.
+    Serialization output for every class for every API has not been
+    tested. You may find that some API methods return `Bad Request` or do
+    not serialize the results (or more likely requests) in the manner
+    expected. Requests are serialized based _solely_ on the metadata
+    found in the Botocore project. There lie the clues for each API
+    (protocol, end points, etc) and the models (shapes) for requests and
+    response elements. 
 
     Some requests require a query string, some an XML or JSON payload. The
     Botocore based API classes use the metadata to determine how to send a
     request and how to interpret the results. This module uses
     [XML::Simple](https://metacpan.org/pod/XML%3A%3ASimple) or [JSON](https://metacpan.org/pod/JSON) to parse the results. It then uses the
-    `Amazon::API::Bottocore::Serializer` to turn the parsed results into
+    [Amazon::API::Botocore::Serializer](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3ASerializer) to turn the parsed results into
     a Perl object that respresents the response shape. It's likely that
     this module has bugs and the shapes returned might not exactly match the
     return response from the `aws` command line interface version.
@@ -1157,6 +1177,91 @@ Did you enable debugging? Tracing?
     these modules and Amazon's CLI.
 
         perldoc Amazon::API::Botocore::Shape::EC2:DescribeInstancesRequest
+
+    Make sure you understand what the API request should look
+    like. `amazon_api` will help illuminate values you should be sending
+    to APIs.
+
+        amazon-api -s sqs help CreateQueue
+
+    - Additional Details
+
+        Some APIs, most notably query protocol APIs like EC2 seem to require
+        special serializers. Looking at the Python implementation of the
+        Botocore library reveals a separate EC2 serializer.  This API has no
+        such "hook" for APIs that require a unique intepretation of the
+        Botocore metadata. 
+
+        You can however create the correct payloads expected by an API and
+        pass those when you make a request. For example, the EC2
+        DescribeSecurityGroups API accepts a Filter object to filter the
+        results. The Python Botocore signature looks like this:
+
+            response = client.describe_security_groups(
+                Filters=[
+                    {
+                        'Name': 'string',
+                        'Values': [
+                            'string',
+                        ]
+                    },
+                ],
+                GroupIds=[
+                    'string',
+                ],
+                GroupNames=[
+                    'string',
+                ],
+                DryRun=True|False,
+                NextToken='string',
+                MaxResults=123
+            )
+
+        That signature provides a convenient way to pass the required
+        parameters to the API. However, when actually passed to the API the
+        payload is serialized into a query string parameter that might look something like:
+
+            Filter.1.Name=group-name&Filter.1.Value.1=some-value&Action=DescribeSecurityGroups&Version=2016-11-15
+
+        The Filters object you passed gets serialized into _param.n_ notation
+        as describe earlier in this documentation. Knowing that fact (by
+        looking at the AWS API for DescribeSecurityGroups) and experiencing a
+        failure when sending what should be the correct request to the API
+        using this class, you could send correctly formatted payloads to query
+        protocol APIs like this one.
+
+            my @filter = param_n(
+               { Filter => [
+                   { Name  => 'group-name',
+                     Value => ['tbc-ssh-only']
+                   }
+                 ]
+               }
+             );
+
+            print Dumper([filter => \@filter]);
+
+        Would result in:
+
+            $VAR1 = [
+                      'filter',
+                      [
+                        'Filter.1.Name=group-name',
+                        'Filter.1.Value.1=tbc-ssh-only'
+                      ]
+                    ];
+
+        Arrays passed to query protocol requests are assumed to be lists of
+        query variables and values and are added to the URL when the request
+        is made.
+
+        _Hopefully, as more is learned about serializing those kinds of API
+        requests this class will be able to successfully make those API
+        calls._
+
+        _UPDATE: Try using the Botocore protocol for APIs by passing a hash
+        reference of expected variables first. Recent updates have been made
+        to create special serializers for these older query protocol APIs._
 
     If you find this project's serializer deficient, please log an issue
     and I will attempt to address it.

@@ -24,7 +24,7 @@ BEGIN {
 use parent qw(Class::Accessor::Fast);
 
 use Amazon::API::Constants              qw(:chars :booleans);
-use Amazon::API::Botocore::Shape::Utils qw(require_shape);
+use Amazon::API::Botocore::Shape::Utils qw(require_shape is_hash is_array);
 
 use Carp;
 use Data::Dumper;
@@ -57,20 +57,32 @@ sub new {
 ########################################################################
 sub _serialize_structure {
 ########################################################################
-  my ( $self, $this, $data, $service ) = @_;
+  my ( $self, $this, $data, $service, $exists ) = @_;
 
   $service ||= $self->get_service;
 
-  TRACE( Dumper [ 'serialize_structure', $this, $data ] );
+  TRACE(
+    Dumper [
+      class               => ref $this,
+      serialize_structure => $this,
+      data                => $data,
+      exists              => $exists,
+    ]
+  );
 
   my $members = $this->get_members;
 
-  my $result = {};
+  return if !defined $data;
+
+  #  my $result = {};
+  my $result = $exists ? {} : undef;
 
   foreach my $m ( keys %{$members} ) {
     my $member        = $members->{$m};
-    my $location_name = $member->{locationName} || $m;
-    my $has_location  = exists $member->{locationName};
+    my $location_name = $member->{locationName} || $member->{location} || $m;
+
+    my $has_location
+      = ( exists $member->{locationName} ) || ( exists $member->{location} );
 
     my $shape = $member->{shape};
     my $serialized_data;
@@ -78,29 +90,33 @@ sub _serialize_structure {
     DEBUG(
       sub {
         return Dumper(
-          [ 'member name:',  $m,
-            'member:',       $member,
-            'shape:',        $shape,
-            'location:',     $location_name,
-            'has location:', $has_location
+          [ member_name  => $m,
+            member       => $member,
+            shape        => $shape,
+            location     => $location_name,
+            has_location => $has_location,
+            exists       => $exists,
           ]
         );
       }
     );
 
-    my $member_data;
+    my $member_data = $data->{$location_name};
 
     DEBUG(
       sub {
         return Dumper(
-          [ 'data',        $data, 'location', $location_name,
-            'member_data', $member_data
+          [ member       => $m,
+            shape        => $shape,
+            data         => $data,
+            location     => $location_name,
+            member_data  => $member_data,
+            has_location => $has_location,
+            exists       => $exists,
           ]
         );
       }
     );
-
-    $member_data = $data->{$location_name};
 
     # because we may have serialized an XML object...
     if ( $member_data && ref($member_data) && $shape eq 'String' ) {
@@ -110,36 +126,81 @@ sub _serialize_structure {
     DEBUG(
       sub {
         return Dumper(
-          [ 'serializing structure member',
-            $m, $shape, $data, $member_data, $has_location
+          [ member_data   => $member_data,
+            member        => $member,
+            location_name => $location_name,
+            has_location  => $has_location,
+            caller_exists => $exists,
+            exists        => exists $data->{$location_name},
           ]
         );
       }
     );
 
-    $serialized_data = $self->serialize(
-      shape   => $shape,
-      data    => $member_data || $data,
-      service => $service
-    );
+    # has location means this structure member should be inserted into
+    # a hash at that location - when it doesn't exist the data is
+    # inserted directly into the member name
+
+    # if member data does not exist, then entire data structure is
+    # passed to the serializer
+    if ( !$has_location || $member_data || exists $data->{$location_name} ) {
+      $serialized_data = $self->serialize(
+        shape   => $shape,
+        data    => $member_data || $data,
+        service => $service,
+        exists  => exists $data->{$location_name},
+      );
+
+      DEBUG(
+        sub {
+          return Dumper(
+            [ "back from serializing $shape",
+              data          => $serialized_data,
+              location_name => $location_name,
+              member        => $m,
+              flattened     => $this->{flattened},
+            ]
+          );
+        }
+      );
+    }
+
+    # skip empty members
+    next if ( !exists $data->{$location_name} ) && !defined $serialized_data;
+
+    if ( 1 || $this->{type} ne 'structure' || !$has_location ) {
+
+      $result //= {};
+      if ( $this->{flattened} ) {
+        $result->{$m} = $serialized_data;
+      }
+      else {
+        if ( is_hash($serialized_data)
+          && exists $serialized_data->{$location_name} ) {
+          $result->{$m} = $serialized_data->{$location_name};
+        }
+        else {
+          $result->{$m} = $serialized_data;
+        }
+      }
+    }
+    else {
+      DEBUG('returning serialized_data');
+      $result = $serialized_data;
+    }
 
     DEBUG(
       sub {
         return Dumper(
-          [ "back from serializing $shape",
-            'data', $serialized_data, 'location_name', $location_name, 'm',
-            $m
+          [ result          => $result,
+            member          => $m,
+            serialized_data => $serialized_data,
+            location_name   => $location_name,
+            exists          => $exists,
           ]
         );
       }
     );
-
-    # skip empty members
-    next if !exists $data->{$location_name} && !defined $serialized_data;
-
-    $result->{$m} = $serialized_data;
-
-    DEBUG( sub { return Dumper( [ 'result', $result ] ) } );
   }
 
   return $result;
@@ -148,7 +209,7 @@ sub _serialize_structure {
 ########################################################################
 sub _serialize_list {
 ########################################################################
-  my ( $self, $this, $data, $service ) = @_;
+  my ( $self, $this, $data, $service, $exists ) = @_;
 
   $service ||= $self->get_service;
 
@@ -169,11 +230,11 @@ sub _serialize_list {
 
   DEBUG(
     Dumper(
-      [ 'serialize_list', 'member:',
-        $member,          'location_name:',
-        $location_name,   'list',
-        $list,            'member shape:',
-        $member_shape
+      [ 'serialize_list',
+        member        => $member,
+        location_name => $location_name,
+        list          => $list,
+        member_shape  => $member_shape,
       ]
     )
   );
@@ -186,7 +247,9 @@ sub _serialize_list {
   elsif ( $list && reftype($list) eq 'HASH' ) {
 
     my @key_values;
+
     DEBUG( Dumper( [ 'pre-pre-marker', $list ] ) );
+
     if (0) {
       foreach my $key ( keys %{$list} ) {
         push @key_values, { $key => $list->{$key} };
@@ -210,7 +273,7 @@ sub _serialize_list {
       $list = [$list];
     }
 
-    DEBUG( Dumper( [ 'key_values', $member_shape, \@key_values ] ) );
+    DEBUG( Dumper( [ key_values => $member_shape, \@key_values ] ) );
 
     my %result;
 
@@ -222,30 +285,56 @@ sub _serialize_list {
         shape   => $member_shape,
         data    => $p,
         service => $service,
+        exists  => $location_name && exists $data->{$location_name},
       );
+
+      next if !defined $serialized_data;
 
       push @{$result}, $serialized_data;
     }
 
-    local $LIST_SEPARATOR = ",";
+    local $LIST_SEPARATOR = q{,};
 
-    DEBUG( 'list:' . Dumper( [ ref($self), ref($this), $result, $list ] ) );
+    DEBUG(
+      sub {
+        return Dumper(
+          [ 'ref(self)' => ref($self),
+            'ref(this)' => ref($this),
+            result      => $result,
+            list        => $list
+          ]
+        );
+      }
+    );
   }
   else {
     foreach my $elem ( @{$list} ) {
 
       DEBUG(
-        sub { return Dumper( [ 'populate list', $member->{shape}, $elem ] ) }
+        sub {
+          return Dumper(
+            [ shape => $member->{shape},
+              elem  => $elem
+            ]
+          );
+        }
       );
 
-      push @{$result},
-        $self->serialize(
+      my $serialized_data = $self->serialize(
         shape   => $member->{shape},
         data    => $elem,
         service => $service,
-        );
+        exists  => $exists,
+      );
+
+      next if !defined $serialized_data;
+
+      push @{$result}, $serialized_data;
+
     }
   }
+
+  return if !$exists && !@{$result};
 
   return $result;
 }
@@ -255,13 +344,20 @@ sub serialize {
 ########################################################################
   my ( $self, %args ) = @_;
 
-  my ( $shape, $service, $data ) = @args{qw(shape service data)};
+  my ( $shape, $service, $data, $exists )
+    = @args{qw(shape service data exists)};
 
   $service ||= $self->get_service;
 
   DEBUG(
     sub {
-      return Dumper( [ 'serialize', $shape, $data, $service ] );
+      return Dumper(
+        [ shape   => $shape,
+          data    => $data,
+          service => $service,
+          exists  => $exists,
+        ]
+      );
     }
   );
 
@@ -277,8 +373,12 @@ sub serialize {
   DEBUG(
     sub {
       return Dumper(
-        [ 'serialize', 'class', $class, 'type',
-          $type,       'data',  $data,  $service
+        [ class   => $class,
+          type    => $type,
+          exists  => $exists,
+          data    => $data,
+          service => $service,
+          this    => $this,
         ]
       );
     }
@@ -286,24 +386,30 @@ sub serialize {
 
   my %serializers = (
     structure => sub {
-      return $self->_serialize_structure( $this, $data, $service );
+      return $self->_serialize_structure( $this, $data, $service, $exists );
     },
-    list => sub {
-      return $self->_serialize_list( $this, $data, $service );
-    },
-    string => sub {
-      return if !defined $data;
 
-      if ( $shape eq 'policyDocumentType' ) {
-        return decode_json( url_decode_utf8($data) );
+    list => sub {
+      return $self->_serialize_list( $this, $data, $service, $exists );
+    },
+
+    string => sub {
+
+      if ($data) {
+        $data = ref $data ? $data->{content} : $data;
       }
 
-      $data = ref $data ? $data->{content} // $EMPTY : $data;
+      return $data
+        if $data;
 
-      return $data;
+      return $exists ? $EMPTY : $data;
     },
+
     boolean => sub {
       $data = ref $data ? $data->{content} : $data;
+
+      return
+        if !defined $data;
 
       $data //= 0;
 
@@ -318,35 +424,97 @@ sub serialize {
 
       return $data;
     },
+
     integer => sub {
       return ref $data ? $data->{content} : $data;
     },
+
     long => sub {
       return ref $data ? $data->{content} : $data;
     },
+
     map => sub {
-      return $data;
+      return $data
+        if !$this->{flattened};
+
+      my $serialize           = {};
+      my $key_location_name   = $this->{key}->{locationName};
+      my $key_shape_name      = $this->{key}->{shape};
+      my $value_location_name = $this->{value}->{locationName};
+      my $value_shape_name    = $this->{value}->{shape};
+
+      DEBUG(
+        sub {
+          return Dumper(
+            [ type                => $type,
+              data                => $data,
+              locationName        => $this->{locationName},
+              key_location_name   => $key_location_name,
+              key_shape_name      => $key_shape_name,
+              value_location_name => $value_location_name,
+              value_shape_name    => $value_shape_name,
+            ]
+          );
+        }
+      );
+
+      $data ||= [];
+
+      if ( ref $data && reftype($data) ne 'ARRAY' ) {
+        $data = [$data];
+      }
+
+      foreach my $item ( @{$data} ) {
+
+        my $key = $self->serialize(
+          service => $service,
+          data    => $item->{$key_location_name}->{content},
+          shape   => $key_shape_name,
+
+        );
+
+        my $value = $self->serialize(
+          service => $service,
+          data    => $item->{$value_location_name}->{content},
+          shape   => $value_shape_name,
+        );
+
+        if ( defined $value ) {
+          $serialize->{$key} = $value;
+        }
+      }
+
+      return { $this->{locationName} => $serialize };
     },
     blob => sub {
       return $data;
     },
     timestamp => sub {
       $data = ref $data ? $data->{content} : $data;
-      $data //= $EMPTY;
+
+      return
+        if !$data;
 
       $data =~ s/^(.*)[.]000Z$/$1\+00:00/xsm;
 
-      if ( $data =~ /^[\d]+[.]$/xsm ) {
+      if ( $data =~ /^[\d.]+$/xsm ) {
         my $epoch = $data;
 
-        my ( undef, $nanoseconds ) = split /[.]/xsm, $epoch;
+        my $nanoseconds;
+
+        ( $epoch, $nanoseconds ) = split /[.]/xsm, $epoch;
 
         if ( defined $nanoseconds ) {
-          $data = strftime( '%Y-%m-%dT%H:%M:%S.%%d%z', gmtime $epoch );
+          $data = strftime( '%Y-%m-%dT%H:%M:%S.%%d%z', localtime $epoch );
           $data = sprintf $data, ".$nanoseconds" * 1_000_000;
         }
         else {
-          $data = strftime( '%Y-%m-%dT%H:%M:%S%z', gmtime $epoch );
+          $data = strftime( '%Y-%m-%dT%H:%M:%S%z', localtime $epoch );
+        }
+
+        if ( $data =~ /(\d{4})$/xsm ) {
+          my ( $h, $m ) = unpack 'A2A2', $1;
+          $data =~ s/\d{4}$/$h:$m/xsm;
         }
 
       }
@@ -361,18 +529,34 @@ sub serialize {
     DEBUG(
       sub {
         return Dumper(
-          [ 'serializing object of type', $type, 'data', $data ] );
+          [ type   => $type,
+            data   => $data,
+            exists => $exists
+          ]
+        );
       }
     );
 
-    $result = $serializers{$type}->();
+    $result = $serializers{$type}->($exists);
+
+    #    return
+    #      if ref $result && reftype($result) eq 'HASH' && !%{$result};
+    #
+    #    return
+    #      if ref $result && reftype($result) eq 'ARRAY' && !@{$result};
 
     DEBUG( sub { return Dumper( [ 'result', $result ] ) } );
   }
   else {
     DEBUG(
       sub {
-        return Dumper( [ 'serializing unknown object', $this, $data ] );
+        return Dumper(
+          [ unknown_type => $type,
+            this         => $this,
+            data         => $data,
+            exists       => $exists
+          ]
+        );
       }
     );
 
@@ -380,6 +564,7 @@ sub serialize {
       shape   => $this->{shape},
       data    => $data,
       service => $service,
+      exists  => $exists,
     );
   }
 

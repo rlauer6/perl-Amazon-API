@@ -14,6 +14,8 @@ our %EXPORT_TAGS = (
     qw{
       $TRUE
       $FALSE
+      $SUCCESS
+      $FAILURE
     }
   ],
 
@@ -68,6 +70,10 @@ Readonly::Scalar our $PADDING => $SPACE x 4;
 # booleans
 Readonly::Scalar our $TRUE  => 1;
 Readonly::Scalar our $FALSE => 0;
+
+# shell booleans
+Readonly::Scalar our $SUCCESS => 0;
+Readonly::Scalar our $FAILURE => 1;
 
 foreach my $k ( keys %EXPORT_TAGS ) {
   push @EXPORT_OK, @{ $EXPORT_TAGS{$k} };

@@ -5,7 +5,7 @@ package Amazon::STS;
 use strict;
 use warnings;
 
-use parent qw( Amazon::API::STS APIExample );
+use parent qw( APIExample Amazon::API::STS );
 
 use Carp;
 use Data::Dumper;
@@ -48,7 +48,7 @@ sub _AssumeRole {
 ########################################################################
   my ( $package, $options ) = @_;
 
-  my $sts = $package->new;
+  my $sts = $package->service($options);
 
   my $credentials = $sts->get_credentials_from_role( shift @ARGV );
 

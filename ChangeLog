@@ -1,3 +1,98 @@
+Fri Oct 13 17:02:15 2023  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.12]:
+	* .gitignore
+	- cpan/resources
+	- cpan-dist/services, service-listing.json
+	- src/main/bash/bin/create-service
+	- don't ignore docker-rpm/Makefile
+	* VERSION: bump
+	* README.md: generated
+	* NEWS: updated
+	* .gitignore: added generated README, README.html files
+	* cpan-dist/Makefile
+	- clear error message when required env vars not present
+	- require Text::ASCIITable for listing
+	* cpan-dist/README.md
+	- added Quickstart section
+	- minor tweaks
+	* docker/docker-compose.yaml: docker-compose for LocalStack
+	* src/main/perl/lib/README.md: likewise
+	* src/examples/APIExample.pm
+	(dump_json): new
+	(version): new
+	(service): new
+	* src/examples/README.md: tweaks
+	* src/examples/sqs.pm: refactored
+	* src/examples/ec2.pm: likewise
+	* src/examples/ecr.pm: likewise
+	* src/examples/cloudwatch-events.pm: likewise
+	* src/examples/secrets-manager.pm: likewise
+	* src/examples/ssm.pm: likewise
+	* src/examples/sts.pm: likewise
+	* src/main/perl/lib/Amazon/API.pm.in
+	- export 'service' method
+	- add more documenation around serialization failures
+	(service): new
+	(set_log_level): only set level if logger is actually set
+	(decode_response)
+	- SuppressEmpty when decoding XML
+	- add serialize flag to prevent serialization
+	- return decoded output if not botocore output
+	(invoke_api)
+	- added log messages
+	- try to detect when to pass through parameters vs serializing via botocore
+	- only use paginator if there is a paginator for the method being invoked
+	- set parameters to {} as default for non-botocore/application-json calls
+	- delete limit_key from result
+	- return result_key contents for paged results
+	(_set_defaults): added option no_passkey_warning
+	(serialize_content)
+	- set parameters to an empty array as default for query protocol
+	* src/main/perl/lib/README.md: generated
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	(help): fix for shape documentation
+	* src/main/perl/lib/Amazon/API/Botocore/Pod.pm.in
+	- note about custom module names
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	- serialization fixes
+	(_serialize_structure)
+	- pass along exists flag if element exists in content
+	- added more debugging information
+	- use member name as key or just use serialized data
+	- set location name as locationName, location or member name
+	- always set serialized datat to hash member now ????
+	(_serialize_list)
+	- skip undefined elements
+	- pass along exists flag
+	(serialize)
+	- return undef if undefined data for strings
+	- return undef if undefined data for boolean
+	- fix for timestamp type
+	- implement flattened maps
+	- return undef for empty hashes and arrays
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	- refactoring, serialization fixes
+	- optional logger object
+	(new)
+	- add arg is_response, to avoid calling _init_value() for response object
+	(_init_map): return raw value if is_flattened
+	(get_shape_type): new
+	(finalize): refactored with dispatcher
+	(finalize_map): new
+	(finalize_list): new
+	(finalize_structure): new
+	(_create_key_value_list): new
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Utils.pm.in
+	- add methods is_array, is_code, is_hash, is_regexp, is_scalar, _is_type
+	- changed new() method in template to only store value if a value passed
+	(create_module_name): don't alter names with upper case (they're custom)
+	* src/main/bash/bin/create-service.sh.in
+	- use realpath for BOTOCORE_PATH
+	- get description from service, not module name
+	* src/main/perl/lib/Amazon/API/Constants.pm.in
+	- added SUCCESS, FAILURE
+
 Mon Aug 21 14:33:58 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.11]:

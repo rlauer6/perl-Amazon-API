@@ -3,11 +3,12 @@ package Amazon::SQS;
 use strict;
 use warnings;
 
-use parent qw(Amazon::API APIExample);
-
 use Data::Dumper;
+use JSON::PP     qw(encode_json);
 use Scalar::Util qw( reftype );
-use JSON::PP qw(encode_json);
+use APIExample   qw(dump_json);
+
+use parent qw(APIExample Amazon::API::SQS);
 
 our $DESCRIPTIONS = {
   ListQueues  => 'Executes the SQS API "ListQueues".',
@@ -19,33 +20,10 @@ our $DESCRIPTIONS = {
   ReceiveMessage => 'Executes the SQS API "ReceiveMessage".',
 };
 
-our @API_METHODS = qw(
-  ListQueues
-  CreateQueue
-  DeleteQueue
-  ReceiveMessage
-  SendMessage
-);
+caller or __PACKAGE__->main;
 
-caller() || __PACKAGE__->main;
-
-########################################################################
-sub new {
-########################################################################
-  my ( $class, @options ) = @_;
-  $class = ref($class) || $class;
-
-  my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
-
-  return $class->SUPER::new(
-    { service       => 'sqs',
-      http_method   => 'GET',
-      api_methods   => \@API_METHODS,
-      decode_always => 1,
-      debug         => $ENV{DEBUG},
-      %options
-    }
-  );
+BEGIN {
+  our $VERSION = $Amazon::API::SQS::VERSION;
 }
 
 ########################################################################
@@ -53,40 +31,23 @@ sub _ListQueues {
 ########################################################################
   my ( $package, $options ) = @_;
 
-  my $sqs = $package->new( url => $options->{'endpoint-url'} );
+  my $sqs = $package->service($options);
 
-  my $rsp = $sqs->ListQueues;
+  my $rsp = $sqs->ListQueues();
 
-  print {*STDOUT} Dumper( [ 'response', $rsp ] );
+  print {*STDOUT} dump_json($rsp);
 
   return $rsp;
 }
 
 ########################################################################
-sub get_queue_url {
+sub queue_url {
 ########################################################################
-  my ( $package, $queue ) = @_;
+  my ( $sqs, $queue ) = @_;
 
-  my $queues = $package->ListQueues;
+  my $queues = $sqs->ListQueues;
 
-  my $queue_url;
-
-  if ($queues) {
-
-    $queues = $queues->{ListQueuesResult}->{QueueUrl};
-
-    if ($queues) {
-      if ( ref($queues) && reftype($queues) eq 'ARRAY' ) {
-        ($queue_url) = grep {/$queue/} @{$queues};
-      }
-      else {
-        $queue_url = $queues;
-      }
-    }
-  }
-  else {
-    print "No queues!\n";
-  }
+  my ($queue_url) = grep {/$queue/xsm} @{ $queues || [] };
 
   return $queue_url;
 }
@@ -94,19 +55,21 @@ sub get_queue_url {
 ########################################################################
 sub _DeleteQueue {
 ########################################################################
-  my ( $package, $options ) = @_;
+  my ( $package, $options, @args ) = @_;
 
-  my $sqs       = $package->new( url => $options->{'endpoint-url'} );
-  my $queue_url = $sqs->get_queue_url('foo');
+  my $sqs = $package->service($options);
+
+  my $queue_url = queue_url( $sqs, $args[0] );
 
   my $rsp;
 
   if ($queue_url) {
     $rsp = $sqs->DeleteQueue( [ { QueueUrl => $queue_url } ] );
-    print {*STDOUT} Dumper( [ 'response', $rsp ] );
+
+    print {*STDOUT} dump_json($rsp);
   }
   else {
-    print "No queue named 'foo' to delete.\n";
+    print {*STDERR} "ERROR: No queue named $args[0] to delete.\n";
   }
 
   return $rsp;
@@ -115,22 +78,25 @@ sub _DeleteQueue {
 ########################################################################
 sub _CreateQueue {
 ########################################################################
-  my ( $package, $options ) = @_;
+  my ( $package, $options, @args ) = @_;
 
-  my $sqs = $package->new( url => $options->{'endpoint-url'} );
+  my $queue_name = $args[0];
+
+  my $sqs = $package->service($options);
 
   my $attributes = [ { Name => 'VisibilityTimeout', Value => '100' } ];
-  my $tags       = [ { Key  => 'Name',              Value => 'Foo' } ];
+  my $tags       = [ { Key  => 'Name',              Value => $queue_name } ];
 
   my @sqs_attributes = Amazon::API::param_n( { Attribute => $attributes } );
   my @sqs_tags       = Amazon::API::param_n( { Tag       => $tags } );
 
-  print {*STDOUT} Dumper( [ @sqs_attributes, @sqs_tags ] );
+  print {*STDOUT} dump_json( [ @sqs_attributes, @sqs_tags ] );
 
-  my $rsp;
-  $rsp = $sqs->CreateQueue( [ 'QueueName=foo', @sqs_attributes, @sqs_tags ] );
+  my $rsp
+    = $sqs->CreateQueue(
+    [ "QueueName=$queue_name", @sqs_attributes, @sqs_tags ] );
 
-  print {*STDOUT} Dumper( [ 'response', $rsp ] );
+  print {*STDOUT} dump_json($rsp);
 
   return $rsp;
 }
@@ -138,23 +104,24 @@ sub _CreateQueue {
 ########################################################################
 sub _SendMessage {
 ########################################################################
-  my ( $package, $options ) = @_;
+  my ( $package, $options, @args ) = @_;
 
-  my $sqs = $package->new( url => $options->{'endpoint-url'} );
+  my $sqs = $package->service($options);
 
-  my $queue_url = $sqs->get_queue_url('foo');
+  my ( $queue, $message ) = @args;
 
-  my $rsp;
+  $queue   //= 'foo';
+  $message //= 'Test Message';
 
-  if ($queue_url) {
-    $rsp = $sqs->SendMessage(
-      [ { QueueUrl    => $queue_url },
-        { MessageBody => encode_json( { Message => 'Test Message' } ) }
-      ]
-    );
+  my $queue_url = queue_url( $sqs, $queue );
 
-    print {*STDOUT} Dumper( [ 'response', $rsp ] );
-  }
+  my $rsp = $sqs->SendMessage(
+    [ { QueueUrl    => $queue_url },
+      { MessageBody => encode_json( { Message => $message } ) }
+    ]
+  );
+
+  print {*STDOUT} dump_json($rsp);
 
   return $rsp;
 }
@@ -164,15 +131,16 @@ sub _ReceiveMessage {
 ########################################################################
   my ( $package, $options ) = @_;
 
-  my $sqs = $package->new( url => $options->{'endpoint-url'} );
+  my $sqs = $package->service($options);
 
-  my $queue_url = $sqs->get_queue_url('foo');
+  my $queue_url = queue_url( $sqs, 'foo' );
 
   my $message;
 
   if ($queue_url) {
     $message = $sqs->ReceiveMessage("QueueUrl=$queue_url");
-    print Dumper( [ 'message', $message ] );
+
+    dump_json($message);
   }
 
   return $message;

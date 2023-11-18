@@ -16,7 +16,7 @@ Options
 -h               help
 -b path          path to Botocore project
 -f force         don't ask, just do it
--o path          path for for files (a CPAN distribution will not be create)
+-o path          path for for files (a CPAN distribution will not be created)
 -m module name   override of Perl module suffix
 -s service name  name of the AWS API service (lower case)
 -t               create a regular tarball
@@ -83,7 +83,7 @@ function create_cpan_distribution  {
         return
     fi
     
-    description=$(amazon-api -s $module_name help | perl -0 -ne 'print $1 if /DESCRIPTION\n\s*([^\n]+)\n/;')
+    description=$(amazon-api -s $api_service help | perl -0 -ne 'print $1 if /DESCRIPTION\n\s*([^\n]+)\n/;')
 
     mkdir lib
     mv Amazon lib/
@@ -152,6 +152,8 @@ while getopts "h?fb:o:s:m:t" arg "$@"; do
 
     esac
 done
+
+BOTOCORE_PATH=$(realpath $BOTOCORE_PATH)
 
 if ! test -d $BOTOCORE_PATH/botocore; then
     >&2 echo "BOTOCORE_PATH invalid"

@@ -17,7 +17,8 @@ use Data::Dumper;
 use English qw(-no_match_vars);
 use ReadonlyX;
 use Scalar::Util qw( reftype blessed );
-use List::Util   qw( any );
+use List::Util   qw( any pairs );
+use Log::Log4perl;
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(
@@ -25,6 +26,7 @@ __PACKAGE__->mk_accessors(
     documentation
     enum
     flattened
+    logger
     location
     locationName
     key
@@ -46,9 +48,16 @@ __PACKAGE__->mk_accessors(
 ########################################################################
 sub new {
 ########################################################################
-  my ( $class, $args ) = @_;
+  my ( $class, $args, $is_response ) = @_;
+
+  $args->{logger} = Log::Log4perl->get_logger;
 
   my $self = $class->SUPER::new($args);
+
+  if ($is_response) {
+    $self->set__value(undef);
+    return;
+  }
 
   $self->_init_value;
 
@@ -110,6 +119,8 @@ sub _init_structure {
 
   my $value = $self->get__value;
 
+  $self->get_logger->debug( sub { return Dumper( [ value => $value ] ) } );
+
   foreach my $member ( @{ $self->get_required } ) {
     croak "$member is a required parameter"
       if !any { $_ eq $member } keys %{$value};
@@ -135,6 +146,9 @@ sub _init_map {
   my ($self) = @_;
 
   my $value = $self->get__value;
+
+  return $value
+    if $self->is_flattened;
 
   if ( ref $value eq 'HASH' ) {
     $value = [$value];
@@ -227,7 +241,9 @@ sub _init_value {
   my ($self) = @_;
 
   my $value = $self->get__value;
-  return if !$value;
+
+  return
+    if !$value;
 
   croak 'ref type of value should be one of SCALAR, ARRAY or HASH'
     if blessed $value;
@@ -267,6 +283,25 @@ sub _init_value {
 }
 
 ########################################################################
+sub get_shape_type {
+########################################################################
+  my ($self) = @_;
+
+  return 'MAP'
+    if $self->is_map;
+
+  return 'STRUCTURE'
+    if $self->is_structure;
+
+  return 'LIST'
+    if $self->is_list;
+
+  return 'SCALAR';
+}
+
+# 'finalization' of a shape is done in order to create a data structure
+# that can then be used to create a Botocore request
+########################################################################
 sub finalize {
 ########################################################################
   my ($self) = @_;
@@ -274,94 +309,155 @@ sub finalize {
   return $self
     if !blessed $self;
 
+  $self->get_logger->debug(
+    sub {
+      return Dumper(
+        [ type       => $self->get_type,
+          shape_type => $self->get_shape_type,
+          shape      => $self,
+        ]
+      );
+    }
+  );
+
+  my %dispatch = (
+    SCALAR    => sub { return $self->get__value },
+    MAP       => sub { return $self->finalize_map },
+    LIST      => sub { return $self->finalize_list },
+    STRUCTURE => sub { return $self->finalize_structure },
+  );
+
+  return $dispatch{ $self->get_shape_type }->();
+}
+
+########################################################################
+sub finalize_map {
+########################################################################
+  my ($self) = @_;
+
+  my $location_name = $self->{locationName};
+
+  my ( $key, $value ) = @{$self}{qw(key value)};
+
+  my $key_location_name   = $key->{locationName};
+  my $value_location_name = $value->{locationName};
+
+  $key   = $key_location_name   || undef;
+  $value = $value_location_name || undef;
+
+  my @elem_list = eval {
+    my $values = $self->get__value;
+
+    return @{$values}
+      if reftype($values) ne 'HASH';
+
+    return map {
+      { $_ => $values->{$_} }
+    } keys %{$values};
+  };
+
+  my $list
+    = $key
+    ? _create_key_value_list( $key, $value, @elem_list )
+    : [@elem_list];
+
+  return flatten( $location_name, $list )
+    if $self->is_flattened;
+
+  return $location_name ? { $location_name => $list } : $list;
+}
+
+# @list is an array of key/value hashes
+########################################################################
+sub _create_key_value_list {
+########################################################################
+  my ( $key, $value, @list ) = @_;
+
+  my @kv_list;
+
+  foreach my $p ( pairs map { %{$_} } @list ) {
+    my ( $k, $v ) = @{$p};
+
+    push @kv_list,
+      {
+      $key   => $k,
+      $value => blessed $v ? $v->finalize : $v,
+      };
+
+  }
+
+  return \@kv_list;
+}
+
+########################################################################
+sub finalize_list {
+########################################################################
+  my ($self) = @_;
+
+  my $member = $self->get_member;
+
+  my $location_name = $member->{locationName};
+
+  my $list = [];
+
   my $output;
 
-  if ( $self->is_structure ) {
+  if ( $location_name && ref($self) !~ /ec2/ixsm ) {
     $output = {};
-
-    my $members = $self->get_members;
-
-    foreach my $member ( keys %{$members} ) {
-      my $member_name;
-
-      #      if ( $members->{$member}->{location} eq 'querystring' ) {
-      #        $member_name = $members->{$member}->{locationName};
-      #      }
-      #      else {
-      #        $member_name = $member;
-      #      }
-
-      if ( defined $self->get__value->{$member} ) {
-        my $value = $self->get__value->{$member};
-
-        $output->{$member} = $value->finalize;
-      }
-    }
-  }
-  elsif ( $self->is_list ) {
-
-    my $member = $self->get_member;
-
-    my $list = [];
-
-    if ( $member->{locationName} ) {
-      $output = {};
-      $output->{ $member->{locationName} } = $list;
-    }
-    else {
-      $output = $list;
-    }
-
-    foreach my $elem ( @{ $self->get__value } ) {
-      push @{$list}, $elem->finalize;
-    }
-
-    if ( $self->is_flattened ) {
-      $output = flatten($output);
-    }
-  }
-  elsif ( $self->is_map ) {
-    my $list = [];
-
-    my ( $key, $value ) = @{$self}{qw(key value)};
-
-    if ( $key->{locationName} ) {
-      $key = $key->{locationName};
-    }
-    else {
-      $key = undef;
-    }
-
-    if ( $value->{locationName} ) {
-      $value = $value->{locationName};
-    }
-    else {
-      $value = undef;
-    }
-
-    foreach my $elem ( @{ $self->get__value } ) {
-
-      my @kv = %{$elem};
-      if ($key) {
-        push @{$list}, { $key => $kv[0], $value => $kv[1]->finalize };
-      }
-      else {
-        push @{$list}, $elem;
-      }
-    }
-
-    if ( $self->is_flattened ) {
-      $output = flatten( $self->{locationName}, $list );
-    }
-    else {
-      $output
-        = $self->{locationName}
-        ? { $self->{locationName} => $list }
-        : $list;
-    }
+    $output->{$location_name} = $list;
   }
   else {
-    $output = $self->get__value;
+    $output = $list;
+  }
+
+  foreach my $elem ( @{ $self->get__value } ) {
+    push @{$list}, $elem->finalize;
+  }
+
+  return flatten($output)
+    if $self->is_flattened;
+
+  return $output;
+}
+
+########################################################################
+sub finalize_structure {
+########################################################################
+  my ($self) = @_;
+
+  my $members = $self->get_members;
+
+  $self->get_logger->debug(
+    sub {
+      return Dumper(
+        [ sub     => 'finalize',
+          members => $members,
+          value   => $self->get__value,
+        ]
+      );
+    }
+  );
+
+  #
+  my $output = {};
+
+  foreach my $member ( keys %{$members} ) {
+
+    my $member_name;
+
+    if ( !$members->{$member}->{location} ) {
+      $member_name = $members->{$member}->{locationName} // $member;
+    }
+    else {
+      $member_name = $member;
+    }
+
+    next
+      if !defined $self->get__value->{$member};
+
+    my $value = $self->get__value->{$member};
+
+    $output->{$member_name} = $value->finalize;
   }
 
   return $output;

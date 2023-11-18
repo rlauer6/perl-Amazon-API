@@ -84,6 +84,12 @@ Amazon::API::Botocore - Automagic AWS API class generator
    amazon-api -s sqs help CreateQueue
    amazon-api -s sqs help CreateQueueRequest
 
+   Note that if you created a custom name for your API module
+   (example: SecretsManager), then use the API module short name for
+   the service.
+
+   amazon-api -s SecretsManager help GetSecretValue
+
 4. Dump the entire Botocore description for an API
 
    amazon-api -s sqs describe

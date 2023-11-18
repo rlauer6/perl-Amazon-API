@@ -998,7 +998,7 @@ sub help {
   return pod
     if !@args && !$options{service};
 
-  my $service = $options{'service'};
+  my $service = $options{service};
 
   my $module;
 
@@ -1020,6 +1020,7 @@ sub help {
     }
     else {
       my $description = get_service_descriptions( lc $options{service} );
+
       my $operations
         = $description->[0]->{ lc $options{service} }->{operations};
 
@@ -1070,15 +1071,14 @@ HELP
 
   my $service_name = create_module_name($service);
 
-  my $class = sprintf 'Amazon::API::Botocore::Shape::%s::%s',
-    $service_name, $module;
-
-  print {*STDOUT} "$class\n";
-
   my $file;
+
   # try -s service or
-  for (qw($service_name $service)) {
+  for ( $service_name, $service ) {
+    my $class = sprintf 'Amazon::API::Botocore::Shape::%s::%s', $_, $module;
+
     $file = require_class($class);
+
     last if $file;
   }
 
