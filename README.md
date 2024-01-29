@@ -45,6 +45,8 @@ Then...
 
 # DESCRIPTION
 
+https://github.com/rlauer6/perl-Amazon-API/actions/workflows/build.yml/badge.svg
+
 [![amazon-api](https://github.com/rlauer6/perl-Amazon-API/actions/workflows/build.yml/badge.svg)](https://github.com/rlauer6/perl-Amazon-API/actions/workflows/build.yml)
 
 Generic class for constructing AWS API interfaces. Typically used as a
@@ -154,7 +156,7 @@ You can use [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) in 3 differe
     >
     >         mkdir ~/git
     >         cd git
-    >         git clone https:://github.com/boto/botocore.git
+    >         git clone https://github.com/boto/botocore.git
     >
     >     Generate stub classes for the API and shapes:
     >
@@ -959,7 +961,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.0.12  of `Amazon::API`.
+This documentation refers to version 2.0.13  of `Amazon::API`.
 
 # DIAGNOSTICS
 

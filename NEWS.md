@@ -6,7 +6,17 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
-# perl-Amazon-API 2.0.12 (2023-10-26)
+# perl-Amazon-API 2.0.13 (2024-01-29)
+
+_Version 2.0.13 is a minor update to fix packaging_
+
+## Fixes
+
+* added `Pod::Find` to list of requirements
+     
+## Enhancements
+
+* None
 
 _Version 2.0.12 fixes bugs and improves on request and response serialization_
 
@@ -27,7 +37,7 @@ improved - _please report issues_
 
 # perl-Amazon-API 2.0.11 (2023-08-21)
 
-_Version 2.0.11 fixes buts and add option for disabling use of
+_Version 2.0.11 fixes bugs and add option for disabling use of
 Botocore support_
 
 ## Fixes

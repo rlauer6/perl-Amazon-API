@@ -595,7 +595,7 @@ sub decode_response {
 
         XMLin(
           $content,
-          SuppressEmpty => 0,                    # $protocol eq 'ec2' ? $FALSE : $TRUE,
+          SuppressEmpty => 0,                     # $protocol eq 'ec2' ? $FALSE : $TRUE,
           ForceContent  => $self->is_botocore_api
             && $botocore_action->{output},
           ForceArray => ['item'],
@@ -612,7 +612,7 @@ sub decode_response {
         $decoded_content = eval {
           return XMLin(
             $content,
-            SuppressEmpty => 0, # $protocol eq 'ec2' ? $FALSE : $TRUE,
+            SuppressEmpty => 0,  # $protocol eq 'ec2' ? $FALSE : $TRUE,
             $self->get_force_array ? ( ForceArray => ['item'] ) : ()
           );
         };
@@ -773,7 +773,7 @@ sub create_botocore_request {
   croak "could not create request shape: $shape\n$EVAL_ERROR"
     if !$class;
 
-  my $request = $class->new($parameters); # request class
+  my $request = $class->new($parameters);  # request class
 
   return $request;
 }
@@ -945,7 +945,7 @@ sub init_botocore_request {
       delete @parameters{@args};
     }
     else {
-      $uri = $http->{requestUri}; # use the Botocore template
+      $uri = $http->{requestUri};  # use the Botocore template
 
       my $shape_parameters = $parameters{$shape};
 
@@ -1254,7 +1254,7 @@ sub invoke_api {
     }
 
     if ( $self->get_raise_error ) {
-      die $self->get_error; ## no critic (RequireCarping)
+      die $self->get_error;  ## no critic (RequireCarping)
     }
   }
 
@@ -1521,13 +1521,13 @@ sub create_urlencoded_content {
     # if any are refs then they should be hashes...
     if ( any {ref} @{$parameters} ) {
 
-      @args = map { %{$_} } @{$parameters}; # list of hashes
+      @args = map { %{$_} } @{$parameters};  # list of hashes
     }
     elsif ( any {/=/xsm} @{$parameters} ) {
-      @args = map { split /=/xsm } @{$parameters}; # formatted list
+      @args = map { split /=/xsm } @{$parameters};  # formatted list
     }
     else {
-      @args = @{$parameters};                      # simple list
+      @args = @{$parameters};                       # simple list
     }
   }
 
@@ -1590,8 +1590,8 @@ sub _create_methods {
   my $class = ref $self || $self;
 
   if ( $self->get_api_methods ) {
-    no strict 'refs';       ## no critic (TestingAndDebugging::ProhibitNoStrict)
-    no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings)
+    no strict 'refs';        ## no critic (TestingAndDebugging::ProhibitNoStrict)
+    no warnings 'redefine';  ## no critic (TestingAndDebugging::ProhibitNoWarnings)
 
     my $stash = \%{ __PACKAGE__ . $DOUBLE_COLON };
 
@@ -1637,7 +1637,7 @@ sub _create_stealth_logger {
 
   my $sub_name = sprintf '%s::%s', $name, uc $level;
 
-  no strict 'refs'; ## no critic ProhibitNoStrict
+  no strict 'refs';  ## no critic ProhibitNoStrict
 
   return
     if defined *{$sub_name}{CODE};
@@ -1805,7 +1805,7 @@ sub _set_url {
   }
   else {
     if ( $url !~ /^https?/xmsi ) {
-      $url =~ s/^\///xms; # just remove leading slash...
+      $url =~ s/^\///xms;  # just remove leading slash...
       $url = $self->get_protocol . '://' . $url;
     }
 
@@ -1920,6 +1920,8 @@ Then...
   )->invoke_api( 'ListRules' );
 
 =head1 DESCRIPTION
+
+https://github.com/rlauer6/perl-Amazon-API/actions/workflows/build.yml/badge.svg
 
 =begin markdown
 
@@ -2048,7 +2050,7 @@ Clone the Botocore project from GitHub:
 
  mkdir ~/git
  cd git
- git clone https:://github.com/boto/botocore.git
+ git clone https://github.com/boto/botocore.git
 
 Generate stub classes for the API and shapes:
 

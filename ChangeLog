@@ -1,3 +1,13 @@
+Mon Jan 29 15:17:28 2024  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.13]:
+	* VERSION: bump
+	* README.md: generated
+	* src/main/perl/lib/README.md: likewise
+	* cpan/requires: Pod::Find
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in: whitespace
+	* src/main/perl/lib/Amazon/API.pm.in: likewise, added badge to pod
+
 Fri Oct 13 17:02:15 2023  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.12]:

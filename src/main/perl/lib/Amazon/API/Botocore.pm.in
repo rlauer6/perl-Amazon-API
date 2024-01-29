@@ -11,13 +11,13 @@ BEGIN {
   eval { require Log::Log4perl; };
 
   if ($EVAL_ERROR) {
-    no strict qw(refs); ## no critic (ProhibitNoStrict)
+    no strict qw(refs);  ## no critic (ProhibitNoStrict)
 
     *{ __PACKAGE__ . "::$_" } = sub { }
       for qw(DEBUG INFO WARN ERROR FATAL);
   }
   else {
-    no warnings;        ## no critic (ProhibitNoWarnings)
+    no warnings;         ## no critic (ProhibitNoWarnings)
 
     require Log::Log4perl::Level;
 
@@ -28,8 +28,7 @@ BEGIN {
 
 use parent qw{ Exporter };
 
-use Amazon::API::Botocore::Shape::Utils
-  qw(require_class create_shape create_module_name);
+use Amazon::API::Botocore::Shape::Utils qw(require_class create_shape create_module_name);
 
 use Amazon::API::Template    qw(:all);
 use Amazon::API::Pod::Parser qw(get_pod_section);
@@ -51,17 +50,15 @@ use ReadonlyX;
 use charnames qw(:full);
 
 # package constants
-Readonly::Scalar our $BOTO_PATH_OFFSET => 3;
-Readonly::Scalar our $SHAPE_FILE_TEMPLATE =>
-  '%sAmazon/API/Botocore/Shape/%s/';
+Readonly::Scalar our $BOTO_PATH_OFFSET    => 3;
+Readonly::Scalar our $SHAPE_FILE_TEMPLATE => '%sAmazon/API/Botocore/Shape/%s/';
 
-Readonly::Scalar our $REQUEST_CLASS_TEMPLATE =>
-  q{Amazon::API::Botocore::Shape::%s::%sRequest};
+Readonly::Scalar our $REQUEST_CLASS_TEMPLATE => q{Amazon::API::Botocore::Shape::%s::%sRequest};
 
 use Amazon::API::Constants     qw( :all );
 use Amazon::API::Botocore::Pod qw( pod );
 
-our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
+our $VERSION = '@PACKAGE_VERSION@';  ## no critic (RequireInterpolationOfMetachars)
 
 our %BOTO_SERVICES;
 
@@ -142,10 +139,7 @@ sub paginator {
     my $limit = $rsp->{$limit_key};
 
     $request = $request_class->new(
-      { $limit ? ( $limit_key => $limit ) : (),
-        $input_token => $rsp->{$output_token}
-      }
-    );
+      { $limit ? ( $limit_key => $limit ) : (), $input_token => $rsp->{$output_token} } );
   }
 
   return \@response;
@@ -285,8 +279,7 @@ sub find_latest_services {
 
   my ( $service, $date ) = @path[ $boto_path, $boto_path + 1, ];
 
-  $BOTO_SERVICES{$service}->{date} = $BOTO_SERVICES{$service}->{date}
-    // $EMPTY;
+  $BOTO_SERVICES{$service}->{date} = $BOTO_SERVICES{$service}->{date} // $EMPTY;
 
   if ( $date gt $BOTO_SERVICES{$service}->{date} ) {
     $BOTO_SERVICES{$service} = {
@@ -460,15 +453,13 @@ OUTPUT
           my $shape = $shapes->{$e};
           push @error_items, '=over 5';
 
-          push @error_items, sprintf "=item %s\n%s", $e,
-            html2pod $shape->{documentation};
+          push @error_items, sprintf "=item %s\n%s", $e, html2pod $shape->{documentation};
 
           if ( $shape->{error} ) {
             push @error_items, '=over 5';
 
             foreach my $k ( sort keys %{ $shape->{error} } ) {
-              push @error_items, sprintf "=item %s\n\n%s", $k,
-                $shape->{error}->{$k};
+              push @error_items, sprintf "=item %s\n\n%s", $k, $shape->{error}->{$k};
             }
 
             push @error_items, "=back\n";
@@ -559,13 +550,10 @@ END_OF_POD
 
       push @see_also, $methods{$method}->{input}  || ();
       push @see_also, $methods{$method}->{output} || ();
-      push @see_also,
-        map { $_->{shape} } @{ $operations->{$method}->{errors} };
+      push @see_also, map { $_->{shape} } @{ $operations->{$method}->{errors} };
 
-      $parameters->{ to_template_var('see_also') } = join "\n", map {
-        sprintf 'L<%s::%s>', $parameters->{ to_template_var('package_name') },
-          $_
-      } @see_also;
+      $parameters->{ to_template_var('see_also') } = join "\n",
+        map { sprintf 'L<%s::%s>', $parameters->{ to_template_var('package_name') }, $_ } @see_also;
 
       $parameters->{ to_template_var('method') }      = $method;
       $parameters->{ to_template_var('errors') }      = $errors;
@@ -706,8 +694,7 @@ sub get_service_descriptions {
       croak 'no botocore in path ' . $BOTO_SERVICES{$s}->{path};
     }
 
-    my $service_path = join $SLASH, @path[ 0 .. $boto_path + 2 ], $s,
-      $BOTO_SERVICES{$s}->{date};
+    my $service_path = join $SLASH, @path[ 0 .. $boto_path + 2 ], $s, $BOTO_SERVICES{$s}->{date};
 
     my $service_file    = "$service_path/service-2.json";
     my $paginators_file = "$service_path/paginators-1.json";
@@ -721,8 +708,7 @@ sub get_service_descriptions {
       my $shapes     = $service_description->{shapes};
       my $metadata   = $service_description->{metadata};
 
-      my $service_name
-        = $metadata->{signingName} || $metadata->{endpointPrefix};
+      my $service_name = $metadata->{signingName} || $metadata->{endpointPrefix};
 
       push @descriptions,
         {
@@ -761,7 +747,7 @@ In order to create stubs or shapes you must clone the Botocore project
 and provide the path to the project using the -b option or by setting
 the environment variable BOTOCORE_PATH.
 
-  git clone https::/github.com/boto/botocore.git /tmp/botocore
+  git clone https:/github.com/boto/botocore.git /tmp/botocore
   export BOTOCORE_PATH=/tmp/botocore
 
 END_OF_CROAKING
@@ -843,8 +829,7 @@ sub create_stub {
   }
 
   if ( $parameters->{'protocol'} eq 'json' ) {
-    $parameters->{'content_type'}
-      = 'application/x-amz-json-' . $parameters->{'json_version'};
+    $parameters->{'content_type'} = 'application/x-amz-json-' . $parameters->{'json_version'};
   }
 
   # for rest-json protocol we need a method and and a query uri in
@@ -945,7 +930,7 @@ sub format_columns {
 
   my $max_width = max map {length} @{$text};
 
-  my $width = $args{width}; # width of canvas
+  my $width = $args{width};  # width of canvas
 
   # format for screen by default
   if ( !$width ) {
@@ -1014,9 +999,7 @@ sub help {
     $options{service} //= 'all';
 
     if ( $options{service} eq 'all' ) {
-      return
-        print {*STDOUT}
-        format_columns( text => [ sort keys %BOTO_SERVICES ] );
+      return print {*STDOUT} format_columns( text => [ sort keys %BOTO_SERVICES ] );
     }
     else {
       my $description = get_service_descriptions( lc $options{service} );
@@ -1084,8 +1067,7 @@ HELP
 
   if ( !$file || !-e $file ) {
 
-    $file = require_class( sprintf 'Amazon::API::%s::%s', $service_name,
-      $module );
+    $file = require_class( sprintf 'Amazon::API::%s::%s', $service_name, $module );
   }
 
   $module = undef;
@@ -1150,8 +1132,7 @@ sub main {
       $options{'output-path'} =~ s/^[.]/$cwd/xsm;
     }
     elsif ( $options{'output-path'} && $options{'module-name'} ) {
-      my $module_path = sprintf '%s/Amazon/API/%s',
-        @options{qw(output-path module-name)};
+      my $module_path = sprintf '%s/Amazon/API/%s', @options{qw(output-path module-name)};
 
       if ( !-d $module_path ) {
         croak "could not create path: $module_path\n"

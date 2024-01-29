@@ -13,6 +13,7 @@ LWP::UserAgent 0
 Pod::HTML2Pod 0
 Pod::Parser 0 
 Pod::Markdown
+Pod::Find 0
 Pod::Simple 3.43
 Pod::Text 5.01
 ReadonlyX 0
