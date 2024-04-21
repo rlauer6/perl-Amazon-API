@@ -113,7 +113,7 @@ __PACKAGE__->mk_accessors(
   )
 );
 
-our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
+our $VERSION = '@PACKAGE_VERSION@';  ## no critic (RequireInterpolationOfMetachars)
 
 our @EXPORT_OK = qw(
   create_urlencoded_content
@@ -496,11 +496,7 @@ sub new {
   $self->_create_methods;
 
   if ( $self->is_botocore_api ) {
-    $self->set_serializer(
-      Amazon::API::Botocore::Shape::Serializer->new(
-        service => get_service_from_class( ref $self )
-      )
-    );
+    $self->set_serializer( Amazon::API::Botocore::Shape::Serializer->new( service => get_service_from_class( ref $self ) ) );
   }
 
   return $self;
@@ -572,7 +568,7 @@ sub decode_response {
 
   my $decoded_content;
 
-  my $protocol = eval { return $self->get_botocore_metadata->{protocol}; };
+  my $protocol        = eval { return $self->get_botocore_metadata->{protocol}; };
   my $botocore_action = $self->get_botocore_action;
 
   TRACE(
@@ -813,11 +809,7 @@ sub init_botocore_request {
 
   TRACE(
     sub {
-      return Dumper(
-        [ 'init_botocore_request:', $botocore_operations,
-          $request,                 $self->get_botocore_metadata
-        ]
-      );
+      return Dumper( [ 'init_botocore_request:', $botocore_operations, $request, $self->get_botocore_metadata ] );
     }
   );
 
@@ -1005,8 +997,7 @@ sub init_botocore_request {
         if ( keys %query_parameters ) {
           # $self->set_content_type(undef);
 
-          $uri = sprintf '%s?%s', $uri,
-            create_urlencoded_content( \%query_parameters );
+          $uri = sprintf '%s?%s', $uri, create_urlencoded_content( \%query_parameters );
         }
 
         if ( !keys %{$shape_parameters} ) {
@@ -1163,7 +1154,7 @@ sub invoke_api {
   my ( $paginator, $use_paginator, $limit );
 
   if ( $use_botocore && $self->get_use_paginator ) {
-    $paginator = $self->get_paginators && $self->get_paginators->{$action};
+    $paginator     = $self->get_paginators && $self->get_paginators->{$action};
     $use_paginator = $paginator;
   }
 
@@ -1173,7 +1164,9 @@ sub invoke_api {
 
       $paginator->{more_results} //= $paginator->{output_token};
 
-      $limit = $parameters->{ $paginator->{limit_key} };
+      if ( $paginator->{limit_key} ) {
+        $limit = $parameters->{ $paginator->{limit_key} };
+      }
 
       DEBUG(
         sub {
@@ -1260,11 +1253,7 @@ sub invoke_api {
 
   DEBUG(
     sub {
-      return Dumper(
-        [ 'content',       $rsp->content,
-          'decode always', $self->get_decode_always
-        ]
-      );
+      return Dumper( [ 'content', $rsp->content, 'decode always', $self->get_decode_always ] );
     }
   );
 
@@ -1299,7 +1288,10 @@ sub invoke_api {
 
       if ( !$result->{ $paginator->{more_results} } ) {
         delete $result->{ $paginator->{more_results} };
-        delete $result->{ $paginator->{limit_key} };
+
+        if ( $paginator->{limit_key} ) {
+          delete $result->{ $paginator->{limit_key} };
+        }
 
         return \@paged_results;
       }
@@ -1369,8 +1361,7 @@ sub print_error {
     local $Data::Dumper::Pair  = $COLON;
     local $Data::Dumper::Useqq = $TRUE;
 
-    $err_str .= sprintf q{[%s], %s},
-      $error->get_error, Dumper( ref $response ? $response : [$response] );
+    $err_str .= sprintf q{[%s], %s}, $error->get_error, Dumper( ref $response ? $response : [$response] );
   }
   else {
     $err_str .= '[' . $error . ']';
@@ -1395,8 +1386,7 @@ sub get_valid_token {
     }
   }
 
-  TRACE( sub { return Dumper( [ 'valid token:', $credentials->get_token ] ) }
-  );
+  TRACE( sub { return Dumper( [ 'valid token:', $credentials->get_token ] ) } );
 
   return $credentials->get_token;
 }
@@ -1413,8 +1403,7 @@ sub submit {
 
   my $url = $self->get_url;
 
-  my $botocore_protocol
-    = eval { $self->get_botocore_metadata->{'protocol'} } // $EMPTY;
+  my $botocore_protocol = eval { $self->get_botocore_metadata->{'protocol'} } // $EMPTY;
 
   if ( $botocore_protocol =~ /^rest\-(json|xml)/xsm ) {
     croak 'no request URI provided for rest-json call'
@@ -1541,8 +1530,7 @@ sub create_urlencoded_content {
     push @args, 'Version', $version;
   }
 
-  return join $AMPERSAND,
-    map { sprintf '%s=%s', $_->[0], url_encode( $_->[1] ) } pairs @args;
+  return join $AMPERSAND, map { sprintf '%s=%s', $_->[0], url_encode( $_->[1] ) } pairs @args;
 }
 
 ########################################################################
@@ -1714,10 +1702,7 @@ sub _set_defaults {
 
   # note some APIs are global, hence an API may send '' to indicate global
   if ( !defined $self->get_region ) {
-    $self->set_region( $self->get_region
-        || $ENV{'AWS_REGION'}
-        || $ENV{'AWS_DEFAULT_REGION'}
-        || $DEFAULT_REGION );
+    $self->set_region( $self->get_region || $ENV{'AWS_REGION'} || $ENV{'AWS_DEFAULT_REGION'} || $DEFAULT_REGION );
   }
 
   my $debug //= ( $options{debug} || $ENV{DEBUG} );
@@ -1771,8 +1756,7 @@ sub _create_service_url {
   my $service           = $self->get_service;
 
   if ( $botocore_metadata && $botocore_metadata->{globalEndpoint} ) {
-    $url = sprintf '%s://%s', $self->get_protocol,
-      $botocore_metadata->{globalEndpoint};
+    $url = sprintf '%s://%s', $self->get_protocol, $botocore_metadata->{globalEndpoint};
   }
   else {
     my $endpoint = $self->get_endpoint_prefix || $service;
@@ -1781,12 +1765,10 @@ sub _create_service_url {
       $url = sprintf $GLOBAL_URL_FMT, $self->get_protocol, $endpoint;
     }
     elsif ( $self->get_region ) {
-      $url = sprintf $REGIONAL_URL_FMT, $self->get_protocol, $endpoint,
-        $self->get_region;
+      $url = sprintf $REGIONAL_URL_FMT, $self->get_protocol, $endpoint, $self->get_region;
     }
     else {
-      $url = sprintf $REGIONAL_URL_FMT, $self->get_protocol, $endpoint,
-        'us-east-1';
+      $url = sprintf $REGIONAL_URL_FMT, $self->get_protocol, $endpoint, 'us-east-1';
     }
   }
 
@@ -1850,8 +1832,7 @@ sub _set_request_content {
 
   DEBUG(
     sub {
-      return Dumper(
-        [ '_set_request_content', $self->get_http_method, \%args ] );
+      return Dumper( [ '_set_request_content', $self->get_http_method, \%args ] );
     }
   );
 

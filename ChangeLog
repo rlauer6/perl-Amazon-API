@@ -1,3 +1,16 @@
+Sun Apr 21 07:58:26 2024  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.14]:
+	* VERSION: bump
+	* README.md: generated
+	* NEWS.md: updated
+	* src/main/perl/lib/README.md: likewise
+	* src/main/perl/lib/Amazon/API.pm.in
+	(invoke_api)
+	- test for limit_key (all service do not have limit_key)
+	* src/main/perl/lib/Makefile.am
+	- make README.md from Amazon/API.pm, not .pm.in
+
 Mon Jan 29 15:17:28 2024  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.13]:

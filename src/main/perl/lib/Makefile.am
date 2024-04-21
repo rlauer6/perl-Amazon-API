@@ -72,7 +72,7 @@ $(GAMAZON_API_BOTOCORE_SHAPE_PERLMODULES): % : %.in  \
     Amazon/API/Constants.pm \
     Amazon/API/Template.pm
 
-README.md: Amazon/API.pm.in
+README.md: Amazon/API.pm
 	$(POD2MARKDOWN) < $< >$@
 
 amazon_DATA = \

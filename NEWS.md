@@ -6,6 +6,20 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.14 (2024-04-21)
+
+_Version 2.0.14 is a minor update to which fixes an uninitialized warning_
+
+## Fixes
+
+* `Amazon::API::invoke_api` - test limit_key in paginator since some
+  services (like SNS::ListTopics) do not support a limit, they are hard
+  coded by the API at 100.
+     
+## Enhancements
+
+* None
+
 # perl-Amazon-API 2.0.13 (2024-01-29)
 
 _Version 2.0.13 is a minor update to fix packaging_
