@@ -28,23 +28,6 @@ In order to exercise these examples:
   before invoking them.  For a short description of the services
   listed below try:
   
-  ```
-  perl service-name.pm --help
-  ```
-
-cloudwatch-events.pm
-ec2.pm
-ecr.pm
-ecs.pm
-lambda.pm
-rt53.pm
-secrets-manager.pm
-sqs.pm
-ssm.pm
-sts.pm
-
-| Service Name | Description |
-
 # Example Scripts
 
 Some of these scripts will show you how to use `Amazon::API` as a base
@@ -130,5 +113,3 @@ perl -I . sqs.pm --endpoint-url http://localhost:4566 run ListQueues
 ## Known Limitations of LocalStack
 
 * `aws sqs --list-queue-tags` returns an empty response
-
-

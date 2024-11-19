@@ -14,7 +14,7 @@ path:
   exe_files: src/main/bash/bin
 extra-files:
   - ChangeLog
-  - examples: src/examples
+  - src/examples
 provides:
   - Amazon::API::Botocore
   - Amazon::API::Botocore::Pod

@@ -30,7 +30,7 @@ use parent qw{ Exporter };
 
 use Amazon::API::Botocore::Shape::Utils qw(require_class create_shape create_module_name);
 
-use Amazon::API::Template    qw(:all);
+use Amazon::API::Template qw(:all);
 use Amazon::API::Pod::Parser qw(get_pod_section);
 
 use Carp;
@@ -39,11 +39,11 @@ use Cwd;
 use Data::Dumper;
 use English qw( -no_match_vars );
 use File::Find;
-use File::Path   qw(make_path);
+use File::Path qw(make_path);
 use Getopt::Long qw(:config no_ignore_case);
 use JSON;
 use List::MoreUtils qw( first_index );
-use List::Util      qw( max );
+use List::Util qw( max );
 use Pod::Usage;
 use Pod::Text;
 use ReadonlyX;
@@ -55,7 +55,7 @@ Readonly::Scalar our $SHAPE_FILE_TEMPLATE => '%sAmazon/API/Botocore/Shape/%s/';
 
 Readonly::Scalar our $REQUEST_CLASS_TEMPLATE => q{Amazon::API::Botocore::Shape::%s::%sRequest};
 
-use Amazon::API::Constants     qw( :all );
+use Amazon::API::Constants qw( :all );
 use Amazon::API::Botocore::Pod qw( pod );
 
 our $VERSION = '@PACKAGE_VERSION@';  ## no critic (RequireInterpolationOfMetachars)
@@ -632,19 +632,21 @@ END_OF_POD
       # NOTE: this is JUST pod, so if you don't provide an output path,
       # you won't get the method pod
       if ( $options{'output-path'} ) {
-        my $method_pod_file = sprintf '%s/%s/%s.pm', $options{'output-path'},
-          $package_name, $method;
+        my $method_pod_file = sprintf '%s/%s/%s.pm', $options{'output-path'}, $package_name, $method;
 
-        my $fh = *STDOUT;
+        my $template = render_template( $pod_stub, $parameters );
 
         if ( $options{'output-path'} ne $DASH ) {
-          open $fh, '>', $method_pod_file
+          open my $fh, '>', $method_pod_file
             or croak "could not open $method_pod_file for writing";
+
+          print {$fh} $template;
+
+          close $fh;
         }
-
-        print {$fh} render_template( $pod_stub, $parameters );
-
-        close $fh;
+        else {
+          print {*STDOUT} $template;
+        }
       }
     }
 
@@ -954,8 +956,7 @@ sub format_columns {
 
   while (@formatted_text) {
 
-    $output .= sprintf "%s%s\n", $indent, join $EMPTY,
-      grep {defined} @formatted_text[ ( 0 .. $columns - 1 ) ];
+    $output .= sprintf "%s%s\n", $indent, join $EMPTY, grep {defined} @formatted_text[ ( 0 .. $columns - 1 ) ];
 
     shift @formatted_text for 0 .. $columns - 1;
   }

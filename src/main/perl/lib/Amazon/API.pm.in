@@ -489,14 +489,17 @@ sub new {
   croak 'service is required'
     if !$self->get_service;
 
-  $self->_set_default_logger;
+  $self->_set_default_logger( $options{log_level} );
 
   $self->_set_defaults(%options);
+
+  $self->init_log_level;
 
   $self->_create_methods;
 
   if ( $self->is_botocore_api ) {
-    $self->set_serializer( Amazon::API::Botocore::Shape::Serializer->new( service => get_service_from_class( ref $self ) ) );
+    $self->set_serializer(
+      Amazon::API::Botocore::Shape::Serializer->new( service => get_service_from_class( ref $self ) ) );
   }
 
   return $self;
@@ -809,7 +812,8 @@ sub init_botocore_request {
 
   TRACE(
     sub {
-      return Dumper( [ 'init_botocore_request:', $botocore_operations, $request, $self->get_botocore_metadata ] );
+      return Dumper(
+        [ 'init_botocore_request:', $botocore_operations, $request, $self->get_botocore_metadata ] );
     }
   );
 
@@ -1538,7 +1542,8 @@ sub has_keys {
 ########################################################################
   my ( $self, %options ) = @_;
 
-  my %creds = keys %options ? %options : @{$self}{@REQUIRED_KEYS};
+  # note that self should NOT really have keys! Not sure why I added this test
+  my %creds = keys %options ? %options : map { $_ => $self->{$_} } @REQUIRED_KEYS;
 
   return $creds{'aws_secret_access_key'} && $creds{'aws_access_key_id'};
 }
@@ -1645,23 +1650,23 @@ sub _create_stealth_logger {
 ########################################################################
 sub _set_default_logger {
 ########################################################################
-  my ($self) = @_;
+  my ( $self, $log_level ) = @_;
 
   if ( !$self->get_logger && !Log::Log4perl->initialized ) {
 
-    eval {
-      require Log::Log4perl;
+    require Log::Log4perl;
 
-      Log::Log4perl->import(':easy');
+    Log::Log4perl->import(':easy');
 
-      Log::Log4perl->easy_init(
-        { level  => $LOG4PERL_LOG_LEVELS{'info'},
-          layout => $self->get_log_layout // $DEFAULT_LAYOUT_PATTERN,
-          ( $self->get_log_file ? ( file => $self->get_log_file ) : () ),
+    $log_level = $LOG4PERL_LOG_LEVELS{ lc $log_level } // $LOG4PERL_LOG_LEVELS{info};
 
-        }
-      );
-    };
+    Log::Log4perl->easy_init(
+      { level  => $log_level,
+        layout => $self->get_log_layout // $DEFAULT_LAYOUT_PATTERN,
+        ( $self->get_log_file ? ( file => $self->get_log_file ) : () ),
+
+      }
+    );
   }
   else {
     for my $level (qw(debug trace info warn error )) {
@@ -1671,6 +1676,18 @@ sub _set_default_logger {
   }
 
   return $self;
+}
+
+########################################################################
+sub init_log_level {
+########################################################################
+  my ( $self, %options ) = @_;
+
+  my $debug //= ( $options{debug} || $ENV{DEBUG} );
+
+  $options{log_level} = $debug ? 'debug' : $options{log_level} // 'info';
+
+  return $self->set_log_level( $options{log_level} );
 }
 
 ########################################################################
@@ -1702,7 +1719,10 @@ sub _set_defaults {
 
   # note some APIs are global, hence an API may send '' to indicate global
   if ( !defined $self->get_region ) {
-    $self->set_region( $self->get_region || $ENV{'AWS_REGION'} || $ENV{'AWS_DEFAULT_REGION'} || $DEFAULT_REGION );
+    $self->set_region( $self->get_region
+        || $ENV{'AWS_REGION'}
+        || $ENV{'AWS_DEFAULT_REGION'}
+        || $DEFAULT_REGION );
   }
 
   my $debug //= ( $options{debug} || $ENV{DEBUG} );

@@ -1,3 +1,21 @@
+Tue Nov 19 07:48:26 2024  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.15]:
+	* VERSION: bump
+	* README.md: generated
+	* cpan/buildspec.yml
+	- fix src/examples
+	* src/examples/README.md: cleanup
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	- whitespace
+	(render_stub): fix filehandle issue
+	* src/main/perl/lib/Amazon/API.pm.in
+	(new)
+	- pass log_level from options to _set_default_logger
+	- init_log_level
+	(init_log_level):new
+	(_set_default_logger): init log level from options
+
 Sun Apr 21 07:58:26 2024  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.14]:
