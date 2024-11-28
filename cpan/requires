@@ -17,5 +17,6 @@ Pod::Find 0
 Pod::Simple 3.43
 Pod::Text 5.01
 ReadonlyX 0
+Term::ReadKey
 URL::Encode 0
 XML::Simple 0

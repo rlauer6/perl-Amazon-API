@@ -6,6 +6,32 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
+# perl-Amazon-API 2.0.16 (2024-11-28)
+
+_Version 2.0.16 is a minor update to which fixes a few small bugs_
+
+## Fixes
+
+* initiazlie log level to error
+* fix bug when invoking API directly (not using botocore)
+     
+## Enhancements
+
+* None
+
+# perl-Amazon-API 2.0.15 (2024-11-19)
+
+_Version 2.0.15 is a minor update to which fixes a few small bugs_
+
+## Fixes
+
+* src/examples
+* initialize log level from options
+     
+## Enhancements
+
+* None
+
 # perl-Amazon-API 2.0.14 (2024-04-21)
 
 _Version 2.0.14 is a minor update to which fixes an uninitialized warning_

@@ -4,44 +4,10 @@ Amazon::API - A generic base class for AWS Services
 
 # SYNOPSIS
 
-    package Amazon::CloudWatchEvents;
+    use Amazon::API;
 
-    use parent qw( Amazon::API );
-
-    # subset of methods I need
-    our @API_METHODS = qw(
-     ListRuleNamesByTarget
-     ListRules
-     ListTargetsByRule
-     PutEvents
-     PutRule
-    );
-
-    sub new {
-      my ($class, %options) = @_;
-
-      $class->SUPER::new(
-        service       => 'events',
-        api           => 'AWSEvents',
-        api_methods   => \@API_METHODS,
-        decode_always => 1,
-        %options,
-      );
-    }
-
-    1;
-
-Then...
-
-    my $rules = Amazon::CloudWatchEvents->new->ListRules();
-
-...or
-
-    my $rules = Amazon::API->new(
-      { service => 'events',
-        api     => 'AWSEvents',
-      }
-    )->invoke_api( 'ListRules' );
+    my $service = Amazon::API->new( service => 'events', api => 'AWSEvents');
+    my $rules = $service->invoke_api('ListRules');
 
 # DESCRIPTION
 
@@ -51,8 +17,16 @@ https://github.com/rlauer6/perl-Amazon-API/actions/workflows/build.yml/badge.svg
 
 Generic class for constructing AWS API interfaces. Typically used as a
 parent class, but can be used directly. This package can also
-generates stubs for Amazon APIs using the Botocore project's
+generates stubs for Amazon APIs using the Botocore project
 metadata. (See ["BOTOCORE SUPPORT"](#botocore-support)).
+
+_The typical use of this is API is through the classes you build with
+the included tool (`amazon-api`). The tool leverages the Botocore
+project's metadata to build classes that are specific to each API (and
+are documented in the perlish way). Using `Amazon::API` directly may
+not work in circumstances unless you are very familiar with the API
+you are calling. If you decide to take the [Luddite approaches](#take-the-luddite-approach), read the documentation carefully before using
+`Amazon::API`._
 
 - See ["IMPLEMENTATION NOTES"](#implementation-notes) for using `Amazon::API`
 directly to call AWS services.
@@ -140,7 +114,8 @@ You can use [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) in 3 differe
         use Data::Dumper;
 
         my $sqs = Amazon::API::SQS->new;
-        print Dumper($sqs->ListQueues);
+
+        print {*STDERR} Dumper($sqs->ListQueues);
 
 - Use the Botocore metadata to build classes for you
 
@@ -775,7 +750,7 @@ pass an empty hash..
     _CAUTION! This may not be what the API expects! Always consult
     the AWS API for the service you are are calling._
 
-# GORY DETAILS
+# IMPLEMENTATION NOTES
 
 If you using the Botocore APIs you can probably ignore this section.
 
@@ -785,7 +760,9 @@ Most of the newer AWS APIs are invoked as HTTP POST operations and
 accept a header `X-Amz-Target` in lieu of the CGI parameter `Action`
 to specify the specific API action. Some APIs also want the version in
 the target, some don't. There is sparse documentation about the
-nuances of using the REST interface _directly_ to call AWS APIs.
+nuances of using the REST interface _directly_ to call AWS APIs, but
+you kinda sorta figure it out by parsing the Botocore data for a
+particular API.
 
 When invoking an API, the class uses the `api` value to indicate
 that the action should be set in the `X-Amz-Target` header.  We also
@@ -863,7 +840,10 @@ As an example, here is a possible implementation of
 
     package Amazon::CloudWatchEvents;
 
-    use parent qw/Amazon::API/;
+    use strict;
+    use warnings;
+
+    use parent qw(Amazon::API);
 
     sub new {
       my ($class, $options) = @_;
@@ -922,7 +902,9 @@ headers.  Some of the variations include:
 
 Accordingly, the `invoke_api()` method can be passed the
 `Content-Type` or will try to make its _best guess_ based on the
-service protocol. It guesses using the following decision tree:
+service protocol. There is a hash of service names and service types
+that this module uses to determine the content type required by the
+service. If services are added that hash needs to be updated.
 
 You can also set the default content type used for the calling service
 by passing the `content_type` option to the constructor.
@@ -961,7 +943,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.0.15  of `Amazon::API`.
+This documentation refers to version 2.0.16  of `Amazon::API`.
 
 # DIAGNOSTICS
 

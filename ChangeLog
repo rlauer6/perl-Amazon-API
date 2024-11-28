@@ -1,3 +1,19 @@
+Thu Nov 28 06:23:59 2024  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.0.16]:
+	* VERSION: bump
+	* NEWS: updated
+	* .perlcriticrc: removed
+	* .perltidyrc: removed
+	* src/main/perl/lib/Amazon/API.pm
+	- pod tweaks
+	(new)
+	- set default log level to 'error'
+	(decode_response)
+	- check if called as botocore api
+	* cpan/requires: + Term::ReadKey
+	* docker/docker-compose.yml: add additional services
+
 Tue Nov 19 07:48:26 2024  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.0.15]:

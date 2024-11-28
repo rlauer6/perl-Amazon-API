@@ -15,7 +15,7 @@ services:
       - "127.0.0.1:4566:4566"
       - "127.0.0.1:4571:4571"
     environment:
-      - SERVICES=s3
+      - SERVICES=s3,ssm,secretsmanager,kms,sqs,events,sts
       - DEBUG=${DEBUG-}
       - DATA_DIR=${DATA_DIR-}
       - HOST_TMP_FOLDER=${TMPDIR:-/tmp/}localstack
