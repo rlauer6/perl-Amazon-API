@@ -3,7 +3,7 @@
 This directory contains multiple examples of using  `Amazon::API`
 classes.
 
-Examples use both classes created using the `create-service` facility
+Examples use both classes created using the `amazon-api` script
 that will create CPAN distributions of various Amazon APIs as well as
 examples that fabricate an API calls using on the `Amazon::API` as the
 base class.
@@ -12,8 +12,8 @@ In order to exercise these examples:
 
 * You must have an Amazon account and credentials with sufficient
   privileges to invoke the various APIs. You can also exercise _some_
-  of these examples using API compatible services like
-  [LocalStack](https://localstack.cloud/).
+  of these examples using AWS API compatible services like
+  [LocalStack](https://www.localstack.cloud/).
   
 * Your credentials should be accessible in one of:
 
@@ -25,9 +25,8 @@ In order to exercise these examples:
 * AWS APIs are (generally speaking) not free, especially if they
   create resources. Some these examples create resources so 
   you should be aware of what each of these examples does
-  before invoking them.  For a short description of the services
-  listed below try:
-  
+  before invoking them.
+
 # Example Scripts
 
 Some of these scripts will show you how to use `Amazon::API` as a base
@@ -44,7 +43,7 @@ done
 ```
 
 To create CPAN distributions for a given service use the
-`create-service` script included as part of this project.
+`amazon-api` script included as part of this project.
 
 | Name | Service | Notes |
 | ---- | ------- | ----- |
@@ -59,16 +58,47 @@ To create CPAN distributions for a given service use the
 | sts.pm | Security Token Service | requires `Amazon::API::STS` |
 | sqs.pm | Simple Queue Service | - |
 
+To get a short description of what each example class provides:
+
+`perl -I . {service-name}.pm -h`
+
+Example:
+
+```
+perl -I . ec2.pm -h
+
+usage: perl service-name.pm options run command arguments
+
+Options
+-------
+-h, --help              this
+-u, --endpoint-url      alternate endpoint for AWS services
+-p, --pager, --no-pager use, do not use a pager, default: use pager
+
+Commands
+--------
+See below
+
+Amazon::EC2 : DescribeSecurityGroups => Executes the EC2 API "DescribeSecurityGroups": run DescribeSecurityGroups [group-name]
+Amazon::EC2 : DescribeSubnets => Executes the EC2 API "DescribeSubnets": run DescribeSubnets [vpc-id]
+Amazon::EC2 : DescribeInstances => Executes the EC2 API "DescribeInstances": run DescribeInstances
+Amazon::EC2 : DescribeVpcs => Executes the EC2 API "DescribeVpcs": run DescribeVpcs
+```
+
 The example scripts will execute a subset of the API methods for
-various services. The intent is to show how to use a class or how to
+various services. The intent is to show you how to use a class or how to
 fabricate a class that implements a subset of methods using the
 `Amazon::API` class.
 
 All of the examples are exercised in the same way:
 
 ```
-perl -I . service-name.pm run API arguments
+perl -I . {service-name}.pm run API arguments
 ```
+
+Example:
+
+`perl -I. ec2.pm run DescribeInstances`
 
 # Using LocalStack to Run Examples
 
@@ -112,4 +142,5 @@ perl -I . sqs.pm --endpoint-url http://localhost:4566 run ListQueues
 
 ## Known Limitations of LocalStack
 
-* `aws sqs --list-queue-tags` returns an empty response
+LocalStack supports many but not all services. In addition it may
+exhibit some differences with actual AWS services.

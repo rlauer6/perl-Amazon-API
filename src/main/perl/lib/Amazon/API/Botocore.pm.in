@@ -13,8 +13,9 @@ BEGIN {
   if ($EVAL_ERROR) {
     no strict qw(refs);  ## no critic (ProhibitNoStrict)
 
-    *{ __PACKAGE__ . "::$_" } = sub { }
-      for qw(DEBUG INFO WARN ERROR FATAL);
+    for (qw(DEBUG INFO WARN ERROR FATAL)) {
+      *{ __PACKAGE__ . "::$_" } = sub { };
+    }
   }
   else {
     no warnings;         ## no critic (ProhibitNoWarnings)
@@ -26,7 +27,7 @@ BEGIN {
   }
 }
 
-use parent qw{ Exporter };
+use parent qw( Exporter );
 
 use Amazon::API::Botocore::Shape::Utils qw(require_class create_shape create_module_name);
 
@@ -50,10 +51,10 @@ use ReadonlyX;
 use charnames qw(:full);
 
 # package constants
-Readonly::Scalar our $BOTO_PATH_OFFSET    => 3;
-Readonly::Scalar our $SHAPE_FILE_TEMPLATE => '%sAmazon/API/Botocore/Shape/%s/';
-
-Readonly::Scalar our $REQUEST_CLASS_TEMPLATE => q{Amazon::API::Botocore::Shape::%s::%sRequest};
+Readonly::Scalar our $BOTO_PATH_OFFSET       => 3;
+Readonly::Scalar our $SHAPE_FILE_TEMPLATE    => '%sAmazon/API/Botocore/Shape/%s/';
+Readonly::Scalar our $REQUEST_CLASS_TEMPLATE => 'Amazon::API::Botocore::Shape::%s::%sRequest';
+Readonly::Scalar our $STRINGIFY              => 'Dumper';
 
 use Amazon::API::Constants qw( :all );
 use Amazon::API::Botocore::Pod qw( pod );
@@ -301,6 +302,7 @@ sub render_stub {
   my $service    = $args{service};
   my $template   = $args{template};
   my $parameters = $args{parameters};
+
   my $operations = $parameters->{operations};
   my $shapes     = $parameters->{shapes};
   my $metadata   = $parameters->{metadata};
@@ -318,11 +320,8 @@ sub render_stub {
   $parameters->{ to_template_var('description') }
     = $metadata->{serviceFullName};
 
-  local $Data::Dumper::Terse    = $TRUE;
-  local $Data::Dumper::Deepcopy = $TRUE;
-
   $parameters->{ to_template_var('metadata') }
-    = Dumper $parameters->{metadata};
+    = stringify( $parameters->{metadata} );
 
   my %methods;
   my @errors;
@@ -358,6 +357,7 @@ sub render_stub {
       my $documentation = $EMPTY;
 
       $documentation = $methods{$method}->{documentation} // $EMPTY;
+
       $documentation =~ s/\A\n+//xsm;
       $documentation =~ s/\n+\z//xsm;
 
@@ -416,7 +416,7 @@ INPUT
         my $members      = $EMPTY;
         my $output_shape = $shapes->{$output};
 
-        my %shape_members = %{ $output_shape->{members} };
+        my %shape_members = %{ $output_shape->{members} // {} };
 
         foreach my $m ( sort keys %shape_members ) {
           $members .= sprintf "\n=item %s\n", $m;
@@ -653,17 +653,34 @@ END_OF_POD
     $parameters->{ to_template_var('methods') } = join "\n", @pod;
   }
 
-  $parameters->{ to_template_var('operations') } = Dumper $operations;
+  $parameters->{ to_template_var('operations') } = stringify($operations);
 
-  $parameters->{ to_template_var('shapes') } = Dumper $shapes;
+  $parameters->{ to_template_var('shapes') } = stringify($shapes);
 
-  $parameters->{ to_template_var('paginators') } = Dumper $paginators;
+  $parameters->{ to_template_var('paginators') } = stringify($paginators);
 
   if ( !$options{pod} ) {
     $template =~ s/^\@end.*\z//xsm;
   }
 
   return render_template( $template, $parameters );
+}
+
+########################################################################
+sub stringify {
+########################################################################
+  my ($object) = @_;
+
+  return $object
+    if !ref $object;
+
+  local $Data::Dumper::Terse    = $TRUE;
+  local $Data::Dumper::Deepcopy = $TRUE;
+
+  return Dumper($object)
+    if $STRINGIFY eq 'Dumper';
+
+  return JSON->new->utf8->encode($object);
 }
 
 ########################################################################
@@ -779,7 +796,7 @@ sub dump_service {
 
   fetch_boto_services( $options{'botocore-path'} );
 
-  my $service = extra_args(%options) // $options{'service'};
+  my $service = extra_args(%options) // $options{service};
 
   croak 'no service specified'
     if !$service;
@@ -812,32 +829,32 @@ sub create_stub {
   my $description = get_api_descriptions($service);
 
   my $parameters = $description->[0]->{$service};
-  $parameters->{'package_name'} = $package_name;
+  $parameters->{package_name} = $package_name;
 
-  my @actions = @{ $parameters->{'actions'} };
+  my @actions = @{ $parameters->{actions} };
 
-  $parameters->{'actions'} = $PADDING . join "\n    ", sort @actions;
+  $parameters->{actions} = $PADDING . join "\n    ", sort @actions;
 
-  if ( $parameters->{'protocol'} eq 'rest-json' ) {
+  if ( $parameters->{protocol} eq 'rest-json' ) {
     foreach (@actions) {
     }
   }
 
-  $parameters->{'service'}
-    = $parameters->{'service_name'} || $parameters->{'endpoint_prefix'};
+  $parameters->{service}
+    = $parameters->{service_name} || $parameters->{endpoint_prefix};
 
-  if ( $parameters->{'protocol'} eq 'query' ) {
-    $parameters->{'content_type'} = 'application/x-www-form-urlencoded';
+  if ( $parameters->{protocol} eq 'query' ) {
+    $parameters->{content_type} = 'application/x-www-form-urlencoded';
   }
 
-  if ( $parameters->{'protocol'} eq 'json' ) {
-    $parameters->{'content_type'} = 'application/x-amz-json-' . $parameters->{'json_version'};
+  if ( $parameters->{protocol} eq 'json' ) {
+    $parameters->{content_type} = 'application/x-amz-json-' . $parameters->{json_version};
   }
 
   # for rest-json protocol we need a method and and a query uri in
   # addition to the payload
-  if ( $parameters->{'protocol'} eq 'rest-json' ) {
-    $parameters->{'content_type'} = 'application/json';
+  if ( $parameters->{protocol} eq 'rest-json' ) {
+    $parameters->{content_type} = 'application/json';
   }
 
   my @template_vars = qw(
@@ -864,7 +881,9 @@ sub create_stub {
     options    => \%options,
   );
 
-  if ( $options{'tidy'} && eval { require Perl::Tidy; } ) {
+  if ( $options{tidy} && eval { require Perl::Tidy; } ) {
+
+    print {*STDERR} "tidying module...this may take a while\n";
 
     my $tidy_module = $EMPTY;
 
@@ -958,7 +977,9 @@ sub format_columns {
 
     $output .= sprintf "%s%s\n", $indent, join $EMPTY, grep {defined} @formatted_text[ ( 0 .. $columns - 1 ) ];
 
-    shift @formatted_text for 0 .. $columns - 1;
+    for ( 0 .. $columns - 1 ) {
+      shift @formatted_text;
+    }
   }
 
   return $output;
@@ -972,14 +993,6 @@ sub help {
   my (@args) = @ARGV;
 
   my $token;
-
-  if ( $options{pager} ) {
-    $token = eval {
-      require IO::Pager;
-
-      IO::Pager::open( *STDOUT, '|-:utf8', 'Unbuffered' );
-    };
-  }
 
   return pod
     if !@args && !$options{service};
@@ -1067,7 +1080,6 @@ HELP
   }
 
   if ( !$file || !-e $file ) {
-
     $file = require_class( sprintf 'Amazon::API::%s::%s', $service_name, $module );
   }
 
@@ -1075,6 +1087,14 @@ HELP
 
   croak "no pod available\n"
     if !$file || !-e $file;
+
+  if ( $options{pager} ) {
+    $token = eval {
+      require IO::Pager;
+
+      IO::Pager::open( *STDOUT, '|-:utf8', 'Unbuffered' );
+    };
+  }
 
   my $pod = get_pod_section $file;
 
@@ -1088,7 +1108,7 @@ sub main {
 ########################################################################
   my %options = (
     'botocore-path' => $ENV{BOTOCORE_PATH} || getcwd,
-    tidy            => $TRUE,
+    tidy            => $FALSE,
     pod             => $TRUE,
     pager           => $TRUE,
     'output-path'   => getcwd,
@@ -1111,15 +1131,15 @@ sub main {
 
   GetOptions( \%options, @option_defs );
 
-  $options{'command'}    = shift @ARGV;
+  $options{command}      = shift @ARGV;
   $options{'extra-args'} = \@ARGV;
 
-  if ( $options{'help'} || !$options{'command'} ) {
-    $options{'command'} = 'help';
+  if ( $options{help} || !$options{command} ) {
+    $options{command} = 'help';
   }
 
-  if ( !$options{'module-name'} && $options{'service'} ) {
-    $options{'module-name'} = create_module_name( $options{'service'} );
+  if ( !$options{'module-name'} && $options{service} ) {
+    $options{'module-name'} = create_module_name( $options{service} );
   }
 
   if ( $options{'output-path'} eq $DASH ) {
@@ -1153,10 +1173,10 @@ sub main {
     'help'          => \&help,
   );
 
-  croak sprintf 'not a valid command [%s]', $options{'command'}
-    if !$handlers{ $options{'command'} };
+  croak sprintf 'not a valid command [%s]', $options{command}
+    if !$handlers{ $options{command} };
 
-  exit !$handlers{ $options{'command'} }->(%options);
+  exit !$handlers{ $options{command} }->(%options);
 }
 
 1;
@@ -1202,7 +1222,7 @@ sub new {
   );
 
   # global services should be signed with us-east-1 region
-  if ( defined $self->get_botocore_metadata->{'globalEndpoint'} ) {
+  if ( defined $self->get_botocore_metadata->{globalEndpoint} ) {
     $self->set_region('us-east-1');
   }
   

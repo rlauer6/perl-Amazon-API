@@ -9,13 +9,14 @@ BEGIN {
   eval { require Log::Log4perl; };
 
   if ($EVAL_ERROR) {
-    no strict qw(refs); ## no critic (ProhibitNoStrict)
+    no strict qw(refs);  ## no critic (ProhibitNoStrict)
 
-    *{ __PACKAGE__ . "::$_" } = sub { }
-      for qw(DEBUG INFO WARN ERROR FATAL);
+    for (qw(DEBUG INFO WARN ERROR FATAL)) {
+      *{ __PACKAGE__ . "::$_" } = sub { };
+    }
   }
   else {
-    no warnings;        ## no critic (ProhibitNoWarnings)
+    no warnings;         ## no critic (ProhibitNoWarnings)
 
     Log::Log4perl->import(qw(:easy));
   }
@@ -23,20 +24,20 @@ BEGIN {
 
 use parent qw(Class::Accessor::Fast);
 
-use Amazon::API::Constants              qw(:chars :booleans);
+use Amazon::API::Constants qw(:chars :booleans);
 use Amazon::API::Botocore::Shape::Utils qw(require_shape is_hash is_array);
 
 use Carp;
 use Data::Dumper;
-use English      qw(-no_match_vars);
-use JSON         qw(decode_json encode_json);
+use English qw(-no_match_vars);
+use JSON qw(decode_json encode_json);
 use Scalar::Util qw(reftype);
-use List::Util   qw(any none);
-use POSIX        qw(strftime);
+use List::Util qw(any none);
+use POSIX qw(strftime);
 
 use URL::Encode qw(url_decode_utf8);
 
-our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
+our $VERSION = '@PACKAGE_VERSION@';  ## no critic (RequireInterpolationOfMetachars)
 
 __PACKAGE__->follow_best_practice;
 
@@ -344,8 +345,7 @@ sub serialize {
 ########################################################################
   my ( $self, %args ) = @_;
 
-  my ( $shape, $service, $data, $exists )
-    = @args{qw(shape service data exists)};
+  my ( $shape, $service, $data, $exists ) = @args{qw(shape service data exists)};
 
   $service ||= $self->get_service;
 

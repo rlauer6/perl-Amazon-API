@@ -24,32 +24,30 @@ _The typical use of this is API is through the classes you build with
 the included tool (`amazon-api`). The tool leverages the Botocore
 project's metadata to build classes that are specific to each API (and
 are documented in the perlish way). Using `Amazon::API` directly may
-not work in circumstances unless you are very familiar with the API
-you are calling. If you decide to take the [Luddite approaches](#take-the-luddite-approach), read the documentation carefully before using
-`Amazon::API`._
+not work in all circumstances unless you are very familiar with the
+API you are calling. If you decide to take the [Luddite approaches](#take-the-luddite-approach), read the documentation carefully before using `Amazon::API`._
 
 - See ["IMPLEMENTATION NOTES"](#implementation-notes) for using `Amazon::API`
 directly to call AWS services.
 - See
 [Amazon::CloudWatchEvents](https://github.com/rlauer6/perl-Amazon-CloudWatchEvents/blob/master/src/main/perl/lib/Amazon/CloudWatchEvents.pm.in)
 for an example of how to use this module as a parent class.
-- See [Amazon::API::Botocore::Pod](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3APod) for information regarding
+- See `amazon-api -h` for information regarding
 how to automatically create Perl classes for AWS services using
 Botocore metadata.
 
 # BACKGROUND AND MOTIVATION
 
-A comprehensive Perl interface to AWS services similar to the _Botocore_
-library for Python has been a long time in coming. The PAWS project
-has been attempting to create an always up-to-date AWS interface with
-community support. Some however may find that project a little heavy
-in the dependency department. If you are looking for an extensible
-(albeit spartan) method of invoking a subset of services with a lower
-dependency count, you might want to consider `Amazon::API`.
+A comprehensive Perl interface to AWS services similar to the
+_Botocore_ library for Python has been a long time in coming. The
+Paws project has been creating an always up-to-date AWS interface with
+community support. If you are looking for an extensible method of
+installing and invoking a subset of services you might want to
+consider `Amazon::API`.
 
-Think of this class as a DIY kit for invoking **only** the methods you
+Think of this class as a DIY kit for installing **only** the APIs and methods you
 need for your AWS project.  Using the included `amazon-api` utility
-however, you can also roll your own complete Amazon API classes that
+you can also roll your own complete Amazon API classes that
 include support for serializing requests and responses based on
 metadata provided by the Botocore project. The classes you create with
 `amazon-api` include full documentation as pod. (See ["BOTOCORE
@@ -61,87 +59,87 @@ SUPPORT"](#botocore-support) for more details).
 > the nature of Amazon APIs. In retrospect, even back then, it would
 > have been easier to consult the Botocore project and decipher how that
 > project managed to create a library from the metadata. Fast forward
-> to 2022 and [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) is now capable of using the Botocore
+> to 2022 and [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) began using the Botocore
 > metadata in order to, in most cases, correctly call any AWS service.
 > The [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) module can still be used without the assistance of
 > Botocore metadata, but it works a heckuva lot better with it.
 
 You can use [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) in 3 different ways:
 
-- Take the Luddite approach
+## Take the Luddite approach
 
-        my $queues = Amazon::API->new(
-         {
-          service     => 'sqs',
-          http_method => 'GET'
-         })->invoke_api('ListQueues');
+    my $queues = Amazon::API->new(
+     {
+      service     => 'sqs',
+      http_method => 'GET'
+     })->invoke_api('ListQueues');
 
-- Build your own API classes with just what you need
+## Build your own API classes with just what you need
 
-        package Amazon::API::SQS;
-        
-        use strict;
-        use warnings;
-        
-        use parent qw( Amazon::API );
-        
-        our @API_METHODS = qw(
-          ListQueues
-          PurgeQueue
-          ReceiveMessage
-          SendMessage
-        );
-        
-        sub new {
-          my ( $class, @options ) = @_;
-          $class = ref($class) || $class;
-        
-          my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
-        
-          return $class->SUPER::new(
-            { service       => 'sqs',
-              http_method   => 'GET',
-              api_methods   => \@API_METHODS,
-              decode_always => 1,
-              %options
-            }
-          );
+    package Amazon::API::SQS;
+    
+    use strict;
+    use warnings;
+    
+    use parent qw( Amazon::API );
+    
+    our @API_METHODS = qw(
+      ListQueues
+      PurgeQueue
+      ReceiveMessage
+      SendMessage
+    );
+    
+    sub new {
+      my ( $class, @options ) = @_;
+      $class = ref($class) || $class;
+    
+      my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
+    
+      return $class->SUPER::new(
+        { service       => 'sqs',
+          http_method   => 'GET',
+          api_methods   => \@API_METHODS,
+          decode_always => 1,
+          %options
         }
-        
-        1;
+      );
+    }
+    
+    1;
 
-        use Amazon::API::SQS;
-        use Data::Dumper;
+    use Amazon::API::SQS;
+    use Data::Dumper;
 
-        my $sqs = Amazon::API::SQS->new;
+    my $sqs = Amazon::API::SQS->new;
 
-        print {*STDERR} Dumper($sqs->ListQueues);
+    print {*STDERR} Dumper($sqs->ListQueues);
 
-- Use the Botocore metadata to build classes for you
+## Use the Botocore metadata to build classes for you
 
-        amazon-api -s sqs create-stubs
-        amazon-api -s sqs create-shapes
+    amazon-api -s sqs create-stubs
+    amazon-api -s sqs create-shapes
 
-        perl -I . -MData::Dumper -MAmazon::API:SQS -e 'print Dumper(Amazon::API::SQS->new->ListQueues);'
+    perl -I . -MData::Dumper -MAmazon::API:SQS -e 'print Dumper(Amazon::API::SQS->new->ListQueues);'
 
-    >     _NOTE:_ In order to use Botocore metadata you must clone the Botocore
-    >     repository and point the utility to the repo.
-    >
-    >     Clone the Botocore project from GitHub:
-    >
-    >         mkdir ~/git
-    >         cd git
-    >         git clone https://github.com/boto/botocore.git
-    >
-    >     Generate stub classes for the API and shapes:
-    >
-    >         amazon-api -b ~/git/botocore -s sqs -o ~/lib/perl5 create-stubs
-    >         amazon-api -b ~/git/botocore -s sqs -o ~/lib/perl5 create-shapes
-    >
-    >         perldoc Amazon::API::SQS
-    >
-    >     See [Amazon::API::Botocore::Pod](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3APod) for more details regarding building
-    >     stubs and shapes.
+> _NOTE:_ In order to use Botocore metadata you must clone the Botocore
+> repository and point the utility to the repo.
+>
+> Clone the Botocore project from GitHub:
+>
+>     mkdir ~/git
+>     cd git
+>     git clone https://github.com/boto/botocore.git
+>
+> Generate stub classes for the API and shapes:
+>
+>     amazon-api -b ~/git/botocore -s sqs -o ~/lib/perl5 create-stubs
+>     amazon-api -b ~/git/botocore -s sqs -o ~/lib/perl5 create-shapes
+>
+>     perldoc Amazon::API::SQS
+>
+> See [Amazon::API::Botocore::Pod](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3APod) for more details regarding building
+> stubs and shapes.
 
 # THE APPROACH
 
@@ -192,15 +190,6 @@ And invoking some of the APIs can be as easy as:
     )->invoke_api('ListQueues');
 
 # BOTOCORE SUPPORT
-
-A new experimental module ( [Amazon::API::Botocore](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore)) is now included
-in this project.
-
-**!!CAUTION!!**
-
-_Support for API calls using the Botocore metadata may be buggy and
-is subject to change. It may not be suitable for production
-environments at this time._
 
 Using Botocore metadata and the utilities in this project, you can
 create Perl classes that simplify calling AWS services.  After
@@ -752,9 +741,20 @@ pass an empty hash..
 
 # IMPLEMENTATION NOTES
 
-If you using the Botocore APIs you can probably ignore this section.
+If you have taken the advice above and created classes using the
+`amazon-api` script you can probably ignore this section. This
+section is intended to help those trying to create the lightest weight
+possible AWS API class.
 
-## X-Amz-Target
+Just a reminder for those wanting to go lite...
+
+- Read the documentation AWS provides for the API. You need to understand the request parameters and headers required.
+- Examine the Botocore data for the API. That might help you understand that structures required for the calling parameters.
+- Use the `aws` CLI script in debug mode to see the actual payloads and how they are formatted.
+
+## Headers
+
+### X-Amz-Target
 
 Most of the newer AWS APIs are invoked as HTTP POST operations and
 accept a header `X-Amz-Target` in lieu of the CGI parameter `Action`
@@ -819,9 +819,13 @@ required.
 
 For more hints regarding how to call a particular service, you can use
 the AWS CLI with the --debug option.  Invoke the service using the CLI
-and examine the payloads sent by the botocore library.
+and examine the payloads sent by the Botocore library.
 
-## Rolling a New API
+### Rolling a New API
+
+Once again, your best bet is to use the `amazon-api` script to roll a
+class from the Botocore metadata, but if you really want to create your own
+class the lite way read on.
 
 The [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) class will stub out methods for the API if you pass
 an array of API method names.  The stub is equivalent to:
@@ -869,7 +873,7 @@ Of course, creating a class for the service is optional. It may be
 desirable however to create higher level and more convenient methods
 that aid the developer in utilizing a particular API.
 
-## Overriding Methods
+### Overriding Methods
 
 Because the class does some symbol table munging, you cannot easily
 override the methods in the usual way.
@@ -943,17 +947,17 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.0.16  of `Amazon::API`.
+This documentation refers to version 2.1.0  of `Amazon::API`.
 
 # DIAGNOSTICS
 
-To enable diagnostic output set `debug` to a true value when calling
+To enable diagnostic output, set `debug` to a true value when calling
 the constructor. You can also set the `DEBUG` environment variable to a
 true value to enable diagnostics.
 
 ## Logging
 
-By default [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) uses [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl)'s Stealth loggers to
+By default [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) uses [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl)'s stealth loggers to
 log at the DEBUG and TRACE levels. Setting the environment variable
 DEBUG to some value or passing a true value for `debug` in the
 constructor will trigger verbose logging.
@@ -971,25 +975,6 @@ logging as shown below:
 
     $ec2->set_log_level('fatal');
 
-# DEPENDENCIES
-
-- [Amazon::Signature4](https://metacpan.org/pod/Amazon%3A%3ASignature4)
-- [Amazon::Credentials](https://metacpan.org/pod/Amazon%3A%3ACredentials)
-- [Class::Accessor::Fast](https://metacpan.org/pod/Class%3A%3AAccessor%3A%3AFast)
-- [Date::Format](https://metacpan.org/pod/Date%3A%3AFormat)
-- [HTTP::Request](https://metacpan.org/pod/HTTP%3A%3ARequest)
-- [JSON](https://metacpan.org/pod/JSON)
-- [LWP::UserAgent](https://metacpan.org/pod/LWP%3A%3AUserAgent)
-- [List::Util](https://metacpan.org/pod/List%3A%3AUtil)
-- [ReadonlyX](https://metacpan.org/pod/ReadonlyX)
-- [Scalar::Util](https://metacpan.org/pod/Scalar%3A%3AUtil)
-- [Time::Local](https://metacpan.org/pod/Time%3A%3ALocal)
-- [XML::Simple](https://metacpan.org/pod/XML%3A%3ASimple)
-
-...and possibly others.
-
-# INCOMPATIBILITIES
-
 # BUGS AND LIMITATIONS
 
 This module has not been tested on Windows OS. Please report any
@@ -999,35 +984,41 @@ issues found by opening an issue here:
 
 # FAQs
 
-## Why should I use this module instead of PAWS?
+## Why should I use this module instead of Paws?
 
-Maybe you shouldn't. PAWS is a community supported project and
-may be a better choice for most people. The programmers who created
-PAWS are luminaries in the pantheon of Perl programming (alliteration
-intended). If you want to use something a little lighter in the
-dependency department however, and perhaps only need to invoke a
-single service, [Amazon:API](Amazon:API) may be the right choice.
+Maybe you shouldn't. Paws is a community supported project and may be
+a better choice for most people. The programmers who created Paws are
+luminaries in the pantheon of Perl programming (alliteration
+intended). If you don't want to install of the AWS services but only
+need to use a single service, [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) may be the right choice
+for you.  Paws may also have some edge cases for some of the seldom
+used services and you might find this module easier to use and debug.
 
-## Does it perform better than PAWS?
+## Does it perform better than Paws?
 
-Probably. But individual API calls to Amazon services have their own
-performance characteristics and idiosyncracies.  The overhead
-introduced by this module and PAWS may be insignificant compared to
-the API performance itself. YMMV.
+Probably not. But individual API calls to Amazon services have their
+own performance characteristics and idiosyncracies.  The overhead
+introduced by this module and Paws may be insignificant compared to
+the API performance itself, however Paws is implemented using Moose
+and the startup time for a Moose script can longer than the startup
+script when using this module. YMMV.
 
 ## Does this work for all APIs?
 
-I don't know. Probably not. Would love to hear your
-feedback. [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) has been developed based on my needs.
-Although I have tested it on many APIs, there may still be some cases
-that are not handled properly and I am still deciphering the nuances
-of flattening, boxing and serializing objects to send to Amazon APIs. The newer versions of this module using Botocore metadata have become increasingly reliable.
+I don't know. Probably not? Feedback is appreciated. [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI)
+has been developed based on my needs and used accordingly.  Although I
+have tested it on many APIs, there may still be some cases that are
+not handled properly and I am still deciphering the nuances of
+flattening, boxing and serializing objects to send to Amazon APIs. The
+newer versions of this module using Botocore metadata have become
+increasingly reliable over time and I'm somewhat confident that my
+interpretation of the Botocore data produces working classes.
 
-Amazon APIs are not created equal, homogenous or invoked in the the
-same manner. Some accept parameters as a query strings, some
-parameters are embedded in the URI, some are sent as JSON payloads and
-others as XML. Content types for payloads are all over the map.
-Likewise with return values.
+However, keep in mind that Amazon APIs are not created equal,
+homogenous or invoked in the the same way for all services. Some
+accept parameters as a query strings, some parameters are embedded in
+the URI, some are sent as JSON payloads and others as XML. Content
+types for payloads are all over the map.  Likewise with return values.
 
 Luckily, the Botocore metadata describes the protocols, parameters and
 return values for all APIs. The Botocore metadata is quite amazing
@@ -1037,39 +1028,40 @@ documentation!
 
 [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) can use that information for creating the Perl classes
 that invoke each API but may not interpret the metadata correctly in
-all circumstances. Bugs almost certainly exist. :-( Did I mention help
-is welcome?
+all circumstances, so it is likely bugs may still exist.
 
-If you want to use this to invoke S3 APIs, don't. I
-haven't tried it and I'm pretty sure it would not work anyway. There are
-modules designed specifically for S3; [Amazon::S3](https://metacpan.org/pod/Amazon%3A%3AS3),
-[Net::Amazon::S3](https://metacpan.org/pod/Net%3A%3AAmazon%3A%3AS3). Use them.
+If you want to use this to invoke S3 APIs, don't. I haven't tried it
+and I'm pretty sure it would not work anyway. There are modules
+designed specifically for S3; [Amazon::S3](https://metacpan.org/pod/Amazon%3A%3AS3), [Net::Amazon::S3](https://metacpan.org/pod/Net%3A%3AAmazon%3A%3AS3). Use
+them instead.
 
-## Do I have to create the shape classes when I generate stubs for
-a service?
+## Do I have to create the shape classes when I generate stubs for a service?
 
-Possibly. If you create stubs manually, then you do not need the shape
+Probably. If you create stubs manually, then you do not need the shape
 classes. If you use the scripts provided to create the API stubs using
 Botocore metadata, then yes, you must create the shapes so that the
 Botocore API methods know how to serialize requests. Note that you can
 create the shape stubs using the Botocore metadata while not creating
-the API services. You might want to do that if you want a
-lean stub but want the benefits of using the shape stubs for
-serialization of the parameters.
+the API services. You might want to do that if you want a lean stub
+but want the benefits of using the shape stubs for serialization of
+the parameters (or you want the pod that comes with those classes).
 
 If you produce your stubs manually and do not create the shape stubs,
 then you must pass parameters to your API methods that are ready to be
 serialized by [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI).  Creating data structures that will be
-serialized correctly however is done for you if you use the shape
-classes.  For example, to create an SQS queue using the shape stubs,
+serialized correctly however is done for you _if you use the shape
+classes_.  For example, to create an SQS queue using the shape stubs,
 you can call the `CreateQueue` API method as describe in the Botocore
 documentation.
 
     $sqs->CreateQueue(
-     { QueueName => $queue_name,
-       tags       => { Name => 'my-new-queue' }, { Env => 'dev' },
-       Attributes =>  { VisibilityTimeout => 40 }, { DelaySeconds => 60 }
-     });
+      { QueueName => $queue_name,
+        tags      => { Name => 'my-new-queue' },
+        { Env => 'dev' },
+        Attributes => { VisibilityTimeout => 40 },
+        { DelaySeconds => 60 }
+      }
+    );
 
 If you do not use the shape classes, then you must pass the arguments
 in the form that will eventually be serialized in the correct manner
@@ -1085,16 +1077,19 @@ as a query string.
      'Tag.2.Value=dev'
     ]);
 
-## This code is wonky. Why?
+## This code does not use "Modern Perl". Why?
 
 This code has evolved over the years from being _ONLY_ a way to make
-RESTful calls to Amazon APIs to incorporating the use of the Botocore
-metadata. It _was_ one person's effort to create a somewhat
-lightweight interface to a few AWS APIs. As my own needs have changed
-and my knowledge of AWS services has increased it became obvious that
-using the Botocore metadata would yield far superior results. Still,
-I'm grokking the Botocore metadata intuitively without any help. My
-interpretations may be off. Help? Pull requests welcomed.
+RESTful calls to a few Amazon APIs, to incorporating the use of the
+Botocore metadata. It _was_ one person's effort to create a somewhat
+lightweight interface to selected AWS APIs.
+
+The code did not start out as well designed attempt to interpret the
+Botocore data by creating a monolithic framework to call ANY AWS
+API. Perhaps if it were designed today it might use more of Modern
+Perl, like Moose as does Paws. The code does however embrace Perl Best
+Practices.  Running `perlcritic` with the Perl Best Practices theme
+should show no or very few findings.
 
 ## How do I pass AWS credentials to the API?
 
@@ -1109,24 +1104,26 @@ See [Amazon::Credentials](https://metacpan.org/pod/Amazon%3A%3ACredentials).
 
 Yes. See [Amazon::Credentials](https://metacpan.org/pod/Amazon%3A%3ACredentials).
 
-## OMG! You update this too frequently!
+## How stable is the interface?
 
-Yeah, there are a lot of bugs. Should I stop fixing them?
+As of version 2.1.0 the interface is quite stable.  I'm not aware of
+any current bugs and now consider this project "production ready".
 
 ## Why are you using XML::Simple when it clearly says "DO NOT"?
 
 It's simple. And it seems easier to build than other modules that
 almost do the same thing.
 
-## I tried to use this with XYZ service and it barfed. What do I do?
+## I tried to use this with XYZ service and it didn't work. What should do I do?
 
-That's not too surprising. There are several reasons why your call
-might not have worked. The most likely place for API calls to fail is
-when serializing requests or serializing results. Enable debugging and
-see how far the API gets.  Report whether the serialization on the
-request or response failed.  If the serialization of the results
-failed, you can set `decode_always` to false which will prevent
-serialization of the result.
+There are several reasons why your call might not have worked. The
+most likely place for API calls to fail is when serializing requests
+or serializing results. Enable debugging and see how far the API gets.
+Report whether the serialization on the request or response failed.
+If the serialization of the results failed, you can set
+`decode_always` to false which will prevent serialization of the
+result and return the raw content sent from the API.  Other reasons
+your call may have failed include:
 
 - You passed bad data
 
@@ -1138,35 +1135,47 @@ serialization of the result.
 
         amazon-api -s sqs CreateQueue
 
-- The serialization of Amazon::API::Botocore::Shape is busted
+- The serialization of Amazon::API::Botocore::Shape isn't working
 
-    Serialization output for every class for every API has not been
-    tested. You may find that some API methods return `Bad Request` or do
-    not serialize the results (or more likely requests) in the manner
-    expected. Requests are serialized based _solely_ on the metadata
-    found in the Botocore project. There lie the clues for each API
-    (protocol, end points, etc) and the models (shapes) for requests and
-    response elements. 
+    Serialization output for every class for every API has not been fully
+    (yet) tested. You may find that some API methods return `Bad Request`
+    or do not serialize the results (or more likely requests) in the
+    manner expected. Requests are serialized based _solely_ on the
+    metadata found in the Botocore project. There lie the clues for each
+    API (protocol, end points, etc) and the models (shapes) for requests
+    and response elements.
 
     Some requests require a query string, some an XML or JSON payload. The
     Botocore based API classes use the metadata to determine how to send a
     request and how to interpret the results. This module uses
     [XML::Simple](https://metacpan.org/pod/XML%3A%3ASimple) or [JSON](https://metacpan.org/pod/JSON) to parse the results. It then uses the
-    [Amazon::API::Botocore::Serializer](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3ASerializer) to turn the parsed results into
-    a Perl object that respresents the response shape. It's likely that
-    this module has bugs and the shapes returned might not exactly match the
-    return response from the `aws` command line interface version.
+    [Amazon::API::Botocore::Serializer](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore%3A%3ASerializer) to turn the parsed results into a
+    Perl object that respresents the response shape.
 
-    What should be returned by an API request method is documented in
-    these modules and Amazon's CLI.
+    It's likely that there are exceptions that are handled as special
+    cases in the Python or Java libraries that also use the Botocore
+    metadata. In that case use the `aws` CLI command in `--debug` mode
+    to examine the request and response.
+
+    You can find information about each API's request and response from
+    the documentation created for each service.
 
         perldoc Amazon::API::Botocore::Shape::EC2:DescribeInstancesRequest
 
+    or more succinctly:
+
+        amazon-api -s ec2 help DescribeInstancesRequest
+
     Make sure you understand what the API request should look
-    like. `amazon_api` will help illuminate values you should be sending
-    to APIs.
+    like. `amazon_api` will help illuminate the structure of requests you
+    should be sending to APIs.
 
         amazon-api -s sqs help CreateQueue
+
+    You can also dump the Botocore metadata from the generated classes using
+    `amazon-api`.
+
+        amazon-api -s sqs describe
 
     - Additional Details
 
@@ -1208,7 +1217,7 @@ serialization of the result.
             Filter.1.Name=group-name&Filter.1.Value.1=some-value&Action=DescribeSecurityGroups&Version=2016-11-15
 
         The Filters object you passed gets serialized into _param.n_ notation
-        as describe earlier in this documentation. Knowing that fact (by
+        as described earlier in this documentation. Knowing that fact (by
         looking at the AWS API for DescribeSecurityGroups) and experiencing a
         failure when sending what should be the correct request to the API
         using this class, you could send correctly formatted payloads to query
@@ -1255,9 +1264,26 @@ serialization of the result.
 This module is free software. It may be used, redistributed and/or
 modified under the same terms as Perl itself.
 
+# TBD
+
+Over the last few years as the classes in this project have evolved,
+the number of dependencies has increased to the point where it is no
+longer a "lightweight" distribution. In fact, the start up time for
+`Amazon::API` is to be honest, now a bit disappointing.  Accordingly,
+the biggest "to do" on the list is to see if the load time can be
+reduced. Having said that, the cost of invoking some Amazon APIs and
+the fact that you may be using these classes in a manner where initial
+load time is not important, may not make this a high priority for
+some.
+
+- decrease load time of `Amazon::API`
+- reduce dependencies
+- reduce generated class modules sizes by separating out pod
+- investigate a different way to load Botocore metadata rather than embedding it in each module
+
 # SEE OTHER
 
-[Amazon::Credentials](https://metacpan.org/pod/Amazon%3A%3ACredentials), [Amazon::API::Error](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3AError), [AWS::Signature4](https://metacpan.org/pod/AWS%3A%3ASignature4), [Amazon::API::Botocore](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore)
+[Amazon::Credentials](https://metacpan.org/pod/Amazon%3A%3ACredentials), [Amazon::API::Error](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3AError), [AWS::Signature4](https://metacpan.org/pod/AWS%3A%3ASignature4), [Amazon::API::Botocore](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3ABotocore), [Paws](https://metacpan.org/pod/Paws)
 
 # AUTHOR
 

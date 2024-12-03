@@ -1,7 +1,7 @@
 # -*- mode: makefile-gmake; -*-
 # make SERVICE=service-name
 
-CPAN_DIST_MAKER=/usr/local/bin/make-cpan-dist.pl
+CPAN_DIST_MAKER=make-cpan-dist.pl
 
 cpan: buildspec.yml api
 	@service=$$(cat service); \
@@ -25,10 +25,13 @@ api: $(BOTOCORE)
 
 	@boto_service=$$(cat service); \
 	module_name=$$(cat module); \
+	if test -n "$$TIDY"; then \
+	  TIDY="--tidy"; \
+	fi; \
 	set -e; \
 	for a in stub shapes; do \
 	  echo "creating...$$a"; \
-	  amazon-api -b $$(pwd) -s $$boto_service -m $$module_name -o lib create-$$a; \
+	  amazon-api $$TIDY -b $$(pwd) -s $$boto_service -m $$module_name -o lib create-$$a; \
 	done
 
 service: service-listing.json
@@ -52,7 +55,7 @@ require Text::ASCIITable;
 
 my $s = <>;
 
-$s = JSON::PP->new->decode($s);
+$s = JSON->new->decode($s);
 
 my $t = Text::ASCIITable->new({ headingText => "Amazon Services"});
 
@@ -69,7 +72,7 @@ export scriptlet = $(value script)
 
 list-services: service-listing.json
 	@if perl -MText::ASCIITable -e 1 2>/dev/null; then \
-	  perl -MText::ASCIITable -MJSON::PP -0 -e "$$scriptlet" $<; \
+	  perl -MText::ASCIITable -MJSON -0 -e "$$scriptlet" $<; \
 	else \
 	  jq --sort-keys . service-listing.json; \
 	fi
@@ -86,7 +89,7 @@ service-listing.json: botocore
 	    echo "$$(basename $$a),$$($$JQ -r .metadata.serviceFullName $$a/$$(ls -1 $$a | sort | tail -1)/service*)" >>$$listing; \
 	  fi; \
 	done; \
-	perl -MJSON::PP -e 'while(<>) { chomp; ($$k,$$v) = split /,/,$$_; $$listing{$$k} = $$v; }; print JSON::PP->new->pretty->encode(\%listing);' $$listing >$@; \
+	perl -MJSON -e 'while(<>) { chomp; ($$k,$$v) = split /,/,$$_; $$listing{$$k} = $$v; }; print JSON->new->pretty->encode(\%listing);' $$listing >$@; \
 	rm $$listing;
 
 module: service

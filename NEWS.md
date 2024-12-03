@@ -6,18 +6,23 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
-# perl-Amazon-API 2.0.16 (2024-11-28)
+# perl-Amazon-API 2.1.0 (2024-12-03)
 
-_Version 2.0.16 is a minor update to which fixes a few small bugs_
+_Version 2.1.0 is a minor update to which fixes a few small bugs and
+updates the documetation. More importantly, this is the first release
+that I would consider production ready._
 
 ## Fixes
 
-* initiazlie log level to error
+* initialize log level to error
 * fix bug when invoking API directly (not using botocore)
      
 ## Enhancements
 
-* None
+* perltidy'ing of Botocore generated classes is now disabled by
+  default to make creating classes a little faster. See
+  [cpan-dist/README.md](cpan-dist/README.md).
+* documentation cleanups and better more detailed explanations overall
 
 # perl-Amazon-API 2.0.15 (2024-11-19)
 

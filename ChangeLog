@@ -1,10 +1,15 @@
 Thu Nov 28 06:23:59 2024  Rob Lauer  <rlauer6@comcast.net>
 
-	[2.0.16]:
+	[2.1.0]:
 	* VERSION: bump
 	* NEWS: updated
+	* README.md: generated
 	* .perlcriticrc: removed
 	* .perltidyrc: removed
+	* cpan-dist/Makefile
+	- remove path from make-cpan-dist
+	- JSON, not JSON::PP
+	- set TIDY to tidy modules
 	* src/main/perl/lib/Amazon/API.pm
 	- pod tweaks
 	(new)
@@ -13,6 +18,26 @@ Thu Nov 28 06:23:59 2024  Rob Lauer  <rlauer6@comcast.net>
 	- check if called as botocore api
 	* cpan/requires: + Term::ReadKey
 	* docker/docker-compose.yml: add additional services
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	(help): move pager down after possible error
+	(main): make perltidy default false
+	(stringify): new
+	(render_stub): use above
+	(create_stub): warn about Perl::Tidy
+	* src/main/perl/lib/Amazon/API/Botocore/Pod.pm.in
+	- perlcritic refactors
+	- pod tweaks
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in: whitespace
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	- perlcritic refactors
+	- whitespace
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Utils.pm.in
+	- whitespace
+	- refactor so pod2man doesn't complain
+	* src/main/perl/lib/Amazon/API/Template.pm.in
+	- whitespace
+	- use 'g' instead of while()
+	* src/examples/README.md: tweaks
 
 Tue Nov 19 07:48:26 2024  Rob Lauer  <rlauer6@comcast.net>
 

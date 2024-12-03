@@ -5,8 +5,7 @@ use warnings;
 
 use parent qw( Exporter );
 
-our @EXPORT_OK
-  = qw( to_template_var fetch_template render_template html2pod );
+our @EXPORT_OK = qw( to_template_var fetch_template render_template html2pod );
 
 our %EXPORT_TAGS = ( all => [@EXPORT_OK] );
 
@@ -16,6 +15,7 @@ use ReadonlyX;
 use Pod::HTML2Pod;
 use English qw(-no_match_vars);
 use Fcntl qw(:seek);
+use Data::Dumper;
 
 Readonly::Scalar my $TEMPLATE_DELIMITER => q{@};
 
@@ -24,11 +24,10 @@ sub to_template_var {
 ########################################################################
   my (@vars) = @_;
 
-  my @template_vars
-    = map { $TEMPLATE_DELIMITER . $_ . $TEMPLATE_DELIMITER } @vars;
+  my @template_vars = map { $TEMPLATE_DELIMITER . $_ . $TEMPLATE_DELIMITER } @vars;
 
   return wantarray ? @template_vars : $template_vars[0];
-} ## end sub to_template_var
+}
 
 ########################################################################
 sub fetch_template {
@@ -53,12 +52,13 @@ sub render_template {
   my ( $template, $parameters ) = @_;
 
   foreach my $p ( keys %{$parameters} ) {
+
     next if $p !~ /^$TEMPLATE_DELIMITER/xsm;
 
     my $val = $parameters->{$p} || $EMPTY;
 
-    while ( $template =~ s/$p/$val/xsm ) { }
-  } ## end foreach my $p ( keys %{$parameters...})
+    $template =~ s/$p/$val/xsmg;
+  }
 
   return $template;
 }
@@ -88,3 +88,5 @@ sub html2pod {
 }
 
 1;
+
+__END__

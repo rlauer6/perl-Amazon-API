@@ -33,7 +33,7 @@ repository in the current working directory.
 The instructions assume you have cloned and built the
 `perl-Amazon-API` project and installed the required Perl modules and other
 artifacts in your working environment. For details on installing the
-project see [README-BUILD.md](README-BUILD.md) in the root of this
+project see [README-BUILD.md](/README-BUILD.md) in the root of this
 project.
 
 To create a CPAN tarball for the Security Token Service, for example
@@ -62,7 +62,7 @@ For example, to create a class for the SQS API named
 make SERVICE=sqs
 ```
 
-This will create a distribtion tarball for the module `Amazon::API::SQS`. If
+This will create a distribution tarball for the module `Amazon::API::SQS`. If
 you don't like that name, you can provide a module name when you
 create the distribution.
 
@@ -81,6 +81,14 @@ make MODULE_NAME=Route53
 
 ...which will create API moduled for the `ec2` and `route53`
 services.
+
+If you want the resulting modules to be "tidy", set the environment
+variable TIDY to any value. For services with many operations (like
+EC2) this may take as long as 10-15 minutes to tidy all modules.
+
+```
+ make SERVICE=ec2 TIDY=1
+```
 
 # Help
 

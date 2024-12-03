@@ -8,8 +8,7 @@ our $VERSION = '@PACKAGE_VERSION@';
 use parent qw(Exporter Class::Accessor::Fast);
 
 use Amazon::API::Constants qw(:chars :booleans);
-use Amazon::API::Botocore::Shape::Utils
-  qw(flatten require_shape check_type check_pattern );
+use Amazon::API::Botocore::Shape::Utils qw(flatten require_shape check_type check_pattern );
 
 use Carp;
 use Cwd;
@@ -17,7 +16,7 @@ use Data::Dumper;
 use English qw(-no_match_vars);
 use ReadonlyX;
 use Scalar::Util qw( reftype blessed );
-use List::Util   qw( any pairs );
+use List::Util qw( any pairs );
 use Log::Log4perl;
 
 __PACKAGE__->follow_best_practice;
@@ -130,8 +129,7 @@ sub _init_structure {
 
     if ( exists $value->{$member} ) {
 
-      my $class = require_shape( $self->get_members->{$member}->{shape},
-        $self->get_service );
+      my $class = require_shape( $self->get_members->{$member}->{shape}, $self->get_service );
 
       $value->{$member} = $class->new( $value->{$member} );
     }

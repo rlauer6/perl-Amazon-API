@@ -2,16 +2,14 @@ SUBDIRS = . src cpan
 
 ACLOCAL_AMFLAGS = -I autotools
 
-API_PM = src/main/perl/lib/Amazon/API.pm
-
 POD2MARKDOWN = @POD2MARKDOWN@
 
-$(API_PM):
-	cd ${builddir}/src/main/perl/lib; \
+src/main/perl/lib/README.md:
+	cd src/main/perl/lib
 	$(MAKE)
 
-README.md: $(API_PM)
-	$(POD2MARKDOWN) < $< >$@
+README.md: src/main/perl/lib/README.md
+	cp $< $@
 
 dist_noinst_DATA = \
     NEWS.md \
