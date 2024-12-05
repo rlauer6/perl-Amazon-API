@@ -11,7 +11,7 @@ use Amazon::API::Template qw(:all);
 use Carp;
 use Data::Dumper;
 use English qw(-no_match_vars);
-use List::Util qw( pairs any );
+use List::Util qw( pairs any uniq );
 use ReadonlyX;
 use Scalar::Util qw(reftype blessed );
 
@@ -352,19 +352,21 @@ sub create_shape {
 
       my @item_block = (
         '=item'    => 'Name: %s',
-        '=over 10' => $EMPTY,
+        '=over 10' => "\n",
         '=item'    => "Type\n\n%s",
         '=item'    => "Description\n\n%s",
         '=back'    => $EMPTY,
       );
 
-      my $item = $EMPTY;
+      my $item = "\n";
       foreach my $p ( pairs @item_block ) {
-        $item .= join $SPACE, @{$p}, "\n";
+        $item .= join "\n", @{$p}, "\n";
       }
       push @members, sprintf $item, $m, $type, $description;
     }
   }
+
+  @see_also = uniq @see_also;
 
   my @limits;
 

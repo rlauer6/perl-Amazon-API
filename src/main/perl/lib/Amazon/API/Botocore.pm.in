@@ -718,7 +718,7 @@ sub get_service_descriptions {
     my $service_file    = "$service_path/service-2.json";
     my $paginators_file = "$service_path/paginators-1.json";
 
-    my $paginators = fetch_paginators($paginators_file);
+    my $paginators = eval { return fetch_paginators($paginators_file); };
 
     my $service_description = fetch_service_description($service_file);
 

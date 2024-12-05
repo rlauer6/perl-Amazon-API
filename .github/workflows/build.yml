@@ -18,15 +18,22 @@ jobs:
             set -x
             cpanm -n -v \
             JSON::PP \
-            File::Process \
             YAML::Tiny \
             Log::Log4perl \
+            Markdown::Render \
+            Pod::Markdown \
             Module::ScanDeps::Static
+            git clone https://github.com/rlauer6/make-cpan-dist.git
+            cd make-cpan-dist
+            ./bootstrap
+            ./configure --with-perl5libdir
+            make && make install
+            cd ..
             ./bootstrap
             for a in $(cat cpan/requires cpan/test-requires| perl -ne 'chomp; s/\^+//; my ($m,$v) = split / /; $v = ( $v && $v > 0) ? "\@$v" : "";  printf "%s%s ", $m, $v;'); do \
               cpanm -n -v $a; \
             done
-            ./configure
+            ./configure --with-perl5libdir
             make dist
             cd cpan
             make cpan

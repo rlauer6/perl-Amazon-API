@@ -1,3 +1,16 @@
+Thu Dec  5 05:46:10 2024  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.1.1]:
+	* VERSION: bump
+	* NEWS: updated
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Utils.pm.in
+	(create_shape)
+	- fix pod generation for shapes
+	- remove duplicate SEE ALSO targets
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	(get_service_descriptions)
+	- trap error when there are no paginators for a service
+
 Thu Nov 28 06:23:59 2024  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.1.0]:

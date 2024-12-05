@@ -7,7 +7,7 @@ HTTP::Request 0
 IO::Scalar 0
 JSON 0
 List::MoreUtils 0
-List::Util 1.33
+List::Util 1.63
 Log::Log4perl 0
 LWP::UserAgent 0
 Pod::HTML2Pod 0

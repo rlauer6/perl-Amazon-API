@@ -24,6 +24,22 @@ that I would consider production ready._
   [cpan-dist/README.md](cpan-dist/README.md).
 * documentation cleanups and better more detailed explanations overall
 
+# perl-Amazon-API 2.1.1 (2024-12-05)
+
+_Version 2.1.1 is a minor update to which fixes a bug in the way pod
+was being generated.
+
+## Fixes
+
+* fix pod generation
+     
+## Enhancements
+
+* perltidy'ing of Botocore generated classes is now disabled by
+  default to make creating classes a little faster. See
+  [cpan-dist/README.md](cpan-dist/README.md).
+* documentation cleanups and better more detailed explanations overall
+
 # perl-Amazon-API 2.0.15 (2024-11-19)
 
 _Version 2.0.15 is a minor update to which fixes a few small bugs_
