@@ -6,6 +6,42 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
+# perl-Amazon-API 2.1.2 (2025-02-12)
+
+_Version 2.1.2 is a minor update to which fixes a couple of bugs._
+
+## Fixes
+
+* fix paginators that use a compound key. Some paginators need to use
+  a compound key to find the paged result set in the returned results
+  element.  For example, the CloudFront ListDistributions API uses
+  'DistributionList.Items' as the result key...
+* Some XML based APIs required different handling of request payload
+  including adding the xmlns attribute
+* return an empty hash when an API is succesful but returns no data
+* ditch the use of ReadonlyX as it creates a host of problems when
+  some modules use Readonly
+
+## Enhancements
+
+None
+
+# perl-Amazon-API 2.1.1 (2024-12-05)
+
+_Version 2.1.1 is a minor update to which fixes a bug in the way pod
+was being generated.
+
+## Fixes
+
+* fix pod generation
+     
+## Enhancements
+
+* perltidy'ing of Botocore generated classes is now disabled by
+  default to make creating classes a little faster. See
+  [cpan-dist/README.md](cpan-dist/README.md).
+* documentation cleanups and better more detailed explanations overall
+
 # perl-Amazon-API 2.1.0 (2024-12-03)
 
 _Version 2.1.0 is a minor update to which fixes a few small bugs and
@@ -16,22 +52,6 @@ that I would consider production ready._
 
 * initialize log level to error
 * fix bug when invoking API directly (not using botocore)
-     
-## Enhancements
-
-* perltidy'ing of Botocore generated classes is now disabled by
-  default to make creating classes a little faster. See
-  [cpan-dist/README.md](cpan-dist/README.md).
-* documentation cleanups and better more detailed explanations overall
-
-# perl-Amazon-API 2.1.1 (2024-12-05)
-
-_Version 2.1.1 is a minor update to which fixes a bug in the way pod
-was being generated.
-
-## Fixes
-
-* fix pod generation
      
 ## Enhancements
 

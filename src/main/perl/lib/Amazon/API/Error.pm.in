@@ -3,18 +3,43 @@ package Amazon::API::Error;
 use strict;
 use warnings;
 
-use parent qw( Class::Accessor::Fast );
-
 use Data::Dumper;
-use English qw{ -no_match_vars };
-use JSON qw{ decode_json };
-use Scalar::Util qw{ reftype };
-use XML::Simple qw{ XMLin };
+use English qw( -no_match_vars );
+use JSON qw( decode_json );
+use Scalar::Util qw( reftype );
+use XML::Simple qw( XMLin );
 
 __PACKAGE__->follow_best_practice;
-__PACKAGE__->mk_accessors(qw/error api message_raw response content_type/);
+__PACKAGE__->mk_accessors(
+  qw(
+    action
+    api
+    content_type
+    error
+    message_raw
+    response
+  )
+);
+
+use parent qw( Class::Accessor::Fast );
 
 our $VERSION = '@PACKAGE_VERSION@';
+
+use overload q("") => sub {
+  my ($self) = shift;
+
+  my $err_prefix = sprintf 'API ERROR(%s): %s->%s', $self->get_error, $self->get_api, $self->get_action;
+
+  my $response = $self->get_response;
+
+  local $Data::Dumper::Terse = 1;
+  local $Data::Dumper::Pair  = q{:};
+  local $Data::Dumper::Useqq = 1;
+
+  my $response_str = Dumper( ref $response ? $response : [$response] );
+
+  return sprintf "%s\n%s", $err_prefix, $response_str;
+};
 
 ########################################################################
 sub new {
@@ -26,7 +51,7 @@ sub new {
   $self->_set_message;
 
   return $self;
-} ## end sub new
+}
 
 ###############################################################
 sub _set_message {

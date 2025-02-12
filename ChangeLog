@@ -1,3 +1,49 @@
+Wed Feb 12 09:17:23 2025  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.1.2]:
+	* NEWS.md: updated
+	* VERSION: bump
+	* cpan/requires
+	- Readonly, not ReadonlyX
+	- XML::LibXML
+	* README.md: generated
+	* src/main/perl/lib/README.md: likewise
+	* src/main/perl/lib/Amazon/API.pm.in
+	- cleanup DEBUG/TRACE messages
+	- add namespace attribute
+	- minor formatting and refactors
+	- export generate_xml()
+	- pod tweaks and additions
+	(decode_response): return {} if success and undef response
+	(find_namespace): new
+	(serialize_content)
+	- use new XML generator
+	- delete _attr if it was added and not required for json payloads
+	(generate_xml): new
+	(_to_xml): new
+	(init_botocore_request)
+	- add namespace to XML requests if necessary
+	- fix location of payload
+	(invoke_api)
+	- only print error if raise error is not set
+	- fix pagination for compound keys
+	(print_error)
+	- Amazon::API::Error now overloads "", no need to format
+	(dig): new
+	(bury): new
+	* src/main/perl/lib/Amazon/API/Error.pm.in
+	- overload q("")
+	- better error messages
+	(overload q("")): new
+	* src/examples/APIExample.pm: ReadonlyX => Readonly
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Utils.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Constants.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Pod/Parser.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Pod/Simple/Text.pm.in: likewise
+	* src/main/perl/lib/Amazon/API/Template.pm.in: likewise
+
 Thu Dec  5 05:46:10 2024  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.1.1]:

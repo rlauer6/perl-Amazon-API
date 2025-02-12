@@ -11,7 +11,7 @@ our %EXPORT_TAGS = ( all => [@EXPORT_OK] );
 
 use Amazon::API::Constants qw(:chars :booleans);
 
-use ReadonlyX;
+use Readonly;
 use Pod::HTML2Pod;
 use English qw(-no_match_vars);
 use Fcntl qw(:seek);

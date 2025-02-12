@@ -5,7 +5,7 @@ use warnings;
 
 use parent qw{Pod::Simple::Text};
 use IO::Scalar;
-use ReadonlyX;
+use Readonly;
 
 our @EXPORT = qw{ $SECTION };
 

@@ -1,6 +1,6 @@
 package Amazon::API;
 
-# Generic interface to Amazon APIs
+# Generic interface to Amazon APIs (powered by botocore)
 
 use strict;
 use warnings;
@@ -52,11 +52,12 @@ use HTTP::Request;
 use JSON qw( encode_json decode_json );
 use LWP::UserAgent;
 use List::Util qw(any all pairs none);
-use ReadonlyX;
+use Readonly;
 use Scalar::Util qw( reftype blessed );
 use Time::Local;
 use Time::HiRes qw( gettimeofday tv_interval );
 use URL::Encode qw(url_encode);
+use XML::LibXML;
 use XML::Simple;
 
 Readonly::Scalar my $DEFAULT_REGION   => 'us-east-1';
@@ -92,6 +93,7 @@ __PACKAGE__->mk_accessors(
     logger
     log_file
     log_layout
+    namespace
     paginators
     print_error
     protocol
@@ -121,6 +123,7 @@ our @EXPORT_OK = qw(
   param_n
   paginator
   service
+  generate_xml
 );
 
 our $START_TIME    = [gettimeofday];
@@ -568,7 +571,8 @@ sub decode_response {
     croak q{can't decode response - not a response object: } . ref $response;
   }
 
-  my $content      = $response->content;
+  my $content = $response->content;
+
   my $content_type = $response->content_type;
 
   # this is expected to fail if !$self->is_botocore_api
@@ -578,8 +582,8 @@ sub decode_response {
   TRACE(
     sub {
       return Dumper(
-        [ protocol => $protocol,
-          content  => $content
+        [ protocol         => $protocol,
+          response_content => $content
         ]
       );
     }
@@ -594,13 +598,13 @@ sub decode_response {
         decode_json($content);
       }
       elsif ( $content_type =~ /xml/xmsi ) {
-
+        # maddening interpretation of XML output from these ass hats (-:|3
         XMLin(
           $content,
-          SuppressEmpty => 0,                     # $protocol eq 'ec2' ? $FALSE : $TRUE,
-          ForceContent  => $self->is_botocore_api
-            && $botocore_action->{output},
-          ForceArray => ['item'],
+          # $protocol eq 'ec2' ? $FALSE : $TRUE,
+          SuppressEmpty => $FALSE,
+          ForceContent  => $self->is_botocore_api && $botocore_action->{output},
+          ForceArray    => ['item'],
           #          $self->get_force_array ? ( ForceArray => ['item'] ) : ()
         );
       }
@@ -624,7 +628,7 @@ sub decode_response {
 
   $content = $decoded_content || $content;
 
-  DEBUG( sub { return Dumper( [ 'content', $content ] ) } );
+  DEBUG( sub { return Dumper( [ 'content' => $content ] ) } );
 
   # we'll only have a "serializer" if this is a Botocore generated API
   my $serializer = $self->get_serializer;
@@ -646,8 +650,8 @@ sub decode_response {
   DEBUG(
     sub {
       return Dumper(
-        [ content => $content,
-          output  => $output
+        [ content                => $content,
+          botocore_action_output => $output
         ]
       );
     }
@@ -702,6 +706,11 @@ sub is_botocore_shape {
   return $shape_name;
 }
 
+# returns the 'locationName' of the element or '' locationName for a
+# given parameter type (uri, querystring, etc)
+#
+# determines where to find the parameter in the input payload
+
 ########################################################################
 sub is_param_type {
 ########################################################################
@@ -712,7 +721,7 @@ sub is_param_type {
 
   my $location = $member->{location};
 
-  DEBUG(
+  TRACE(
     sub {
       return Dumper(
         [ members    => $members,
@@ -726,9 +735,7 @@ sub is_param_type {
     }
   );
 
-  return ( $location && $location eq $type )
-    ? $member->{locationName}
-    : $EMPTY;
+  return ( $location && $location eq $type ) ? $member->{locationName} : $EMPTY;
 }
 
 ########################################################################
@@ -767,8 +774,8 @@ sub create_botocore_request {
 
   my $botocore_operations = $self->get_botocore_operations->{$action};
 
-  my $input = $botocore_operations->{'input'};
-  my $shape = $input->{'shape'};
+  my $input = $botocore_operations->{input};
+  my $shape = $input->{shape};
 
   my $class = require_shape( $shape, get_service_from_class($self) );
 
@@ -816,7 +823,11 @@ sub init_botocore_request {
   TRACE(
     sub {
       return Dumper(
-        [ 'init_botocore_request:', $botocore_operations, $request, $self->get_botocore_metadata ] );
+        [ botocore_operations => $botocore_operations,
+          request             => $request,
+          botocore_metadata   => $self->get_botocore_metadata
+        ]
+      );
     }
   );
 
@@ -824,7 +835,7 @@ sub init_botocore_request {
 
   my $input = $botocore_operations->{input};
 
-  my $shape = $input->{'shape'};
+  my $shape = $input->{shape};
 
   my $request_shape_name = is_botocore_shape($request);
 
@@ -840,16 +851,21 @@ sub init_botocore_request {
     $boto_request = $self->create_botocore_request( parameters => $request );
 
     if ( !$boto_request ) {
-      carp "could not create a botocore request object\n$EVAL_ERROR\n";
+      croak "could not create a botocore request object\n$EVAL_ERROR\n";
     }
     else {
       $request_shape_name = is_botocore_shape($boto_request);
-      $request            = $boto_request;
+
+      $request = $boto_request;
     }
   }
 
-  my $http   = $botocore_operations->{'http'};
-  my $method = $http->{'method'};
+  # some XML requests require an xmlns attribute
+  $self->find_namespace( $request, $input );
+
+  my $http = $botocore_operations->{http};
+
+  my $method = $http->{method};
 
   my %parameters;
 
@@ -899,15 +915,7 @@ sub init_botocore_request {
 
     if ( ref($finalized_request) eq 'HASH' ) {
       %parameters = %{$finalized_request};
-
-      if ( defined $input->{'xmlNamespace'} ) {
-        $parameters{$request_shape_name}->{'xmlns'}
-          = $input->{'xmlNamespace'}->{uri};
-      }
-
-      DEBUG( sub { return Dumper( [ parameters => \%parameters ] ) } );
     }
-
   }
 
   $self->set_http_method($method);
@@ -926,12 +934,14 @@ sub init_botocore_request {
           [ args               => \@args,
             request_uri_tpl    => $request_uri_tpl,
             request_shape_name => $request_shape_name,
+            input              => $input,
           ]
         );
       }
     );
 
-    # if the request is a shape, we've already checked for required parameters
+    # if the request is a shape, we've already checked for required
+    # parameters but some may be buried in the payload!
     if ( !$request_shape_name ) {
       foreach my $p (@args) {
         croak 'required parameter ' . $p . ' not found.'
@@ -952,20 +962,22 @@ sub init_botocore_request {
         sub {
           return Dumper(
             [ requestUri       => $uri,
-              shape_parameters => $shape_parameters
+              shape_parameters => $shape_parameters,
+              shape            => $shape,
+              parameters       => \%parameters,
             ]
           );
         }
       );
 
       foreach my $p ( keys %{$shape_parameters} ) {
-        DEBUG( Dumper( [ parameter => $p ] ) );
+        TRACE( Dumper( [ parameter => $p ] ) );
 
         if ( my $var = $self->is_uri_param( $request_shape_name, $p ) ) {
 
           my $val = $shape_parameters->{$p};
 
-          DEBUG(
+          TRACE(
             Dumper(
               [ var => $var,
                 val => $val,
@@ -995,12 +1007,6 @@ sub init_botocore_request {
           }
         }
 
-        DEBUG(
-          sub {
-            return Dumper( [ 'query parameters: ', \%query_parameters ] );
-          }
-        );
-
         if ( keys %query_parameters ) {
           # $self->set_content_type(undef);
 
@@ -1015,11 +1021,21 @@ sub init_botocore_request {
 
     $self->set_request_uri($uri);
 
-    TRACE(
-      sub {
-        return Dumper [ 'rest API', \%parameters, $self->get_request_uri ];
+    # payload (I think) tells us where the actual object to pass will
+    # be found in the request object. Since we may be formatting an
+    # XML request we need to insert the namespace so our formatter can
+    # properly serialize the request
+    if ( $request->{payload} && $parameters{$request_shape_name}->{ $request->{payload} } ) {
+      %parameters = %{ $parameters{$request_shape_name} };
+      if ( $self->get_namespace ) {
+        $parameters{ $request->{payload} }->{_attr} = { xmlns => $self->get_namespace };
       }
-    );
+    }
+    elsif ( $self->get_namespace ) {
+      my $locationName = $input->{locationName};
+      $parameters{$locationName}->{_attr} = { xmlns => $self->get_namespace };
+    }
+
   }
 
   my $content = \%parameters;
@@ -1030,9 +1046,39 @@ sub init_botocore_request {
     $content = undef;
   }
 
-  DEBUG( sub { return Dumper( [ content => $content, uri => $uri ] ) } );
+  DEBUG(
+    sub {
+      return Dumper [
+        namespace   => $self->get_namespace,
+        parameters  => \%parameters,
+        request_uri => $uri,
+        content     => $content,
+      ];
+    }
+  );
 
   return $content;
+}
+
+########################################################################
+# namespaces may be buried a bit in the members specfication of
+# request objects or can be part of the specfication for the request
+# method itself (cloudfront.CreateInvalidationBatch)
+########################################################################
+sub find_namespace {
+########################################################################
+  my ( $self, $request, $input ) = @_;
+
+  my ($has_namespace) = grep { defined $_ }
+    map { $request->{members}->{$_}->{xmlNamespace}->{uri} } keys %{ $request->{members} // {} };
+
+  if ( !$has_namespace && $input->{xmlNamespace} ) {
+    $has_namespace = $input->{xmlNamespace}->{uri};
+  }
+
+  $self->set_namespace($has_namespace);
+
+  return;
 }
 
 ########################################################################
@@ -1053,11 +1099,12 @@ sub serialize_content {
   my $version      = $self->get_version;
   my $content_type = $self->get_content_type;
 
-  DEBUG(
+  TRACE(
     sub {
       return Dumper(
-        [ 'serialize_content' => $parameters,
-          service             => $self->get_service
+        [ content_type => $content_type,
+          parameters   => $parameters,
+          service      => $self->get_service,
         ]
       );
     }
@@ -1070,18 +1117,14 @@ sub serialize_content {
   }
   elsif ( $parameters && ref $parameters && reftype($parameters) eq 'HASH' ) {
     if ( $content_type =~ /json/xsm ) {
+      delete $parameters->{_attr};
       $content = encode_json($parameters);
     }
     elsif ( $content_type =~ /xml/xms ) {
       return
         if !ref $content || !keys %{$content};
 
-      $content = XMLout(
-        $parameters,
-        XMLDecl  => $TRUE,
-        KeepRoot => $TRUE,
-        KeyAttr  => ['xmlns'],
-      );
+      $content = generate_xml($parameters);
     }
   }
 
@@ -1245,22 +1288,26 @@ sub invoke_api {
           content_type => scalar $rsp->content_type,
           api          => ref $self,
           response     => $rsp,
+          action       => $self->get_last_action,
         }
       )
     );
 
-    if ( $self->get_print_error ) {
-      print {*STDERR} $self->print_error;
+    if ( $self->get_print_error && !$self->get_raise_error ) {
+      print {*STDERR} $self->get_error;
     }
-
-    if ( $self->get_raise_error ) {
-      die $self->get_error;  ## no critic (RequireCarping)
+    elsif ( $self->get_raise_error ) {
+      die $self->get_error;
     }
   }
 
   DEBUG(
     sub {
-      return Dumper( [ 'content', $rsp->content, 'decode always', $self->get_decode_always ] );
+      return Dumper(
+        [ decode_always => $self->get_decode_always,
+          content       => $rsp->content
+        ]
+      );
     }
   );
 
@@ -1271,8 +1318,21 @@ sub invoke_api {
     if ($use_paginator) {
       my $result = $self->decode_response;
 
+      DEBUG(
+        sub {
+          return Dumper(
+            [ paginator     => $paginator,
+              paged_results => @paged_results,
+              result        => $result
+            ]
+          );
+        }
+      );
+
+      my $actual_result = dig( $result, $paginator, 'result_key' );
+
       return \@paged_results
-        if !$result->{ $paginator->{result_key} };
+        if !$actual_result;
 
       DEBUG(
         sub {
@@ -1280,7 +1340,7 @@ sub invoke_api {
         }
       );
 
-      push @paged_results, @{ $result->{ $paginator->{result_key} } };
+      push @paged_results, @{$actual_result};
 
       DEBUG(
         sub {
@@ -1293,9 +1353,8 @@ sub invoke_api {
         }
       );
 
-      if ( !$result->{ $paginator->{more_results} } ) {
-        delete $result->{ $paginator->{more_results} };
-
+      if ( !dig( $result, $paginator, 'more_results' ) ) {
+        # might have to dig here too, but generally I don't think so
         if ( $paginator->{limit_key} ) {
           delete $result->{ $paginator->{limit_key} };
         }
@@ -1327,11 +1386,16 @@ sub invoke_api {
     }
   }
 
-  if ($use_paginator) {
-    return { $paginator->{result_key} => \@paged_results };
-  }
+  return bury( \@paged_results, $paginator, 'result_key' )
+    if $use_paginator;
 
   my $results = $self->decode_response;
+
+  # some APIs return no results, but we probably do not want to return
+  # undef
+  if ( !$results && $rsp->is_success ) {
+    $results = {};
+  }
 
   return $results
     if !$paginator || !$use_paginator;
@@ -1343,8 +1407,7 @@ sub invoke_api {
   # 'use_paginator' is tested above and if it is false (you told me not to use the
   # paginator) we return the results...
 
-  if ( !$results->{ $paginator->{more_results} } ) {
-    delete $results->{ $paginator->{more_results} };
+  if ( !dig( $results, $paginator, 'more_results' ) ) {
     delete $results->{ $paginator->{input_token} };
     delete $results->{ $paginator->{limit_key} };
   }
@@ -1353,28 +1416,86 @@ sub invoke_api {
 }
 
 ########################################################################
+# the analog to dig, we need to set the result to a hash element specified
+# by a dot encoded string. Example: DistributionList.Item
+########################################################################
+sub bury {
+########################################################################
+  my ( $result, $paginator, $key ) = @_;
+
+  return $result
+    if !$paginator;
+
+  $key = $paginator->{$key};
+
+  return { $key => $result }
+    if $key !~ /[.]/xsm;
+
+  my $parent = {};
+  my $child  = $parent;
+
+  my @keys       = split /[.]/xsm, $key;
+  my $result_key = pop @keys;  # remove last element
+
+  foreach (@keys) {
+    $child->{$_} = {};
+    $child = $child->{$_};
+  }
+
+  $child->{$result_key} = $result;
+
+  return $parent;
+}
+
+########################################################################
+# follow the . encoded key to find the hash element
+# example: DistributionList.Items
+########################################################################
+sub dig {
+########################################################################
+  my ( $result, $paginator, $key, $delete ) = @_;
+
+  return $result
+    if !$paginator || !$paginator->{$key};
+
+  $key = $paginator->{$key};
+
+  return $result->{$key}
+    if $key !~ /[.]/xsm;
+
+  foreach ( split /[.]/xsm, $key ) {
+    $result = $result->{$_};
+    $key    = $_;
+  }
+
+  if ($delete) {
+    delete $result->{$key};
+  }
+
+  return $result;
+}
+
+########################################################################
 sub print_error {
 ########################################################################
   my ($self) = @_;
 
-  my $error = $self->get_error;
+  my $error = eval {
+    my $last_error = $self->get_error;
 
-  my $err_str = 'API ERROR (' . $self->get_last_action . '): ';
+    return "$last_error"
+      if $last_error && ref($last_error) =~ /Amazon::API::Error/xms;
 
-  if ( $error && ref($error) =~ /Amazon::API::Error/xms ) {
-    my $response = $error->get_response;
+    return $last_error;
+  };
 
-    local $Data::Dumper::Terse = $TRUE;
-    local $Data::Dumper::Pair  = $COLON;
-    local $Data::Dumper::Useqq = $TRUE;
+  $error //= $EVAL_ERROR;
 
-    $err_str .= sprintf q{[%s], %s}, $error->get_error, Dumper( ref $response ? $response : [$response] );
-  }
-  else {
-    $err_str .= '[' . $error . ']';
+  if ($error) {
+    print {*STDERR} $error;
   }
 
-  return $err_str;
+  return $error;
 }
 
 ########################################################################
@@ -1403,7 +1524,7 @@ sub submit {
 ########################################################################
   my ( $self, %options ) = @_;
 
-  DEBUG( sub { return Dumper [ 'submit:', \%options ] } );
+  DEBUG( sub { return Dumper [ submit => \%options ] } );
 
   my $method  = $self->get_http_method || 'POST';
   my $headers = $options{'headers'}    || [];
@@ -1419,7 +1540,15 @@ sub submit {
     $url .= $self->get_request_uri;
   }
 
-  DEBUG( sub { return Dumper [ $method, $url, $headers ] } );
+  DEBUG(
+    sub {
+      return Dumper [
+        method  => $method,
+        url     => $url,
+        headers => $headers
+      ];
+    }
+  );
 
   my $request = HTTP::Request->new( $method, $url, $headers );
 
@@ -1437,7 +1566,7 @@ sub submit {
   my $credentials = $self->get_credentials;
 
   if ( my $token = $self->get_valid_token ) {
-    $request->header( 'X-Amz-Security-Token', $token );
+    $request->header( 'X-Amz-Security-Token' => $token );
   }
 
   # TODO: global end-points
@@ -1452,13 +1581,17 @@ sub submit {
     region          => $region,
   )->sign( $request, $self->get_region );
 
-  DEBUG( sub { return Dumper( [$request] ) } );
+  DEBUG( sub { return Dumper( [ request => $request ] ) } );
 
   # make the request, return response object
   my $ua  = $self->get_user_agent;
   my $rsp = $ua->request($request);
 
-  DEBUG( sub { return Dumper [$rsp] } );
+  DEBUG(
+    sub {
+      return Dumper [ response => $rsp ];
+    }
+  );
 
   return $rsp;
 }
@@ -1466,6 +1599,34 @@ sub submit {
 # +------------------+
 # | EXPORTED METHODS |
 # +------------------+
+
+########################################################################
+sub generate_xml {
+########################################################################
+  my ($data) = @_;
+
+  my $doc = XML::LibXML::Document->new( '1.0', 'UTF-8' );
+
+  my $fragment = XML::LibXML::DocumentFragment->new();
+
+  for my $key ( keys %{$data} ) {
+    _to_xml( $doc, $fragment, $key, $data->{$key} );
+  }
+
+  my $xml = $doc->toString(1) . $fragment->toString(1);
+
+  TRACE(
+    sub {
+      return Dumper(
+        [ data => $data,
+          xml  => $xml
+        ]
+      );
+    }
+  );
+
+  return $xml;
+}
 
 ########################################################################
 sub param_n {
@@ -1548,7 +1709,7 @@ sub has_keys {
   # note that self should NOT really have keys! Not sure why I added this test
   my %creds = keys %options ? %options : map { $_ => $self->{$_} } @REQUIRED_KEYS;
 
-  return $creds{'aws_secret_access_key'} && $creds{'aws_access_key_id'};
+  return $creds{aws_secret_access_key} && $creds{aws_access_key_id};
 }
 
 # +-----------------+
@@ -1738,11 +1899,11 @@ sub _set_defaults {
     if ( $self->has_keys(%options) ) {
       $self->set_credentials(
         Amazon::Credentials->new(
-          { aws_secret_access_key => $options{'aws_secret_access_key'},
-            aws_access_key_id     => $options{'aws_access_key_id'},
-            token                 => $options{'token'},
+          { aws_secret_access_key => $options{aws_secret_access_key},
+            aws_access_key_id     => $options{aws_access_key_id},
+            token                 => $options{token},
             region                => $self->get_region,
-            no_passkey_warning    => $options{'no_passkey_warning'},
+            no_passkey_warning    => $options{no_passkey_warning},
           }
         )
       );
@@ -1750,9 +1911,9 @@ sub _set_defaults {
     else {
       $self->set_credentials(
         Amazon::Credentials->new(
-          order              => $options{'order'},
-          region             => $options{'region'},
-          no_passkey_warning => $options{'no_passkey_warning'},
+          order              => $options{order},
+          region             => $options{region},
+          no_passkey_warning => $options{no_passkey_warning},
         )
       );
 
@@ -1839,7 +2000,7 @@ sub _set_x_amz_target {
 
   $self->set_target($target);
 
-  $request->header( 'X-Amz-Target', $target );
+  $request->header( 'X-Amz-Target' => $target );
 
   return $request;
 }
@@ -1849,13 +2010,20 @@ sub _set_request_content {
 ########################################################################
   my ( $self, %args ) = @_;
 
-  my $request      = $args{'request'};
-  my $content      = $args{'content'};
-  my $content_type = $args{'content_type'} || $self->get_content_type;
+  my $request      = $args{request};
+  my $content      = $args{content};
+  my $content_type = $args{content_type} || $self->get_content_type;
 
-  DEBUG(
+  TRACE(
     sub {
-      return Dumper( [ '_set_request_content', $self->get_http_method, \%args ] );
+      return Dumper(
+        [ method       => $self->get_http_method,
+          args         => \%args,
+          request      => $request,
+          content      => $content,
+          content_type => $content_type
+        ]
+      );
     }
   );
 
@@ -1869,7 +2037,51 @@ sub _set_request_content {
     $request->uri( $request->uri . $QUESTION_MARK . $content );
   }
 
+  DEBUG( sub { return Dumper( [ request => $request ] ); } );
+
   return $request;
+}
+
+########################################################################
+# Convert a Perl data object to XML
+########################################################################
+sub _to_xml {
+########################################################################
+  my ( $doc, $parent, $key, $value ) = @_;
+
+  # Handle array references (multiple child elements)
+  if ( ref $value eq 'ARRAY' ) {
+    for my $item ( @{$value} ) {
+      _to_xml( $doc, $parent, $key, $item );
+    }
+  }
+  # Handle hash references (nested structures)
+  elsif ( ref $value eq 'HASH' ) {
+    my $element = $doc->createElement($key);
+
+    # Handle attributes (if _attr key exists)
+    if ( exists $value->{_attr} ) {
+      my $attrs = delete $value->{_attr};
+      for ( keys %{$attrs} ) {
+        $element->setAttribute( $_, $attrs->{$_} );
+      }
+    }
+
+    # Process nested elements
+    for my $subkey ( keys %{$value} ) {
+      _to_xml( $doc, $element, $subkey, $value->{$subkey} );
+    }
+
+    $parent->appendChild($element);
+  }
+  # Handle scalar values (text nodes)
+  else {
+    my $element = $doc->createElement($key);
+    $element->appendTextNode($value);
+    $parent->appendChild($element);
+  }
+
+  return;
 }
 
 1;
@@ -2173,8 +2385,8 @@ the truthiness and then test the presence of content.
 
 When an error is returned from an API request, an exception class
 (C<Amazon::API::Error>) will be raised if C<raise_error> has been set
-to a true value. Additionally, a detailed error message will be
-displayed if C<print_error> is set to true.
+to a true value (the default). If you set C<print_error> to true AND
+C<raise_error> is false, then errors will be printed to STDERR.
 
 See L<Amazon::API::Error> for more details.
 
@@ -2336,8 +2548,10 @@ Prevent passkey warning. This is an option to C<Amazon::Credentials>.
 
 =item print_error
 
-Setting this value to true enables a detailed error message containing
-the error code and any messages returned by the API when errors occur.
+Setting this value to a true value will print a detailed error message
+containing the error code and any messages returned by the API to
+STDERR when an error occurs. Errors will NOT be printed if
+C<raise_error> is also true.
 
 default: true
 
@@ -2350,7 +2564,7 @@ default: https
 
 =item raise_error
 
-Setting this value to true will raise an exception when errors
+Setting this value to a true value will raise an exception when errors
 occur. If you set this value to false you can inspect the C<error>
 attribute to determine the success or failure of the last method call.
 
@@ -2507,6 +2721,10 @@ service.
 
 You can also use the L</paginator> method to retrieve all results from Botocore requests that implement pagination.
 
+=head2 print_error
+
+Prints a formatted version of the last error encountered to STDERR.
+
 =head2 submit
 
  submit(options)
@@ -2542,6 +2760,16 @@ to send with the request.
 =back
 
 =head1 EXPORTED METHODS
+
+=head2 generate_xml
+
+ generate_xml(object)
+
+Generates XML from a Perl object (uses L<XML::LibXML>). This seems to
+do a much better job than XMLout() in allowing a mix of attributes and
+nested objects. With C<XMLout()> you need to choose between allowing
+attributes (which we need to add the namespace for certain requests)
+and nested elements (NoAttr => 1).
 
 =head2 get_api_service
 

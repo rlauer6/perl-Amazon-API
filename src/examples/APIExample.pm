@@ -7,7 +7,7 @@ use Carp;
 use English qw(-no_match_vars);
 use Data::Dumper;
 use JSON::PP;
-use ReadonlyX;
+use Readonly;
 
 our $VERSION = '0.02';
 

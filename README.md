@@ -265,8 +265,8 @@ the truthiness and then test the presence of content.
 
 When an error is returned from an API request, an exception class
 (`Amazon::API::Error`) will be raised if `raise_error` has been set
-to a true value. Additionally, a detailed error message will be
-displayed if `print_error` is set to true.
+to a true value (the default). If you set `print_error` to true AND
+`raise_error` is false, then errors will be printed to STDERR.
 
 See [Amazon::API::Error](https://metacpan.org/pod/Amazon%3A%3AAPI%3A%3AError) for more details.
 
@@ -421,8 +421,10 @@ key/values or hash reference.
 
 - print\_error
 
-    Setting this value to true enables a detailed error message containing
-    the error code and any messages returned by the API when errors occur.
+    Setting this value to a true value will print a detailed error message
+    containing the error code and any messages returned by the API to
+    STDERR when an error occurs. Errors will NOT be printed if
+    `raise_error` is also true.
 
     default: true
 
@@ -435,7 +437,7 @@ key/values or hash reference.
 
 - raise\_error
 
-    Setting this value to true will raise an exception when errors
+    Setting this value to a true value will raise an exception when errors
     occur. If you set this value to false you can inspect the `error`
     attribute to determine the success or failure of the last method call.
 
@@ -582,6 +584,10 @@ service.
 
 You can also use the ["paginator"](#paginator) method to retrieve all results from Botocore requests that implement pagination.
 
+## print\_error
+
+Prints a formatted version of the last error encountered to STDERR.
+
 ## submit
 
     submit(options)
@@ -613,6 +619,16 @@ not be called by your applications._
     to send with the request.
 
 # EXPORTED METHODS
+
+## generate\_xml
+
+    generate_xml(object)
+
+Generates XML from a Perl object (uses [XML::LibXML](https://metacpan.org/pod/XML%3A%3ALibXML)). This seems to
+do a much better job than XMLout() in allowing a mix of attributes and
+nested objects. With `XMLout()` you need to choose between allowing
+attributes (which we need to add the namespace for certain requests)
+and nested elements (NoAttr => 1).
 
 ## get\_api\_service
 
@@ -947,7 +963,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.1.1  of `Amazon::API`.
+This documentation refers to version 2.1.2  of `Amazon::API`.
 
 # DIAGNOSTICS
 

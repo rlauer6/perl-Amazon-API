@@ -47,7 +47,7 @@ use List::MoreUtils qw( first_index );
 use List::Util qw( max );
 use Pod::Usage;
 use Pod::Text;
-use ReadonlyX;
+use Readonly;
 use charnames qw(:full);
 
 # package constants
