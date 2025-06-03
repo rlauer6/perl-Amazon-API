@@ -155,6 +155,14 @@ overridden when invoking APIs if we guess wrong.
 
 =cut
 
+our %SERVICE_CONTENT_TYPES = (
+  ec2         => 'application/x-www-form-urlencoded',
+  query       => 'application/x-www-form-urlencoded',
+  'rest-json' => 'application/json',
+  json        => 'application/x-amz-json',
+  'rest-xml'  => 'application/xml',
+);
+
 our %API_TYPES = (
   query => [
     qw(
@@ -168,7 +176,6 @@ our %API_TYPES = (
       elasticbeanstalk
       elb
       elbv2
-      forecastquery
       iam
       importexport
       neptune
@@ -177,9 +184,7 @@ our %API_TYPES = (
       sdb
       ses
       sns
-      sqs
       sts
-      timestream-query
     )
   ],
   xml => [
@@ -190,59 +195,84 @@ our %API_TYPES = (
       s3control
     )
   ],
-
   json => [
     qw(
       accessanalyzer
       account
       acm
       acm-pca
-      alexaforbusiness
       amp
       amplify
+      amplifybackend
       amplifyuibuilder
       apigateway
+      apigatewaymanagementapi
+      apigatewayv2
       appconfig
       appconfigdata
+      appfabric
       appflow
       appintegrations
       application-autoscaling
-      applicationcostprofiler
       application-insights
+      application-signals
+      applicationcostprofiler
       appmesh
       apprunner
       appstream
       appsync
+      apptest
+      arc-zonal-shift
+      artifact
       athena
       auditmanager
       autoscaling-plans
+      b2bi
       backup
       backup-gateway
+      backupsearch
       batch
+      bcm-data-exports
+      bcm-pricing-calculator
+      bedrock
+      bedrock-agent
+      bedrock-agent-runtime
+      bedrock-data-automation
+      bedrock-data-automation-runtime
+      bedrock-runtime
+      billing
       billingconductor
       braket
       budgets
       ce
+      chatbot
       chime
       chime-sdk-identity
       chime-sdk-media-pipelines
       chime-sdk-meetings
       chime-sdk-messaging
+      chime-sdk-voice
+      cleanrooms
+      cleanroomsml
       cloud9
       cloudcontrol
       clouddirectory
+      cloudfront-keyvaluestore
       cloudhsm
       cloudhsmv2
       cloudsearchdomain
       cloudtrail
+      cloudtrail-data
       codeartifact
       codebuild
+      codecatalyst
       codecommit
+      codeconnections
       codedeploy
-      codeguruprofiler
       codeguru-reviewer
+      codeguru-security
+      codeguruprofiler
       codepipeline
-      codestar
       codestar-connections
       codestar-notifications
       cognito-identity
@@ -253,15 +283,23 @@ our %API_TYPES = (
       compute-optimizer
       config
       connect
-      connectcampaigns
       connect-contact-lens
+      connectcampaigns
+      connectcampaignsv2
+      connectcases
       connectparticipant
+      controlcatalog
+      controltower
+      cost-optimization-hub
       cur
       customer-profiles
       databrew
+      dataexchange
       datapipeline
       datasync
+      datazone
       dax
+      deadline
       detective
       devicefarm
       devops-guru
@@ -269,8 +307,11 @@ our %API_TYPES = (
       discovery
       dlm
       dms
+      docdb-elastic
       drs
       ds
+      ds-data
+      dsql
       dynamodb
       dynamodbstreams
       ebs
@@ -280,11 +321,12 @@ our %API_TYPES = (
       ecs
       efs
       eks
-      elastic-inference
+      eks-auth
       elastictranscoder
       emr
       emr-containers
       emr-serverless
+      entityresolution
       es
       events
       evidently
@@ -296,57 +338,71 @@ our %API_TYPES = (
       forecast
       forecastquery
       frauddetector
+      freetier
       fsx
       gamelift
-      gamesparks
+      gameliftstreams
+      geo-maps
+      geo-places
+      geo-routes
       glacier
       globalaccelerator
       glue
       grafana
+      greengrass
       greengrassv2
       groundstation
       guardduty
       health
       healthlake
-      honeycode
       identitystore
       imagebuilder
       inspector
+      inspector-scan
       inspector2
+      internetmonitor
+      invoicing
       iot
-      iot1click-projects
-      iotanalytics
       iot-data
+      iot-jobs-data
+      iot-managed-integrations
+      iotanalytics
       iotdeviceadvisor
       iotevents
       iotevents-data
       iotfleethub
-      iot-jobs-data
+      iotfleetwise
       iotsecuretunneling
       iotsitewise
       iotthingsgraph
       iottwinmaker
       iotwireless
       ivs
+      ivs-realtime
       ivschat
+      kafka
       kafkaconnect
       kendra
+      kendra-ranking
       keyspaces
       kinesis
-      kinesisanalytics
-      kinesisanalyticsv2
-      kinesisvideo
       kinesis-video-archived-media
       kinesis-video-media
       kinesis-video-signaling
+      kinesis-video-webrtc-storage
+      kinesisanalytics
+      kinesisanalyticsv2
+      kinesisvideo
       kms
       lakeformation
       lambda
+      launch-wizard
       lex-models
       lex-runtime
       lexv2-models
       lexv2-runtime
       license-manager
+      license-manager-linux-subscriptions
       license-manager-user-subscriptions
       lightsail
       location
@@ -356,41 +412,78 @@ our %API_TYPES = (
       lookoutvision
       m2
       machinelearning
-      macie
+      macie2
+      mailmanager
       managedblockchain
+      managedblockchain-query
+      marketplace-agreement
       marketplace-catalog
-      marketplacecommerceanalytics
+      marketplace-deployment
       marketplace-entitlement
+      marketplace-reporting
+      marketplacecommerceanalytics
+      mediaconnect
+      mediaconvert
+      medialive
+      mediapackage
+      mediapackage-vod
+      mediapackagev2
       mediastore
       mediastore-data
+      mediatailor
+      medical-imaging
       memorydb
       meteringmarketplace
       mgh
       mgn
-      migrationhub-config
       migration-hub-refactor-spaces
+      migrationhub-config
+      migrationhuborchestrator
       migrationhubstrategy
-      mobile
+      mq
       mturk
       mwaa
+      neptune-graph
+      neptunedata
       network-firewall
+      networkflowmonitor
       networkmanager
-      nimble
+      networkmonitor
+      notifications
+      notificationscontacts
+      oam
+      observabilityadmin
+      omics
       opensearch
+      opensearchserverless
       opsworks
       opsworkscm
       organizations
+      osis
       outposts
       panorama
+      partnercentral-selling
+      payment-cryptography
+      payment-cryptography-data
+      pca-connector-ad
+      pca-connector-scep
+      pcs
       personalize
       personalize-events
       personalize-runtime
       pi
+      pinpoint
       pinpoint-email
+      pinpoint-sms-voice
       pinpoint-sms-voice-v2
+      pipes
       polly
       pricing
+      privatenetworks
       proton
+      qapps
+      qbusiness
+      qconnect
       qldb
       qldb-session
       quicksight
@@ -400,62 +493,89 @@ our %API_TYPES = (
       redshift-data
       redshift-serverless
       rekognition
+      repostspace
       resiliencehub
+      resource-explorer-2
       resource-groups
       resourcegroupstaggingapi
       robomaker
       rolesanywhere
-      route53domains
       route53-recovery-cluster
+      route53-recovery-control-config
+      route53-recovery-readiness
+      route53domains
+      route53profiles
       route53resolver
       rum
       s3outposts
+      s3tables
       sagemaker
       sagemaker-a2i-runtime
       sagemaker-edge
       sagemaker-featurestore-runtime
+      sagemaker-geospatial
+      sagemaker-metrics
       sagemaker-runtime
       savingsplans
+      scheduler
+      schemas
       secretsmanager
+      security-ir
       securityhub
+      securitylake
+      serverlessrepo
+      service-quotas
       servicecatalog
       servicecatalog-appregistry
       servicediscovery
-      service-quotas
       sesv2
       shield
       signer
+      simspaceweaver
       sms
-      snowball
+      sms-voice
       snow-device-management
+      snowball
+      socialmessaging
+      sqs
       ssm
       ssm-contacts
       ssm-incidents
+      ssm-quicksetup
+      ssm-sap
       sso
       sso-admin
       sso-oidc
       stepfunctions
       storagegateway
+      supplychain
       support
+      support-app
       swf
       synthetics
+      taxsettings
       textract
+      timestream-influxdb
       timestream-query
       timestream-write
+      tnb
       transcribe
       transfer
       translate
+      trustedadvisor
+      verifiedpermissions
       voice-id
+      vpc-lattice
       waf
       waf-regional
       wafv2
       wellarchitected
       wisdom
       workdocs
-      worklink
       workmail
       workmailmessageflow
       workspaces
+      workspaces-thin-client
       workspaces-web
       xray
     )
@@ -483,7 +603,8 @@ sub new {
 
   my %options = ref $options[0] ? %{ $options[0] } : @options;
 
-  $options{log_level} //= 'error';
+  my $log_level = delete $options{log_level};
+  $log_level //= 'error';
 
   my $self = $class->SUPER::new( \%options );
 
@@ -494,11 +615,11 @@ sub new {
   croak 'service is required'
     if !$self->get_service;
 
-  $self->_set_default_logger( $options{log_level} );
+  $self->_set_default_logger($log_level);
 
   $self->_set_defaults(%options);
 
-  $self->init_log_level;
+  $self->init_log_level( log_level => $log_level, debug => $options{debug} );
 
   $self->_create_methods;
 
@@ -598,10 +719,24 @@ sub decode_response {
         decode_json($content);
       }
       elsif ( $content_type =~ /xml/xmsi ) {
-        # maddening interpretation of XML output from these ass hats (-:|3
+        ################################################################
+        # Maddening interpretation of XML output from these ass hats (-:|3
+        #
+        # A little more explanation: some rest-xml and ec2 protocol
+        # API responses have wrapper elements that are not part of the
+        # shape description...some do. It probably would have been
+        # best not to try to serialize this XML object here, but
+        # rather downstream when trying to create shapes from
+        # it. However, the serializer now tries to figure out whether
+        # to disgard the wrapper or keep it. The botocore metadata
+        # could have offered some clues, however I believe the
+        # serializers in Botocore have been tuned to specific APIs in
+        # some cases making it difficult to fix legacy mistakes in
+        # these APIs.
+        ################################################################
         XMLin(
           $content,
-          # $protocol eq 'ec2' ? $FALSE : $TRUE,
+          KeepRoot      => $TRUE,
           SuppressEmpty => $FALSE,
           ForceContent  => $self->is_botocore_api && $botocore_action->{output},
           ForceArray    => ['item'],
@@ -610,8 +745,13 @@ sub decode_response {
       }
     };
 
-    # disregard content_type (it might be misleading)
+    # disregard content_type (it might be misleading?)
+    # this is almost certainly going to be a problem somewhere...
     if ( !$decoded_content || $EVAL_ERROR ) {
+
+      WARN("unable to decode content: $EVAL_ERROR");
+      WARN('Trying again using JSON and XML decoders.');
+
       $decoded_content = eval { return decode_json($content); };
 
       if ( !$decoded_content || $EVAL_ERROR ) {
@@ -800,19 +940,30 @@ sub create_botocore_request {
 # the API type (rest-json, rest-xml).
 
 ########################################################################
+sub find_content_type {
+########################################################################
+  my ($self) = @_;
+  my $protocol = $self->get_botocore_metadata->{protocol};
+
+  my $content_type = $SERVICE_CONTENT_TYPES{$protocol};
+
+  if ( $protocol eq 'json' ) {
+    $content_type = sprintf '%s-%s', $content_type, $self->get_botocore_metadata->{jsonVersion};
+  }
+  return $content_type;
+}
+
+########################################################################
 sub init_botocore_request {
 ########################################################################
   my ( $self, $request ) = @_;
 
-  my $json_version = $self->get_botocore_metadata->{'jsonVersion'} // '1.0';
+  my $metadata = $self->get_botocore_metadata;
 
-  my %content_types = (
-    ec2         => 'application/x-www-form-urlencoded',
-    query       => 'application/x-www-form-urlencoded',
-    'rest-json' => 'application/json',
-    json        => 'application/x-amz-json-' . $json_version,
-    'rest-xml'  => 'application/xml',
-  );
+  my $protocol = $metadata->{protocol};
+
+  my $content_type = $self->find_content_type() // $EMPTY;
+  $self->set_content_type($content_type);
 
   $request //= {};
 
@@ -820,18 +971,24 @@ sub init_botocore_request {
 
   my $botocore_operations = $self->get_botocore_operations->{$action};
 
+  my $http = $botocore_operations->{http};
+
+  my $method = $http->{method};
+
   TRACE(
     sub {
       return Dumper(
-        [ botocore_operations => $botocore_operations,
-          request             => $request,
-          botocore_metadata   => $self->get_botocore_metadata
+        [ request             => $request,
+          protocol            => $protocol,
+          action              => $action,
+          method              => $method,
+          content_type        => $content_type,
+          botocore_metadata   => $metadata,
+          botocore_operations => $botocore_operations,
         ]
       );
     }
   );
-
-  my $protocol = $self->get_botocore_metadata->{protocol};
 
   my $input = $botocore_operations->{input};
 
@@ -863,10 +1020,6 @@ sub init_botocore_request {
   # some XML requests require an xmlns attribute
   $self->find_namespace( $request, $input );
 
-  my $http = $botocore_operations->{http};
-
-  my $method = $http->{method};
-
   my %parameters;
 
   # is the request a Botocore::Shape object? if so we can use metadata
@@ -896,20 +1049,13 @@ sub init_botocore_request {
       $finalized_request = [ param_n($finalized_request) ];
 
       $self->set_http_method($method);
-      $self->set_content_type( $content_types{$protocol} );
 
       return $finalized_request;
     }
 
     DEBUG(
       sub {
-        return Dumper(
-          [ finalized_request => $finalized_request,
-            protocol          => $protocol,
-            method            => $method,
-            'content-type'    => $self->get_content_type,
-          ]
-        );
+        return Dumper( [ finalized_request => $finalized_request, ] );
       }
     );
 
@@ -919,14 +1065,13 @@ sub init_botocore_request {
   }
 
   $self->set_http_method($method);
-  $self->set_content_type( $content_types{$protocol} );
 
   my $uri;
 
   if ( $protocol =~ /^rest\-(json|xml)/xsm ) {
-    my @args = @{ $http->{'parsed_request_uri'}->{parameters} };
+    my @args = @{ $http->{parsed_request_uri}->{parameters} };
 
-    my $request_uri_tpl = $http->{'parsed_request_uri'}->{'request_uri_tpl'};
+    my $request_uri_tpl = $http->{parsed_request_uri}->{request_uri_tpl};
 
     DEBUG(
       sub {
@@ -1040,8 +1185,6 @@ sub init_botocore_request {
 
   my $content = \%parameters;
 
-  my $content_type = $self->get_content_type // $EMPTY;
-
   if ( $method ne 'POST' && !keys %parameters ) {
     $content = undef;
   }
@@ -1062,7 +1205,7 @@ sub init_botocore_request {
 
 ########################################################################
 # namespaces may be buried a bit in the members specfication of
-# request objects or can be part of the specfication for the request
+# request objects or can be part of the specification for the request
 # method itself (cloudfront.CreateInvalidationBatch)
 ########################################################################
 sub find_namespace {
@@ -1269,7 +1412,9 @@ sub invoke_api {
 
   PAGINATE:
 
-  DEBUG( sub { return Dumper( [ 'page', ++$page_count ] ) } );
+  ++$page_count;
+
+  DEBUG( sub { return Dumper( [ page => $page_count ] ) } );
 
   my $rsp = $self->submit(
     content      => $serialized_content,
@@ -1366,7 +1511,7 @@ sub invoke_api {
 
       my $parameters = $self->init_botocore_request(
         { $limit ? ( $paginator->{limit_key} => $limit ) : (),
-          $paginator->{input_token} => $result->{ $paginator->{output_token} }
+          $paginator->{input_token} => dig( $result, $paginator, 'output_token' ),
         }
       );
 
@@ -3095,8 +3240,9 @@ headers.  Some of the variations include:
 
 Accordingly, the C<invoke_api()> method can be passed the
 C<Content-Type> or will try to make its I<best guess> based on the
-service protocol. There is a hash of service names and service types
-that this module uses to determine the content type required by the
+service protocol or the type of object being passed as
+parameters. There is a hash of service names and service types that
+this module uses to determine the content type required by the
 service. If services are added that hash needs to be updated.
 
 You can also set the default content type used for the calling service
@@ -3338,12 +3484,13 @@ helpful in understanding how requests and responses are serialized.
 =item * The serialization of Amazon::API::Botocore::Shape isn't working
 
 Serialization output for every class for every API has not been fully
-(yet) tested. You may find that some API methods return C<Bad Request>
-or do not serialize the results (or more likely requests) in the
-manner expected. Requests are serialized based I<solely> on the
-metadata found in the Botocore project. There lie the clues for each
-API (protocol, end points, etc) and the models (shapes) for requests
-and response elements.
+tested and my never be given the breadth of objects and services. You
+may find that some API methods return C<Bad Request> or do not
+serialize the results (or more likely requests) in the manner
+expected. Requests are serialized based I<solely> on the metadata
+found in the Botocore project. There lie the clues for each API
+(protocol, end points, etc) and the models (shapes) for requests and
+response elements.
 
 Some requests require a query string, some an XML or JSON payload. The
 Botocore based API classes use the metadata to determine how to send a
@@ -3414,7 +3561,8 @@ results. The Python Botocore signature looks like this:
 
 That signature provides a convenient way to pass the required
 parameters to the API. However, when actually passed to the API the
-payload is serialized into a query string parameter that might look something like:
+payload is serialized into a query string parameter that might look
+something like:
 
  Filter.1.Name=group-name&Filter.1.Value.1=some-value&Action=DescribeSecurityGroups&Version=2016-11-15
 

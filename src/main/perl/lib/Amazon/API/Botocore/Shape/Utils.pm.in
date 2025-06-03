@@ -184,27 +184,44 @@ sub flatten {
 
   my ( $name, $list ) = @args;
 
-  if ( ref $name ) {
-    ( $name, $list ) = %{$name};
+  # flattening an array implies creating a hash from an array of
+  # hashes?
+  if ( ref $list && reftype($list) eq 'ARRAY' ) {
+    my $map = {};
+
+    foreach my $p ( @{$list} ) {
+      my ( $k, $v ) = %{$p};
+      $map->{$k} = $v;
+    }
+
+    return $map;
   }
 
-  my $idx = 0;
-
-  my @items = @{$list};
+  # already flattened?
+  if ( ref $name && ref $name eq 'ARRAY' ) {
+    return $name;
+  }
+  elsif ( ref $name ) {
+    ( $name, $list ) = %{$name};
+  }
+  elsif ( !ref $list || reftype($list) ne 'ARRAY' ) {
+    die sprintf "I don't know how to serialize %\n", Dumper( \@args );
+  }
 
   my @output;
 
-  foreach my $elem (@items) {
-    ++$idx;
+  my $idx = 1;
+
+  foreach my $elem ( @{$list} ) {
 
     if ( ref $elem && reftype($elem) eq 'HASH' ) {
       my @kv = %{$elem};
 
       foreach my $p ( pairs @kv ) {
+        my ( $key, $value ) = @{$p};
+        $key = sprintf '%s.%d.%s', $name, $idx, $key;
 
-        my $key = sprintf '%s.%d.%s', $name, $idx, $p->[0];
-
-        push @output, { $key => $p->[1] };
+        push @output, { $key => $value };
       }
     }
     else {
@@ -212,6 +229,8 @@ sub flatten {
 
       push @output, { $key => $elem };
     }
+
+    $idx++;
   }
 
   return \@output;
@@ -220,7 +239,7 @@ sub flatten {
 ########################################################################
 # param_n() is a rather naive attempt to implement a way to create the
 # "param n" notation used by some Amazon APIs (most notably APIs using
-# a "map" shape and expecting a query string - e.g. SQS)
+# a "map" shape and expecting a query string - e.g. SQS?)
 #
 # Note that param_n() and flatten() are related but produce different
 # output and accept slightly different input. Whereas param_n() can be
@@ -282,20 +301,20 @@ sub param_n {
       foreach my $k ( keys %{$message} ) {
         push @param_n, param_n( $message->{$k}, $prefix ? "$prefix.$k" : $k, $idx );
       }
-    } ## end if ( reftype($message)...)
+    }
     else {
       $idx = 1;
       foreach my $e ( @{$message} ) {
         push @param_n, param_n( $e, $prefix ? "$prefix.$idx" : $EMPTY, $idx++ );
       }
-    } ## end else [ if ( reftype($message)...)]
-  } ## end if ( ref $message )
+    }
+  }
   else {
-    croak 'missing value'
+    return @param_n
       if !defined $message || $message eq $EMPTY;
 
     return "$prefix=$message";
-  } ## end else [ if ( ref $message ) ]
+  }
 
   return @param_n;
 } ## end sub param_n

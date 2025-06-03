@@ -31,7 +31,7 @@ use Carp;
 use Data::Dumper;
 use English qw(-no_match_vars);
 use JSON qw(decode_json encode_json);
-use Scalar::Util qw(reftype);
+use Scalar::Util qw(reftype blessed);
 use List::Util qw(any none);
 use POSIX qw(strftime);
 
@@ -62,16 +62,17 @@ sub _serialize_structure {
 
   $service ||= $self->get_service;
 
-  TRACE(
+  my $members = $this->get_members;
+
+  DEBUG(
     Dumper [
       class               => ref $this,
       serialize_structure => $this,
       data                => $data,
       exists              => $exists,
+      members             => $members,
     ]
   );
-
-  my $members = $this->get_members;
 
   return if !defined $data;
 
@@ -79,8 +80,10 @@ sub _serialize_structure {
   my $result = $exists ? {} : undef;
 
   foreach my $m ( keys %{$members} ) {
-    my $member        = $members->{$m};
+    my $member = $members->{$m};
+
     my $location_name = $member->{locationName} || $member->{location} || $m;
+    next if !exists $data->{$location_name};
 
     my $has_location
       = ( exists $member->{locationName} ) || ( exists $member->{location} );
@@ -119,7 +122,8 @@ sub _serialize_structure {
       }
     );
 
-    # because we may have serialized an XML object...
+    # because we may have serialized an XML object...this is a result
+    # of how XMLin deserializes XML objects
     if ( $member_data && ref($member_data) && $shape eq 'String' ) {
       $member_data = $member_data->{content} // $EMPTY;
     }
@@ -169,25 +173,18 @@ sub _serialize_structure {
     # skip empty members
     next if ( !exists $data->{$location_name} ) && !defined $serialized_data;
 
-    if ( 1 || $this->{type} ne 'structure' || !$has_location ) {
-
-      $result //= {};
-      if ( $this->{flattened} ) {
-        $result->{$m} = $serialized_data;
-      }
-      else {
-        if ( is_hash($serialized_data)
-          && exists $serialized_data->{$location_name} ) {
-          $result->{$m} = $serialized_data->{$location_name};
-        }
-        else {
-          $result->{$m} = $serialized_data;
-        }
-      }
+    $result //= {};
+    if ( $this->{flattened} ) {
+      $result->{$m} = $serialized_data;
     }
     else {
-      DEBUG('returning serialized_data');
-      $result = $serialized_data;
+      if ( is_hash($serialized_data)
+        && exists $serialized_data->{$location_name} ) {
+        $result->{$m} = $serialized_data->{$location_name};
+      }
+      else {
+        $result->{$m} = $serialized_data;
+      }
     }
 
     DEBUG(
@@ -249,28 +246,36 @@ sub _serialize_list {
 
     my @key_values;
 
-    DEBUG( Dumper( [ 'pre-pre-marker', $list ] ) );
+    if ( $this->{flattened} ) {
+      DEBUG(
+        Dumper(
+          [ list      => $list,
+            flattened => $this->{flattened}
+          ]
+        )
+      );
 
-    if (0) {
-      foreach my $key ( keys %{$list} ) {
-        push @key_values, { $key => $list->{$key} };
-        next;
+      my @flattened_list;
 
-        DEBUG( Dumper( [ 'pre-marker', $key ] ) );
-
-        if ( ref $list->{$key} && exists $list->{$key}->{value} ) {
-          push @key_values,
-            {
-            value => $list->{$key}->{value},
-            key   => $key
-            };
-        }
-        else {
-          push @key_values, { $key => $list->{$key} };
+      foreach ( keys %{$list} ) {
+        if ( reftype( $list->{$_} ) eq 'ARRAY' ) {
+          push @flattened_list, @{ $list->{$_} };
         }
       }
+
+      $list = @flattened_list ? \@flattened_list : [ values %{$list} ];
     }
     else {
+      TRACE(
+        Dumper(
+          [ message => 'unreliable deserialization?',
+            this    => $this,
+            list    => $list,
+            data    => $data,
+          ]
+        )
+      );
+
       $list = [$list];
     }
 
@@ -280,7 +285,7 @@ sub _serialize_list {
 
     foreach my $p ( @{$list} ) {
 
-      DEBUG( Dumper( [ 'post-marker', $p, $member_shape ] ) );
+      DEBUG( Dumper( [ p => $p, member_shape => $member_shape ] ) );
 
       my $serialized_data = $self->serialize(
         shape   => $member_shape,
@@ -361,6 +366,51 @@ sub serialize {
     }
   );
 
+  # this is a hack to deal with the way XML responses are ambiguously
+  # returned by rest-xml services and ec2 APIs...sometimes there is a
+  # response wrapper that is never articulated in the Botocore
+  # metadata...sometimes it is the name of the top-level shape.
+  #
+  # "$exists" tells us the shape was not found, but it may now be in the
+  # data structure if this was a deserialized XML payload and the shape
+  # name was the wrapper.
+  #
+  # We really only want to do this on the top level element but we'll
+  # see if this works consistently when serializing all elements below
+  # the root.
+  #
+  # I hate you botocore!!!!
+  #
+  if ( !$exists ) {
+    # if the shape name exists in the data, then that is our data to
+    # serialize.
+    if ( ref $data && exists $data->{$shape} ) {
+      $data = $data->{$shape};
+    }
+    # else this may be ec2 with a response wrapper
+    elsif ( ref $data && reftype($data) eq 'HASH' ) {
+      my ($response_wrapper) = grep {/response$/ixsm}
+        keys %{$data};
+
+      DEBUG( Dumper( [ response_wrapper => $response_wrapper ] ) );
+
+      if ($response_wrapper) {
+        DEBUG(
+          Dumper(
+            [ response_wrapper => $response_wrapper,
+              data             => $data,
+              shape            => $shape
+            ]
+          )
+        );
+        $data = $data->{$response_wrapper};
+        if ( exists $data->{$shape} ) {
+          $data = $data->{$shape};
+        }
+      }
+    }
+  }
+
   my $class = require_shape( $shape, $service );
 
   croak "unable to require class for $shape: $EVAL_ERROR\n"
@@ -406,7 +456,12 @@ sub serialize {
     },
 
     boolean => sub {
-      $data = ref $data ? $data->{content} : $data;
+
+      if ( ref $data ) {
+        if ( !blessed $data) {
+          $data = $data->{content};
+        }
+      }
 
       return
         if !defined $data;
@@ -460,27 +515,65 @@ sub serialize {
 
       $data ||= [];
 
+      if ( !$key_location_name && !$value_location_name ) {
+        DEBUG(
+          Dumper(
+            [ value_shape_name => $value_shape_name,
+              data             => $data,
+              this             => $this
+            ]
+          )
+        );
+
+        # we might have to serialize this data too, however since it
+        # is specified as a structure as a map and we have not
+        # information regarding how to actual map it...we return the
+        # data itself.
+        return $data;
+      }
+
       if ( ref $data && reftype($data) ne 'ARRAY' ) {
         $data = [$data];
       }
 
       foreach my $item ( @{$data} ) {
-
-        my $key = $self->serialize(
-          service => $service,
-          data    => $item->{$key_location_name}->{content},
-          shape   => $key_shape_name,
-
+        DEBUG(
+          sub {
+            return Dumper( [ item => $item ] );
+          }
         );
 
-        my $value = $self->serialize(
-          service => $service,
-          data    => $item->{$value_location_name}->{content},
-          shape   => $value_shape_name,
-        );
+        my ( $key, $value );
 
-        if ( defined $value ) {
+        if ( $key_location_name || $key_shape_name ) {
+          $key = $self->serialize(
+            service => $service,
+            data    => $key_location_name ? $item->{$key_location_name}->{content} : $item,
+            shape   => $key_shape_name,
+
+          );
+        }
+
+        if ( $value_location_name || $value_shape_name ) {
+
+          $value = $self->serialize(
+            service => $service,
+            data    => $value_location_name ? $item->{$value_location_name}->{content} : $item,
+            shape   => $value_shape_name,
+          );
+        }
+
+        # This is almost certainly an unnecessary test as we have
+        # handled the situation where location names are not provided
+        # above by using the hash keys of the payload as the keys
+        # themselves. This occurs in an API like SQS where the
+        # attribute names become the keys but are not specifically
+        # called out in the shape.
+        if ( $key && defined $value ) {
           $serialize->{$key} = $value;
+        }
+        else {
+          return $value;
         }
       }
 
@@ -523,43 +616,24 @@ sub serialize {
     },
   );
 
+  DEBUG(
+    sub {
+      return Dumper(
+        [ unknown_type => $type,
+          this         => $this,
+          data         => $data,
+          exists       => $exists
+        ]
+      );
+    }
+  );
+
   my $result;
 
   if ( $serializers{$type} ) {
-    DEBUG(
-      sub {
-        return Dumper(
-          [ type   => $type,
-            data   => $data,
-            exists => $exists
-          ]
-        );
-      }
-    );
-
     $result = $serializers{$type}->($exists);
-
-    #    return
-    #      if ref $result && reftype($result) eq 'HASH' && !%{$result};
-    #
-    #    return
-    #      if ref $result && reftype($result) eq 'ARRAY' && !@{$result};
-
-    DEBUG( sub { return Dumper( [ 'result', $result ] ) } );
   }
   else {
-    DEBUG(
-      sub {
-        return Dumper(
-          [ unknown_type => $type,
-            this         => $this,
-            data         => $data,
-            exists       => $exists
-          ]
-        );
-      }
-    );
-
     $result = $self->serialize(
       shape   => $this->{shape},
       data    => $data,
@@ -567,6 +641,8 @@ sub serialize {
       exists  => $exists,
     );
   }
+
+  DEBUG( sub { return Dumper( [ result => $result ] ) } );
 
   return $result;
 }

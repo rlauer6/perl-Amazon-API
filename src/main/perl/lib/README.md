@@ -922,8 +922,9 @@ headers.  Some of the variations include:
 
 Accordingly, the `invoke_api()` method can be passed the
 `Content-Type` or will try to make its _best guess_ based on the
-service protocol. There is a hash of service names and service types
-that this module uses to determine the content type required by the
+service protocol or the type of object being passed as
+parameters. There is a hash of service names and service types that
+this module uses to determine the content type required by the
 service. If services are added that hash needs to be updated.
 
 You can also set the default content type used for the calling service
@@ -963,7 +964,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.1.2  of `Amazon::API`.
+This documentation refers to version 2.1.3  of `Amazon::API`.
 
 # DIAGNOSTICS
 
@@ -1154,12 +1155,13 @@ your call may have failed include:
 - The serialization of Amazon::API::Botocore::Shape isn't working
 
     Serialization output for every class for every API has not been fully
-    (yet) tested. You may find that some API methods return `Bad Request`
-    or do not serialize the results (or more likely requests) in the
-    manner expected. Requests are serialized based _solely_ on the
-    metadata found in the Botocore project. There lie the clues for each
-    API (protocol, end points, etc) and the models (shapes) for requests
-    and response elements.
+    tested and my never be given the breadth of objects and services. You
+    may find that some API methods return `Bad Request` or do not
+    serialize the results (or more likely requests) in the manner
+    expected. Requests are serialized based _solely_ on the metadata
+    found in the Botocore project. There lie the clues for each API
+    (protocol, end points, etc) and the models (shapes) for requests and
+    response elements.
 
     Some requests require a query string, some an XML or JSON payload. The
     Botocore based API classes use the metadata to determine how to send a
@@ -1228,7 +1230,8 @@ your call may have failed include:
 
         That signature provides a convenient way to pass the required
         parameters to the API. However, when actually passed to the API the
-        payload is serialized into a query string parameter that might look something like:
+        payload is serialized into a query string parameter that might look
+        something like:
 
             Filter.1.Name=group-name&Filter.1.Value.1=some-value&Action=DescribeSecurityGroups&Version=2016-11-15
 

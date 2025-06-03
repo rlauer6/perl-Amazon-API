@@ -4,21 +4,19 @@ use strict;
 use warnings;
 
 use Data::Dumper;
-use Amazon::API qw( param_n);
-use APIExample  qw(dump_json);
+use Amazon::API qw( param_n );
+use APIExample qw( dump_json );
 
-use parent qw( APIExample Amazon::API::EC2);
+use parent qw( APIExample Amazon::API::EC2 );
 
 BEGIN {
   our $VERSION = $Amazon::API::EC2::VERSION;
 }
 
 our $DESCRIPTIONS = {
-  DescribeInstances =>
-    'Executes the EC2 API "DescribeInstances": run DescribeInstances',
-  DescribeVpcs    => 'Executes the EC2 API "DescribeVpcs": run DescribeVpcs',
-  DescribeSubnets =>
-    'Executes the EC2 API "DescribeSubnets": run DescribeSubnets [vpc-id]',
+  DescribeInstances      => 'Executes the EC2 API "DescribeInstances": run DescribeInstances',
+  DescribeVpcs           => 'Executes the EC2 API "DescribeVpcs": run DescribeVpcs',
+  DescribeSubnets        => 'Executes the EC2 API "DescribeSubnets": run DescribeSubnets [vpc-id]',
   DescribeSecurityGroups =>
     'Executes the EC2 API "DescribeSecurityGroups": run DescribeSecurityGroups [group-name]',
 };
@@ -32,8 +30,18 @@ sub _DescribeSecurityGroups {
 
   my $ec2 = $package->service($options);
 
-  my $security_groups
-    = $ec2->DescribeSecurityGroups( get_filter( 'group-name', @args ) );
+  my $filter = [ get_filter( 'group-name', @args ) ];
+
+  # Both of these will return the same result...thank god.
+  #my $security_groups = $ec2->DescribeSecurityGroups( get_filter( 'group-name', @args ) );
+  my $security_groups = $ec2->DescribeSecurityGroups(
+    { Filters => [
+        { Name   => 'group-name',
+          Values => ['launch-wizard-1'],
+        }
+      ],
+    }
+  );
 
   return print {*STDOUT} Dumper($security_groups);
 }
@@ -73,15 +81,16 @@ sub _DescribeSubnets {
 
   $ec2->set_action('DescribeSubnets');
 
-  #  my $subnets = $ec2->DescribeSubnets( get_filter( 'vpc-id', @args ) );
-  my $subnets = $ec2->DescribeSubnets(
-    { Filters => [
-        { 'Name'   => 'vpc-id',
-          'Values' => [ $args[0] ]
-        },
-      ],
-    }
-  );
+  #my $subnets = $ec2->DescribeSubnets( get_filter( 'vpc-id', @args ) );
+  my $filter = {
+    Filters => [
+      { 'Name'   => 'vpc-id',
+        'Values' => [ $args[0] ]
+      },
+    ],
+  };
+
+  my $subnets = $ec2->DescribeSubnets( $args[0] ? $filter : () );
 
   return print {*STDOUT} dump_json($subnets);
 }

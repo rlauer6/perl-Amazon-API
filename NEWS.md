@@ -6,6 +6,25 @@ as well as a running list of changes from previous versions.  If
 critical bugs are found in any of the software, notice of such bugs
 and the versions in which they were fixed will be noted here, as well.
 
+# perl-Amazon-API 2.1.3 (2025-06-03)
+
+_Version 2.1.3 fixes several seriaalization issues._
+
+## Fixes
+
+* fix paginators that use a compound key. Some paginators need to use
+  a compound key to find the paged result set in the returned results
+  element. The previous fix was incomplete since out_token can also be
+  a compound key.
+* Serializer is more stable on older XML APIs that use a wrapper
+  object that is not necessarily describe in the botocore metadata
+* updated examples and added a --log-level options to enable debugging
+* use JSON, not JSON:PP in places
+
+## Enhancements
+
+* clean-up overly verbose debug/trace messages...but this is a wip
+
 # perl-Amazon-API 2.1.2 (2025-02-12)
 
 _Version 2.1.2 is a minor update to which fixes a couple of bugs._

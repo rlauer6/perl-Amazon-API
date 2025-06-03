@@ -1,15 +1,17 @@
 package APIExample;
 
+# wrapper for examples
+
 use strict;
 use warnings;
 
 use Carp;
 use English qw(-no_match_vars);
 use Data::Dumper;
-use JSON::PP;
+use JSON;
 use Readonly;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 Readonly::Scalar our $TRUE  => 1;
 Readonly::Scalar our $FALSE => 0;
@@ -74,7 +76,7 @@ sub dump_json {
 ########################################################################
   my ($obj) = @_;
 
-  return JSON::PP->new->pretty->encode($obj);
+  return JSON->new->pretty->encode($obj);
 }
 
 ########################################################################
@@ -91,7 +93,7 @@ sub version {
 ########################################################################
   my ($package) = @_;
 
-  return eval "\$${package}::VERSION"; ## no critic (ProhibitStringyEval)
+  return eval "\$${package}::VERSION";  ## no critic (ProhibitStringyEval)
 }
 
 ########################################################################
@@ -130,8 +132,7 @@ See below
 HELP
 
   foreach my $example ( keys %{$descriptions} ) {
-    print {*STDOUT} sprintf "%s : %s => %s\n", $package, $example,
-      $descriptions->{$example};
+    print {*STDOUT} sprintf "%s : %s => %s\n", $package, $example, $descriptions->{$example};
   }
 
   exit;
@@ -144,7 +145,7 @@ sub create_api {
 ########################################################################
   my ( $package, $options ) = @_;
 
-  return $package->new( { url => $options->{'endpoint-url'} } );
+  return $package->new( { log_level => $options->{'log-level'}, url => $options->{'endpoint-url'} } );
 }
 
 ########################################################################
@@ -154,10 +155,12 @@ sub get_options {
 
   use Getopt::Long qw(:config no_ignore_case);
 
-  my %options      = ( pager => 1 );
+  my %options = ( pager => 1, 'log-level' => 'info', );
+
   my @option_specs = qw(
     help|h
     pager|p!
+    log-level|l=s
     endpoint-url|u=s
     version
   );
@@ -189,6 +192,15 @@ sub run {
 
   croak 'no such command ' . $example
     if !$descriptions->{$example} || !$package->can($func);
+
+  if ( $options->{'log-level'} eq 'trace' ) {
+    print {*STDERR} Dumper(
+      [ package => $package,
+        options => $options,
+        args    => \@args
+      ]
+    );
+  }
 
   return $package->can($func)->( $package, $options, @args );
 }

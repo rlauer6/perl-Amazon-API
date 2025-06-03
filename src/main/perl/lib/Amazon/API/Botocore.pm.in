@@ -766,7 +766,7 @@ In order to create stubs or shapes you must clone the Botocore project
 and provide the path to the project using the -b option or by setting
 the environment variable BOTOCORE_PATH.
 
-  git clone https:/github.com/boto/botocore.git /tmp/botocore
+  git clone https://github.com/boto/botocore.git /tmp/botocore
   export BOTOCORE_PATH=/tmp/botocore
 
 END_OF_CROAKING
