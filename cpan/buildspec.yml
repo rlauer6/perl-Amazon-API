@@ -6,8 +6,8 @@ project:
 pm_module: Amazon::API
 min-perl-version: 5.010
 dependencies:
-  test_requires: test-requires
-  requires: requires
+  test_requires: cpan/test-requires
+  requires: cpan/requires
 path:
   pm_module: src/main/perl/lib
   tests: src/main/perl/t

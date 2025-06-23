@@ -1,3 +1,17 @@
+Mon Jun 23 06:15:12 2025  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.1.4]:
+	* VERSION: bump
+	* README.md: generated
+	* cpan/buildspec.yml: cpan/test_requires, cpan/requires
+	* src/main/perl/lib/Amazon/API.pm.in
+	(get_valid_token):
+	- return if no token
+	- $credentials->can('refresh_token'), not $self
+	* src/main/perl/lib/Amazon/API/Signature4.pm.in
+	(parse_service_url)
+	- set default region when endpoint is not amazon
+
 Tue Feb 25 08:40:57 2025  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.1.3]:

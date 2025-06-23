@@ -1650,10 +1650,13 @@ sub get_valid_token {
 
   my $credentials = $self->get_credentials;
 
+  return
+    if !$credentials->get_token;
+
   if ( $credentials->can('is_token_expired') ) {
     if ( $credentials->is_token_expired ) {
 
-      if ( !$self->can('refresh_token') || !$credentials->refresh_token ) {
+      if ( !$credentials->can('refresh_token') || !$credentials->refresh_token ) {
         croak 'token expired';
       }
     }
