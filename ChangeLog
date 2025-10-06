@@ -1,3 +1,14 @@
+Mon Oct  6 17:06:12 2025  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.1.5]:
+	* README.md: generated
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API.pm.in: pod tweaks
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(serialize)
+	- check defined not truthiness since value might be "" or 0
+	* src/main/perl/lib/README.md: generated
+
 Mon Jun 23 06:15:12 2025  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.1.4]:

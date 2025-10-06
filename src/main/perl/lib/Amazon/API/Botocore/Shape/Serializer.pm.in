@@ -445,12 +445,12 @@ sub serialize {
 
     string => sub {
 
-      if ($data) {
-        $data = ref $data ? $data->{content} : $data;
+      if ( defined $data ) {
+        $data = ref $data && defined $data->{content} ? $data->{content} : $data;
       }
 
       return $data
-        if $data;
+        if defined $data;
 
       return $exists ? $EMPTY : $data;
     },
@@ -458,7 +458,7 @@ sub serialize {
     boolean => sub {
 
       if ( ref $data ) {
-        if ( !blessed $data) {
+        if ( !blessed $data ) {
           $data = $data->{content};
         }
       }

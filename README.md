@@ -964,7 +964,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.1.3  of `Amazon::API`.
+This documentation refers to version 2.1.5  of `Amazon::API`.
 
 # DIAGNOSTICS
 
@@ -977,7 +977,9 @@ true value to enable diagnostics.
 By default [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) uses [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl)'s stealth loggers to
 log at the DEBUG and TRACE levels. Setting the environment variable
 DEBUG to some value or passing a true value for `debug` in the
-constructor will trigger verbose logging.
+constructor will trigger extremely verbose logging. This is to help
+debug edge cases especially around serialiazation which is
+particularly prone to exceptions and API specific scenarios.
 
 If you pass a logger to the constructor, `Amazon::API` will attempt
 to use that if it has the appropriate logging level methods (error,
@@ -985,12 +987,15 @@ warn, info, debug, trace). If [Log::Log4perl](https://metacpan.org/pod/Log%3A%3A
 do not pass a logger, logging is essentially disabled at any level.
 
 If, for some reason you set the enviroment variable DEBUG to a true
-value but do not want `Amazon::API` to log messages you can turn off
+value or have your own Log4perl logger set at the debug level but do
+not want `Amazon::API` to log messages at that level you can turn off
 logging as shown below:
 
-    my $ec2 = Amazon::API::EC2->new();
+    my $ec2 = Amazon::API::EC2->new(log_level => 'info');
 
-    $ec2->set_log_level('fatal');
+In other words, do not send a logger but send a log level. The
+constructor will recognize that you have a Log4perl logger initialized
+and just set its log level to your desired level.
 
 # BUGS AND LIMITATIONS
 
