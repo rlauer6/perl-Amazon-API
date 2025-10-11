@@ -1,3 +1,25 @@
+Sat Oct 11 16:37:33 2025  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.1.7]:
+	* README.md: generated
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API.pm.in
+	- use Log::Log4perl exclusively, no creation of stealth loggers	needed
+	(set_log_level): just set level using logger
+	(_create_stealth_logger): removed
+	(set_default_logger): set easy logger or use callers log4perl logger
+	* src/main/perl/lib/README.md: generated
+
+Tue Oct  7 04:37:20 2025  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.1.6]:
+	* README.md: generated
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API.pm.in
+	(set_log_level)
+	- handle case where Log4perl initialized but not passed in
+	* src/main/perl/lib/README.md: generated
+
 Mon Oct  6 17:06:12 2025  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.1.5]:

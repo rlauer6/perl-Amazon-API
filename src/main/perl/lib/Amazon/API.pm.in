@@ -10,22 +10,16 @@ use 5.010;
 our %LOG4PERL_LOG_LEVELS;
 
 BEGIN {
-  %LOG4PERL_LOG_LEVELS = eval {
-    require Log::Log4perl::Level;
+  use Log::Log4perl qw(:easy :levels);
 
-    Log::Log4perl::Level->import();
-
-    use vars qw($ERROR $WARN $INFO $DEBUG $TRACE $FATAL);
-
-    return (
-      error => $ERROR,
-      warn  => $WARN,
-      info  => $INFO,
-      debug => $DEBUG,
-      trace => $TRACE,
-      fatal => $FATAL,
-    );
-  };
+  %LOG4PERL_LOG_LEVELS = (
+    error => $ERROR,
+    warn  => $WARN,
+    info  => $INFO,
+    debug => $DEBUG,
+    trace => $TRACE,
+    fatal => $FATAL,
+  );
 }
 
 use parent qw( Exporter Class::Accessor::Fast);
@@ -624,8 +618,7 @@ sub new {
   $self->_create_methods;
 
   if ( $self->is_botocore_api ) {
-    $self->set_serializer(
-      Amazon::API::Botocore::Shape::Serializer->new( service => get_service_from_class( ref $self ) ) );
+    $self->set_serializer( Amazon::API::Botocore::Shape::Serializer->new( service => get_service_from_class( ref $self ) ) );
   }
 
   return $self;
@@ -638,16 +631,9 @@ sub set_log_level {
 
   $self->set__log_level($log_level);
 
-  if ( Log::Log4perl->initialized() && $self->get_logger ) {
-    $self->get_logger->level( $LOG4PERL_LOG_LEVELS{$log_level} );
-  }
-  else {
-    my $logger = $self->get_logger;
+  my $logger = $self->get_logger;
 
-    if ( $logger->can('level') ) {
-      $logger->level($log_level);
-    }
-  }
+  $logger->level( $LOG4PERL_LOG_LEVELS{$log_level} );
 
   return $self;
 }
@@ -1337,8 +1323,8 @@ sub invoke_api {
   # someone is trying to send a blessed object, possibly a Botocore
   # request object using a class that does not have the Botocore
   # metadata
-  croak sprintf qq{"%s" was not generated with Botocore support.\n}
-    . qq{Parameters should be simple objects, not blessed.\n}, ref $self
+  croak sprintf qq{"%s" was not generated with Botocore support.\n} . qq{Parameters should be simple objects, not blessed.\n},
+    ref $self
     if blessed($parameters) && !$self->is_botocore_api;
 
   my @paged_results;
@@ -1936,39 +1922,11 @@ sub _create_methods {
 }
 
 ########################################################################
-sub _create_stealth_logger {
-########################################################################
-  my ( $self, $name, $level ) = @_;
-
-  my $sub_name = sprintf '%s::%s', $name, uc $level;
-
-  no strict 'refs';  ## no critic ProhibitNoStrict
-
-  return
-    if defined *{$sub_name}{CODE};
-
-  *{$sub_name} = sub {
-    if ( $self->get_logger && $self->get_logger->can($level) ) {
-      $self->get_logger->$level(@_);
-    }
-    else {
-      return;
-    }
-  };
-
-  return;
-}
-
-########################################################################
 sub _set_default_logger {
 ########################################################################
   my ( $self, $log_level ) = @_;
 
-  if ( !$self->get_logger && !Log::Log4perl->initialized ) {
-
-    require Log::Log4perl;
-
-    Log::Log4perl->import(':easy');
+  if ( !Log::Log4perl->initialized ) {
 
     $log_level = $LOG4PERL_LOG_LEVELS{ lc $log_level } // $LOG4PERL_LOG_LEVELS{info};
 
@@ -1980,12 +1938,8 @@ sub _set_default_logger {
       }
     );
   }
-  else {
-    for my $level (qw(debug trace info warn error )) {
-      $self->_create_stealth_logger( __PACKAGE__, $level );
-      $self->_create_stealth_logger( ref($self),  $level );
-    }
-  }
+
+  $self->set_logger( Log::Log4perl->get_logger() );
 
   return $self;
 }
@@ -2031,10 +1985,7 @@ sub _set_defaults {
 
   # note some APIs are global, hence an API may send '' to indicate global
   if ( !defined $self->get_region ) {
-    $self->set_region( $self->get_region
-        || $ENV{'AWS_REGION'}
-        || $ENV{'AWS_DEFAULT_REGION'}
-        || $DEFAULT_REGION );
+    $self->set_region( $self->get_region || $ENV{'AWS_REGION'} || $ENV{'AWS_DEFAULT_REGION'} || $DEFAULT_REGION );
   }
 
   my $debug //= ( $options{debug} || $ENV{DEBUG} );
