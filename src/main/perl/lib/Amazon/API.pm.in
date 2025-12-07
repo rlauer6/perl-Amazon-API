@@ -7,21 +7,6 @@ use warnings;
 
 use 5.010;
 
-our %LOG4PERL_LOG_LEVELS;
-
-BEGIN {
-  use Log::Log4perl qw(:easy :levels);
-
-  %LOG4PERL_LOG_LEVELS = (
-    error => $ERROR,
-    warn  => $WARN,
-    info  => $INFO,
-    debug => $DEBUG,
-    trace => $TRACE,
-    fatal => $FATAL,
-  );
-}
-
 use parent qw( Exporter Class::Accessor::Fast);
 
 use Amazon::API::Error;
@@ -38,7 +23,6 @@ use Amazon::API::Botocore::Shape::Utils qw(
 );
 
 use Carp;
-use Carp::Always;
 use Data::Dumper;
 use Date::Format;
 use English qw( -no_match_vars);
@@ -46,6 +30,7 @@ use HTTP::Request;
 use JSON qw( encode_json decode_json );
 use LWP::UserAgent;
 use List::Util qw(any all pairs none);
+use Log::Log4perl;
 use Readonly;
 use Scalar::Util qw( reftype blessed );
 use Time::Local;
@@ -57,8 +42,6 @@ use XML::Simple;
 Readonly::Scalar my $DEFAULT_REGION   => 'us-east-1';
 Readonly::Scalar my $REGIONAL_URL_FMT => '%s://%s.%s.amazonaws.com';
 Readonly::Scalar my $GLOBAL_URL_FMT   => '%s://%s.amazonaws.com';
-
-Readonly::Scalar my $DEFAULT_LAYOUT_PATTERN => '[%d] %p (%R/%r) %M:%L - %m%n';
 
 local $Data::Dumper::Pair  = $COLON;
 local $Data::Dumper::Useqq = $TRUE;
@@ -86,7 +69,7 @@ __PACKAGE__->mk_accessors(
     _log_level
     logger
     log_file
-    log_layout
+    log4perl_layout
     namespace
     paginators
     print_error
@@ -117,7 +100,6 @@ our @EXPORT_OK = qw(
   param_n
   paginator
   service
-  generate_xml
 );
 
 our $START_TIME    = [gettimeofday];
@@ -618,7 +600,11 @@ sub new {
   $self->_create_methods;
 
   if ( $self->is_botocore_api ) {
-    $self->set_serializer( Amazon::API::Botocore::Shape::Serializer->new( service => get_service_from_class( ref $self ) ) );
+    my $serializer = Amazon::API::Botocore::Shape::Serializer->new(
+      logger  => $self->get_logger,
+      service => get_service_from_class( ref $self ),
+    );
+    $self->set_serializer($serializer);
   }
 
   return $self;
@@ -633,7 +619,10 @@ sub set_log_level {
 
   my $logger = $self->get_logger;
 
-  $logger->level( $LOG4PERL_LOG_LEVELS{$log_level} );
+  my $log4perl_level = $LOG4PERL_LOG_LEVELS{$log_level};
+
+  $logger->level($log4perl_level);
+  Log::Log4perl->get_logger('Amazon::API::Botocore')->level($log4perl_level);
 
   return $self;
 }
@@ -686,7 +675,7 @@ sub decode_response {
   my ( $protocol, $botocore_action )
     = eval { return ( $self->get_botocore_metadata->{protocol}, $self->get_botocore_action ); };
 
-  TRACE(
+  $self->get_logger->trace(
     sub {
       return Dumper(
         [ protocol         => $protocol,
@@ -735,8 +724,8 @@ sub decode_response {
     # this is almost certainly going to be a problem somewhere...
     if ( !$decoded_content || $EVAL_ERROR ) {
 
-      WARN("unable to decode content: $EVAL_ERROR");
-      WARN('Trying again using JSON and XML decoders.');
+      $self->get_logger->warn("unable to decode content: $EVAL_ERROR");
+      $self->get_logger->warn('Trying again using JSON and XML decoders.');
 
       $decoded_content = eval { return decode_json($content); };
 
@@ -754,7 +743,7 @@ sub decode_response {
 
   $content = $decoded_content || $content;
 
-  DEBUG( sub { return Dumper( [ 'content' => $content ] ) } );
+  $self->get_logger->debug( sub { return Dumper( [ 'content' => $content ] ) } );
 
   # we'll only have a "serializer" if this is a Botocore generated API
   my $serializer = $self->get_serializer;
@@ -773,7 +762,7 @@ sub decode_response {
     $content = $content->{ $output->{resultWrapper} };
   }
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper(
         [ content                => $content,
@@ -847,7 +836,7 @@ sub is_param_type {
 
   my $location = $member->{location};
 
-  TRACE(
+  $self->get_logger->trace(
     sub {
       return Dumper(
         [ members    => $members,
@@ -961,7 +950,7 @@ sub init_botocore_request {
 
   my $method = $http->{method};
 
-  TRACE(
+  $self->get_logger->trace(
     sub {
       return Dumper(
         [ request             => $request,
@@ -1018,7 +1007,7 @@ sub init_botocore_request {
   else {
     my $finalized_request = $request->finalize;
 
-    DEBUG(
+    $self->get_logger->debug(
       sub {
         return Dumper(
           [ request           => $request,
@@ -1039,7 +1028,7 @@ sub init_botocore_request {
       return $finalized_request;
     }
 
-    DEBUG(
+    $self->get_logger->debug(
       sub {
         return Dumper( [ finalized_request => $finalized_request, ] );
       }
@@ -1059,7 +1048,7 @@ sub init_botocore_request {
 
     my $request_uri_tpl = $http->{parsed_request_uri}->{request_uri_tpl};
 
-    DEBUG(
+    $self->get_logger->debug(
       sub {
         return Dumper(
           [ args               => \@args,
@@ -1089,7 +1078,7 @@ sub init_botocore_request {
 
       my $shape_parameters = $parameters{$shape};
 
-      DEBUG(
+      $self->get_logger->debug(
         sub {
           return Dumper(
             [ requestUri       => $uri,
@@ -1102,13 +1091,13 @@ sub init_botocore_request {
       );
 
       foreach my $p ( keys %{$shape_parameters} ) {
-        TRACE( Dumper( [ parameter => $p ] ) );
+        $self->get_logger->trace( Dumper( [ parameter => $p ] ) );
 
         if ( my $var = $self->is_uri_param( $request_shape_name, $p ) ) {
 
           my $val = $shape_parameters->{$p};
 
-          TRACE(
+          $self->get_logger->trace(
             Dumper(
               [ var => $var,
                 val => $val,
@@ -1175,7 +1164,7 @@ sub init_botocore_request {
     $content = undef;
   }
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper [
         namespace   => $self->get_namespace,
@@ -1228,7 +1217,7 @@ sub serialize_content {
   my $version      = $self->get_version;
   my $content_type = $self->get_content_type;
 
-  TRACE(
+  $self->get_logger->trace(
     sub {
       return Dumper(
         [ content_type => $content_type,
@@ -1253,7 +1242,7 @@ sub serialize_content {
       return
         if !ref $content || !keys %{$content};
 
-      $content = generate_xml($parameters);
+      $content = $self->generate_xml($parameters);
     }
   }
 
@@ -1267,7 +1256,7 @@ sub invoke_api {
 ########################################################################
   my ( $self, @args ) = @_;
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper( [ args => \@args ] );
     }
@@ -1301,7 +1290,7 @@ sub invoke_api {
 
   my $protocol = eval { $self->get_botocore_metadata->{protocol}; };
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper(
         [ parameters      => $parameters,
@@ -1347,7 +1336,7 @@ sub invoke_api {
         $limit = $parameters->{ $paginator->{limit_key} };
       }
 
-      DEBUG(
+      $self->get_logger->debug(
         sub {
           return Dumper(
             [ paginator  => $paginator,
@@ -1363,7 +1352,7 @@ sub invoke_api {
 
     $content_type = $self->get_content_type;
 
-    DEBUG(
+    $self->get_logger->debug(
       sub {
         return Dumper(
           [ parameters   => $parameters,
@@ -1384,7 +1373,7 @@ sub invoke_api {
 
   my $serialized_content = $self->serialize_content($parameters);
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       Dumper [
         content_type       => $content_type,
@@ -1400,7 +1389,7 @@ sub invoke_api {
 
   ++$page_count;
 
-  DEBUG( sub { return Dumper( [ page => $page_count ] ) } );
+  $self->get_logger->debug( sub { return Dumper( [ page => $page_count ] ) } );
 
   my $rsp = $self->submit(
     content      => $serialized_content,
@@ -1432,7 +1421,7 @@ sub invoke_api {
     }
   }
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper(
         [ decode_always => $self->get_decode_always,
@@ -1449,7 +1438,7 @@ sub invoke_api {
     if ($use_paginator) {
       my $result = $self->decode_response;
 
-      DEBUG(
+      $self->get_logger->debug(
         sub {
           return Dumper(
             [ paginator     => $paginator,
@@ -1465,7 +1454,7 @@ sub invoke_api {
       return \@paged_results
         if !$actual_result;
 
-      DEBUG(
+      $self->get_logger->debug(
         sub {
           return Dumper( [ result => $result, ] );
         }
@@ -1473,7 +1462,7 @@ sub invoke_api {
 
       push @paged_results, @{$actual_result};
 
-      DEBUG(
+      $self->get_logger->debug(
         sub {
           return Dumper(
             [ paged_results => \@paged_results,
@@ -1648,7 +1637,7 @@ sub get_valid_token {
     }
   }
 
-  TRACE( sub { return Dumper( [ 'valid token:', $credentials->get_token ] ) } );
+  $self->get_logger->trace( sub { return Dumper( [ 'valid token:', $credentials->get_token ] ) } );
 
   return $credentials->get_token;
 }
@@ -1658,7 +1647,7 @@ sub submit {
 ########################################################################
   my ( $self, %options ) = @_;
 
-  DEBUG( sub { return Dumper [ submit => \%options ] } );
+  $self->get_logger->debug( sub { return Dumper [ submit => \%options ] } );
 
   my $method  = $self->get_http_method || 'POST';
   my $headers = $options{'headers'}    || [];
@@ -1674,7 +1663,7 @@ sub submit {
     $url .= $self->get_request_uri;
   }
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper [
         method  => $method,
@@ -1715,13 +1704,13 @@ sub submit {
     region          => $region,
   )->sign( $request, $self->get_region );
 
-  DEBUG( sub { return Dumper( [ request => $request ] ) } );
+  $self->get_logger->debug( sub { return Dumper( [ request => $request ] ) } );
 
   # make the request, return response object
   my $ua  = $self->get_user_agent;
   my $rsp = $ua->request($request);
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper [ response => $rsp ];
     }
@@ -1737,7 +1726,7 @@ sub submit {
 ########################################################################
 sub generate_xml {
 ########################################################################
-  my ($data) = @_;
+  my ( $self, $data ) = @_;
 
   my $doc = XML::LibXML::Document->new( '1.0', 'UTF-8' );
 
@@ -1749,7 +1738,7 @@ sub generate_xml {
 
   my $xml = $doc->toString(1) . $fragment->toString(1);
 
-  TRACE(
+  $self->get_logger->trace(
     sub {
       return Dumper(
         [ data => $data,
@@ -1922,24 +1911,61 @@ sub _create_methods {
 }
 
 ########################################################################
+sub choose(&) { return $_[0]->(); }  ## no critic
+########################################################################
+
+########################################################################
 sub _set_default_logger {
 ########################################################################
-  my ( $self, $log_level ) = @_;
+  my ( $self, $log_level_string ) = @_;
+
+  my $log_level_numeric = $LOG4PERL_LOG_LEVELS{ lc $log_level_string } // $LOG4PERL_LOG_LEVELS{info};
+  my $log_level_name    = uc $log_level_string;
+
+  my $pattern_layout = $self->get_log4perl_layout // $DEFAULT_LOG4PERL_LAYOUT;
 
   if ( !Log::Log4perl->initialized ) {
 
-    $log_level = $LOG4PERL_LOG_LEVELS{ lc $log_level } // $LOG4PERL_LOG_LEVELS{info};
+    my $appender_config_str;
 
-    Log::Log4perl->easy_init(
-      { level  => $log_level,
-        layout => $self->get_log_layout // $DEFAULT_LAYOUT_PATTERN,
-        ( $self->get_log_file ? ( file => $self->get_log_file ) : () ),
+    # 2. Determine Appender Configuration as a string
+    my $file = $self->get_log_file;
 
-      }
-    );
+    if ( defined $file && $file ne q{} ) {
+      $appender_config_str = qq{
+                log4perl.appender.ROOT_APPENDER = Log::Log4perl::Appender::File
+                log4perl.appender.ROOT_APPENDER.filename = $file
+                log4perl.appender.ROOT_APPENDER.mode = append
+            };
+    }
+    else {
+      $appender_config_str = qq{
+                log4perl.appender.ROOT_APPENDER = Log::Log4perl::Appender::Screen
+                log4perl.appender.ROOT_APPENDER.stderr = 1
+            };
+    }
+
+    # 3. Construct the full text blob configuration
+    my $config_blob = qq{
+            # Root Logger
+            log4perl.rootLogger = $log_level_name, ROOT_APPENDER
+
+            # Appender Definition (dynamic)
+            $appender_config_str
+
+            # Layout Definition
+            log4perl.appender.ROOT_APPENDER.layout = Log::Log4perl::Layout::PatternLayout
+            log4perl.appender.ROOT_APPENDER.layout.ConversionPattern = $pattern_layout
+        };
+
+    Log::Log4perl::init( \$config_blob );  # Pass a reference to the scalar string
   }
 
-  $self->set_logger( Log::Log4perl->get_logger() );
+  my $logger = Log::Log4perl->get_logger( ref $self );
+  $logger->level($log_level_numeric);
+  $logger->additivity(0);
+
+  $self->set_logger($logger);
 
   return $self;
 }
@@ -2113,7 +2139,7 @@ sub _set_request_content {
   my $content      = $args{content};
   my $content_type = $args{content_type} || $self->get_content_type;
 
-  TRACE(
+  $self->get_logger->trace(
     sub {
       return Dumper(
         [ method       => $self->get_http_method,
@@ -2136,7 +2162,7 @@ sub _set_request_content {
     $request->uri( $request->uri . $QUESTION_MARK . $content );
   }
 
-  DEBUG( sub { return Dumper( [ request => $request ] ); } );
+  $self->get_logger->debug( sub { return Dumper( [ request => $request ] ); } );
 
   return $request;
 }
@@ -2856,10 +2882,6 @@ content type.
 Array reference of key/value pairs that represent additional headers
 to send with the request.
 
-=back
-
-=head1 EXPORTED METHODS
-
 =head2 generate_xml
 
  generate_xml(object)
@@ -2869,6 +2891,10 @@ do a much better job than XMLout() in allowing a mix of attributes and
 nested objects. With C<XMLout()> you need to choose between allowing
 attributes (which we need to add the namespace for certain requests)
 and nested elements (NoAttr => 1).
+
+=back
+
+=head1 EXPORTED METHODS
 
 =head2 get_api_service
 

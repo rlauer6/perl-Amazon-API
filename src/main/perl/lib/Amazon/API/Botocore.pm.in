@@ -5,28 +5,6 @@ package Amazon::API::Botocore;
 use strict;
 use warnings;
 
-BEGIN {
-  use English qw(-no_match_vars);
-
-  eval { require Log::Log4perl; };
-
-  if ($EVAL_ERROR) {
-    no strict qw(refs);  ## no critic (ProhibitNoStrict)
-
-    for (qw(DEBUG INFO WARN ERROR FATAL)) {
-      *{ __PACKAGE__ . "::$_" } = sub { };
-    }
-  }
-  else {
-    no warnings;         ## no critic (ProhibitNoWarnings)
-
-    require Log::Log4perl::Level;
-
-    Log::Log4perl::Level->import(__PACKAGE__);
-    Log::Log4perl->import(qw(:easy));
-  }
-}
-
 use parent qw( Exporter );
 
 use Amazon::API::Botocore::Shape::Utils qw(require_class create_shape create_module_name);
@@ -35,7 +13,6 @@ use Amazon::API::Template qw(:all);
 use Amazon::API::Pod::Parser qw(get_pod_section);
 
 use Carp;
-use Carp::Always;
 use Cwd;
 use Data::Dumper;
 use English qw( -no_match_vars );
@@ -139,8 +116,7 @@ sub paginator {
 
     my $limit = $rsp->{$limit_key};
 
-    $request = $request_class->new(
-      { $limit ? ( $limit_key => $limit ) : (), $input_token => $rsp->{$output_token} } );
+    $request = $request_class->new( { $limit ? ( $limit_key => $limit ) : (), $input_token => $rsp->{$output_token} } );
   }
 
   return \@response;
@@ -204,8 +180,7 @@ sub create_service_shapes {
 ########################################################################
   my (%options) = @_;
 
-  my ( $service, $boto_path, $shape_path, $module_name )
-    = @options{qw(service botocore-path output-path module-name)};
+  my ( $service, $boto_path, $shape_path, $module_name ) = @options{qw(service botocore-path output-path module-name)};
 
   fetch_boto_services($boto_path);
 
@@ -1024,7 +999,7 @@ sub help {
       my $documentation
         = $description->[0]->{ lc $options{service} }->{documentation};
 
-      $documentation = html2pod $documentation ;
+      $documentation = html2pod $documentation;
 
       my $available_commands
         = format_columns( indent => 1, text => [ sort keys %{$operations} ] );

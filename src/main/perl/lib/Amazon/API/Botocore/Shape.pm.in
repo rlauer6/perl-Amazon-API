@@ -10,7 +10,7 @@ use parent qw(Exporter Class::Accessor::Fast);
 use Amazon::API::Constants qw(:chars :booleans);
 use Amazon::API::Botocore::Shape::Utils qw(flatten require_shape check_type check_pattern );
 
-use Carp;
+use Carp qw(croak confess);
 use Cwd;
 use Data::Dumper;
 use English qw(-no_match_vars);
@@ -49,7 +49,9 @@ sub new {
 ########################################################################
   my ( $class, $args, $is_response ) = @_;
 
-  $args->{logger} = Log::Log4perl->get_logger;
+  if ( !$args->{logger} ) {
+    $args->{logger} = Log::Log4perl->get_logger($class);
+  }
 
   my $self = $class->SUPER::new($args);
 

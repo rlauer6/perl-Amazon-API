@@ -618,8 +618,6 @@ not be called by your applications._
     Array reference of key/value pairs that represent additional headers
     to send with the request.
 
-# EXPORTED METHODS
-
 ## generate\_xml
 
     generate_xml(object)
@@ -629,6 +627,8 @@ do a much better job than XMLout() in allowing a mix of attributes and
 nested objects. With `XMLout()` you need to choose between allowing
 attributes (which we need to add the namespace for certain requests)
 and nested elements (NoAttr => 1).
+
+# EXPORTED METHODS
 
 ## get\_api\_service
 
@@ -964,7 +964,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.1.7  of `Amazon::API`.
+This documentation refers to version 2.1.8  of `Amazon::API`.
 
 # DIAGNOSTICS
 
@@ -1312,3 +1312,15 @@ some.
 # AUTHOR
 
 Rob Lauer - <rlauer6@comcast.net>
+
+# POD ERRORS
+
+Hey! **The above document had some coding errors, which are explained below:**
+
+- Around line 2885:
+
+    You forgot a '=back' before '=head2'
+
+- Around line 2895:
+
+    &#x3d;back without =over

@@ -3,25 +3,6 @@ package Amazon::API::Botocore::Shape::Serializer;
 use strict;
 use warnings;
 
-BEGIN {
-  use English qw(-no_match_vars);
-
-  eval { require Log::Log4perl; };
-
-  if ($EVAL_ERROR) {
-    no strict qw(refs);  ## no critic (ProhibitNoStrict)
-
-    for (qw(DEBUG INFO WARN ERROR FATAL)) {
-      *{ __PACKAGE__ . "::$_" } = sub { };
-    }
-  }
-  else {
-    no warnings;         ## no critic (ProhibitNoWarnings)
-
-    Log::Log4perl->import(qw(:easy));
-  }
-}
-
 use parent qw(Class::Accessor::Fast);
 
 use Amazon::API::Constants qw(:chars :booleans);
@@ -64,7 +45,7 @@ sub _serialize_structure {
 
   my $members = $this->get_members;
 
-  DEBUG(
+  $self->get_logger->debug(
     Dumper [
       class               => ref $this,
       serialize_structure => $this,
@@ -91,7 +72,7 @@ sub _serialize_structure {
     my $shape = $member->{shape};
     my $serialized_data;
 
-    DEBUG(
+    $self->get_logger->debug(
       sub {
         return Dumper(
           [ member_name  => $m,
@@ -107,7 +88,7 @@ sub _serialize_structure {
 
     my $member_data = $data->{$location_name};
 
-    DEBUG(
+    $self->get_logger->debug(
       sub {
         return Dumper(
           [ member       => $m,
@@ -128,7 +109,7 @@ sub _serialize_structure {
       $member_data = $member_data->{content} // $EMPTY;
     }
 
-    DEBUG(
+    $self->get_logger->debug(
       sub {
         return Dumper(
           [ member_data   => $member_data,
@@ -156,7 +137,7 @@ sub _serialize_structure {
         exists  => exists $data->{$location_name},
       );
 
-      DEBUG(
+      $self->get_logger->debug(
         sub {
           return Dumper(
             [ "back from serializing $shape",
@@ -187,7 +168,7 @@ sub _serialize_structure {
       }
     }
 
-    DEBUG(
+    $self->get_logger->debug(
       sub {
         return Dumper(
           [ result          => $result,
@@ -211,7 +192,7 @@ sub _serialize_list {
 
   $service ||= $self->get_service;
 
-  DEBUG( Dumper( [ 'serialize_list', $this, $data, $service ] ) );
+  $self->get_logger->debug( Dumper( [ 'serialize_list', $this, $data, $service ] ) );
 
   my $member        = $this->get_member;
   my $location_name = $member->{locationName};
@@ -226,7 +207,7 @@ sub _serialize_list {
 
   my $member_shape = $member->{shape};
 
-  DEBUG(
+  $self->get_logger->debug(
     Dumper(
       [ 'serialize_list',
         member        => $member,
@@ -247,7 +228,7 @@ sub _serialize_list {
     my @key_values;
 
     if ( $this->{flattened} ) {
-      DEBUG(
+      $self->get_logger->debug(
         Dumper(
           [ list      => $list,
             flattened => $this->{flattened}
@@ -266,7 +247,7 @@ sub _serialize_list {
       $list = @flattened_list ? \@flattened_list : [ values %{$list} ];
     }
     else {
-      TRACE(
+      $self->get_logger->trace(
         Dumper(
           [ message => 'unreliable deserialization?',
             this    => $this,
@@ -279,13 +260,13 @@ sub _serialize_list {
       $list = [$list];
     }
 
-    DEBUG( Dumper( [ key_values => $member_shape, \@key_values ] ) );
+    $self->get_logger->debug( Dumper( [ key_values => $member_shape, \@key_values ] ) );
 
     my %result;
 
     foreach my $p ( @{$list} ) {
 
-      DEBUG( Dumper( [ p => $p, member_shape => $member_shape ] ) );
+      $self->get_logger->debug( Dumper( [ p => $p, member_shape => $member_shape ] ) );
 
       my $serialized_data = $self->serialize(
         shape   => $member_shape,
@@ -301,7 +282,7 @@ sub _serialize_list {
 
     local $LIST_SEPARATOR = q{,};
 
-    DEBUG(
+    $self->get_logger->debug(
       sub {
         return Dumper(
           [ 'ref(self)' => ref($self),
@@ -316,7 +297,7 @@ sub _serialize_list {
   else {
     foreach my $elem ( @{$list} ) {
 
-      DEBUG(
+      $self->get_logger->debug(
         sub {
           return Dumper(
             [ shape => $member->{shape},
@@ -354,7 +335,7 @@ sub serialize {
 
   $service ||= $self->get_service;
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper(
         [ shape   => $shape,
@@ -392,10 +373,10 @@ sub serialize {
       my ($response_wrapper) = grep {/response$/ixsm}
         keys %{$data};
 
-      DEBUG( Dumper( [ response_wrapper => $response_wrapper ] ) );
+      $self->get_logger->debug( Dumper( [ response_wrapper => $response_wrapper ] ) );
 
       if ($response_wrapper) {
-        DEBUG(
+        $self->get_logger->debug(
           Dumper(
             [ response_wrapper => $response_wrapper,
               data             => $data,
@@ -416,11 +397,11 @@ sub serialize {
   croak "unable to require class for $shape: $EVAL_ERROR\n"
     if !$class;
 
-  my $this = $class->new;
+  my $this = $class->new;  # ( { logger => $self->get_logger } );
 
   my $type = $this->get_type;
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper(
         [ class   => $class,
@@ -498,7 +479,7 @@ sub serialize {
       my $value_location_name = $this->{value}->{locationName};
       my $value_shape_name    = $this->{value}->{shape};
 
-      DEBUG(
+      $self->get_logger->debug(
         sub {
           return Dumper(
             [ type                => $type,
@@ -516,7 +497,7 @@ sub serialize {
       $data ||= [];
 
       if ( !$key_location_name && !$value_location_name ) {
-        DEBUG(
+        $self->get_logger->debug(
           Dumper(
             [ value_shape_name => $value_shape_name,
               data             => $data,
@@ -537,7 +518,7 @@ sub serialize {
       }
 
       foreach my $item ( @{$data} ) {
-        DEBUG(
+        $self->get_logger->debug(
           sub {
             return Dumper( [ item => $item ] );
           }
@@ -616,7 +597,7 @@ sub serialize {
     },
   );
 
-  DEBUG(
+  $self->get_logger->debug(
     sub {
       return Dumper(
         [ unknown_type => $type,
@@ -642,7 +623,7 @@ sub serialize {
     );
   }
 
-  DEBUG( sub { return Dumper( [ result => $result ] ) } );
+  $self->get_logger->debug( sub { return Dumper( [ result => $result ] ) } );
 
   return $result;
 }

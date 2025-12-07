@@ -1,3 +1,32 @@
+Mon Nov 17 06:44:40 2025  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.1.8]:
+	* VERSION: bump
+	* README.md: generated
+	* src/main/perl/lib/README.md: generated
+	* src/main/perl/lib/Amazon/API.pm.in
+	- remove Carp::Always
+	- remove use of :easy mode and convenience loggers
+	(generate_xml): instance method now, do not export
+	(new): send logger to serializer
+	(set_default_logger)
+	- set Amazon::API::Botocore logging level
+	(serialize_content): use instance method generate_xml()
+	(choose): new
+	(_set_default_logger)
+	- remove use of easy mode
+	- configure default appenders
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	- remove Carp::Always
+	- remove use of easy logger
+	- whitespace
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	(new): set a logger if none passed in
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	- remove use of easy logger
+	* src/main/perl/lib/Amazon/API/Constants.pm.in
+	- add $DEFAULT_LOG4PERL_LAYOUT, %LOG4PERL_LOG_LEVELS
+
 Sat Oct 11 16:37:33 2025  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.1.7]:
