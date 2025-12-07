@@ -1,3 +1,11 @@
+Sun Dec  7 10:52:11 2025  Rob Lauer  <rlauer6@comcast.net>
+
+	[2.1.9]:
+	* VERSION: bump
+	* README.md: generated
+	* src/main/perl/lib/README.md: likewise
+	* cpan/buildspec.yml: provides Amazon::API
+
 Mon Nov 17 06:44:40 2025  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.1.8]:

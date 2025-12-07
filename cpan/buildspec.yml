@@ -17,6 +17,7 @@ extra-files:
   - ChangeLog
   - src/examples
 provides:
+  - Amazon::API
   - Amazon::API::Botocore
   - Amazon::API::Botocore::Pod
   - Amazon::API::Botocore::Shape
