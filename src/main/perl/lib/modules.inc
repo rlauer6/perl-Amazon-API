@@ -3,6 +3,10 @@
 AMAZON_PERLMODULES = \
     Amazon/API.pm.in
 
+AMAZON_API_HTTP_PERLMODULES = \
+    Amazon/API/HTTP/Response.pm.in \
+    Amazon/API/HTTP/UserAgent.pm.in
+
 AMAZON_API_BOTOCORE_PERLMODULES = \
     Amazon/API/Botocore/Pod.pm.in
 
@@ -25,6 +29,7 @@ GALLMODULES = \
     Amazon/API/Signature4.pm \
     Amazon/API/Botocore/Shape.pm \
     Amazon/API/Template.pm \
+    $(GAMAZON_API_HTTP_PERLMODULES) \
     $(GAMAZON_PERLMODULES) \
     $(GAMAZON_API_BOTOCORE_PERLMODULES) \
     $(GAMAZON_API_BOTOCORE_SHAPE_PERLMODULES) \

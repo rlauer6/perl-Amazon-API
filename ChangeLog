@@ -1,3 +1,29 @@
+Fri Mar 27 07:37:19 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.1.11]:
+	* release-notes-2.1.11.md: new
+	* version.mk: new
+	* Makefile.am
+	- include version.mk
+	* README.md: generated
+	* VERSION: bump
+	* autotools/ax_requirements_check.m4
+	- remove LWP::UserAgent, ReadonlyX
+	- add IO::Socket::SSLeay, Net::SSLeay, HTTP::Headers, URI, Readonly
+	* cpan/buildspec.yml
+	- proivdes: Amazon::API::HTTP:Response, Amazon::API::HTTP::UserAgent
+	* cpan/requires
+	- add HTTP::Headers, IO::Socket::SSL, Net::SSLeay, URI
+	- remove LWP::UserAgent
+	* src/main/perl/lib/Amazon/API.pm.in
+	(_set_defaults): swap LWP for Amazon::API::HTTP::UserAgent
+	* src/main/perl/lib/Amazon/API/HTTP/Response.pm.in: new
+	* src/main/perl/lib/Amazon/API/HTTP/UserAgent.pm.in: new
+	* src/main/perl/lib/Makefile.am: add above to build
+	* src/main/perl/lib/modules.inc: likewise
+	* src/main/perl/lib/README.md: generated
+	* src/main/perl/lib/directories.inc: add Amazon/API/HTTP
+
 Fri Mar 27 06:20:24 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.1.10]:

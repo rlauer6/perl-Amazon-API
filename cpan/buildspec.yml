@@ -18,6 +18,8 @@ extra-files:
   - src/examples
 provides:
   - Amazon::API
+  - Amazon::API::HTTP::Response
+  - Amazon::API::HTTP::UserAgent
   - Amazon::API::Botocore
   - Amazon::API::Botocore::Pod
   - Amazon::API::Botocore::Shape

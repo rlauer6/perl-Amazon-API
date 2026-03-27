@@ -964,7 +964,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.1.10  of `Amazon::API`.
+This documentation refers to version 2.1.11  of `Amazon::API`.
 
 # DIAGNOSTICS
 
@@ -1317,10 +1317,10 @@ Rob Lauer - <rlauer6@comcast.net>
 
 Hey! **The above document had some coding errors, which are explained below:**
 
-- Around line 2900:
+- Around line 2901:
 
     You forgot a '=back' before '=head2'
 
-- Around line 2910:
+- Around line 2911:
 
     &#x3d;back without =over

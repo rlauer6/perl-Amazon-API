@@ -18,6 +18,7 @@ ax_perl5_extra_includes_opt = @ax_perl5_extra_includes_opt@
 
 GAMAZON_PERLMODULES                     = $(AMAZON_PERLMODULES:.pm.in=.pm)
 GAMAZON_API_PERLMODULES                 = $(AMAZON_API_PERLMODULES:.pm.in=.pm)
+GAMAZON_API_HTTP_PERLMODULES            = $(AMAZON_API_HTTP_PERLMODULES:.pm.in=.pm)
 GAMAZON_API_POD_PERLMODULES             = $(AMAZON_API_POD_PERLMODULES:.pm.in=.pm)
 GAMAZON_API_POD_SIMPLE_PERLMODULES      = $(AMAZON_API_POD_SIMPLE_PERLMODULES:.pm.in=.pm)
 GAMAZON_API_BOTOCORE_PERLMODULES        = $(AMAZON_API_BOTOCORE_PERLMODULES:.pm.in=.pm)
@@ -50,7 +51,8 @@ $(GAMAZON_PERLMODULES): % : %.in \
     Amazon/API/Template.pm \
     Amazon/API/Botocore.pm \
     Amazon/API/Botocore/Shape.pm \
-    Amazon/API/Botocore/Shape/Serializer.pm
+    Amazon/API/Botocore/Shape/Serializer.pm \
+    $(GAMAZON_API_HTTP_PERLMODULES)
 
 Amazon/API/Botocore/Shape.pm: % : %.in \
     Amazon/API/Template.pm \
@@ -85,6 +87,9 @@ amazon_api_DATA = \
     Amazon/API/Signature4.pm \
     Amazon/API/Template.pm
 
+amazon_api_http_DATA = \
+   $(GAMAZON_API_HTTP_PERLMODULES)
+
 amazon_api_botocore_shape_DATA = \
     $(GAMAZON_API_BOTOCORE_SHAPE_PERLMODULES)
 
@@ -105,8 +110,8 @@ dist_noinst_DATA = \
     Amazon/API/Template.pm.in \
     Amazon/API/Botocore/Shape.pm.in \
     $(AMAZON_PERLMODULES) \
-    $(AMAZON_PERLMODULES) \
     $(AMAZON_API_PERLMODULES) \
+    $(AMAZON_API_HTTP_PERLMODULES) \
     $(AMAZON_API_POD_PERLMODULES) \
     $(AMAZON_API_POD_SIMPLE_PERLMODULES) \
     $(AMAZON_API_BOTOCORE_PERLMODULES) \
@@ -171,6 +176,7 @@ CLEANFILES = \
     Amazon/API/Botocore/Shape.pm \
     $(GAMAZON_PERLMODULES) \
     $(GAMAZON_API_PERLMODULES) \
+    $(GAMAZON_API_HTTP_PERLMODULES) \
     $(GAMAZON_API_POD_PERLMODULES) \
     $(GAMAZON_API_POD_SIMPLE_PERLMODULES) \
     $(GAMAZON_API_BOTOCORE_PERLMODULES) \

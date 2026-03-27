@@ -13,6 +13,8 @@ README.md: src/main/perl/lib/README.md
 
 include release-notes.mk
 
+include version.mk
+
 dist_noinst_DATA = \
     NEWS.md \
     README.md \

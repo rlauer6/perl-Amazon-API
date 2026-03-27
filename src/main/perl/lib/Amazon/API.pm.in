@@ -12,6 +12,7 @@ use parent qw( Exporter Class::Accessor::Fast);
 use Amazon::API::Error;
 use Amazon::API::Signature4;
 use Amazon::API::Constants qw( :all );
+use Amazon::API::HTTP::UserAgent;
 use Amazon::Credentials;
 use Amazon::API::Botocore qw(paginator);
 use Amazon::API::Botocore::Shape::Serializer;
@@ -2008,7 +2009,7 @@ sub _set_defaults {
   $self->set_use_paginator( $self->get_use_paginator // $TRUE );
 
   if ( !$self->get_user_agent ) {
-    $self->set_user_agent( LWP::UserAgent->new );
+    $self->set_user_agent( Amazon::API::HTTP::UserAgent->new );
   }
 
   if ( !defined $self->get_decode_always ) {
