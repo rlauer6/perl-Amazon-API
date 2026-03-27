@@ -29,6 +29,7 @@ our @EXPORT_OK = qw(
   is_regexp
   is_scalar
   param_n
+  query_param_n
   require_class
   require_shape
   snake_case
@@ -38,7 +39,7 @@ our %EXPORT_TAGS = ( all => [@EXPORT_OK] );
 
 Readonly::Scalar our $SHAPE_NAME_TEMPLATE => 'Amazon::API::Botocore::Shape::%s::%s';
 
-our $VERSION = '@PACKAGE_VERSION@';  ## no critic (RequireInterpolationOfMetachars)
+our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
 
 our $TEMPLATE_START = tell DATA;
 
@@ -140,7 +141,7 @@ sub snake_case {
 ########################################################################
 sub check_pattern {
 ########################################################################
-  my ( $value, $pattern );
+  my ( $value, $pattern ) = @_;
 
   return $TRUE if !$pattern;
 
@@ -165,14 +166,12 @@ sub check_type {
 ########################################################################
   my ( $required_type, $type ) = @_;
 
-  if ( ref $required_type ) {
-    return any {$type} @{$required_type};
-  }
+  return any { $type eq $_ } @{$required_type}
+    if ref $required_type;
 
   $type ||= 'SCALAR';
 
   return $required_type eq $type;
-
 }
 
 ########################################################################
@@ -299,7 +298,7 @@ sub param_n {
   if ( ref $message ) {
     if ( reftype($message) eq 'HASH' ) {
       foreach my $k ( keys %{$message} ) {
-        push @param_n, param_n( $message->{$k}, $prefix ? "$prefix.$k" : $k, $idx );
+        push @param_n, param_n( $message->{$k}, $prefix ? "$prefix.$k" : $k, $idx // 0 );
       }
     }
     else {
@@ -318,6 +317,41 @@ sub param_n {
 
   return @param_n;
 } ## end sub param_n
+
+########################################################################
+sub query_param_n {
+########################################################################
+  my ( $message, $prefix, $idx ) = @_;
+
+  if ( !defined $idx ) {
+    croak 'message argument must be reference'
+      if !ref $message;
+  }
+
+  my @param_n;
+
+  if ( ref $message ) {
+    if ( reftype($message) eq 'HASH' ) {
+      foreach my $k ( keys %{$message} ) {
+        push @param_n, query_param_n( $message->{$k}, $prefix ? "$prefix.$k" : $k, $idx // 0 );
+      }
+    }
+    else {
+      $idx = 1;
+      foreach my $e ( @{$message} ) {
+        my $member_prefix = $prefix ? "$prefix.member.$idx" : "member.$idx";
+        push @param_n, query_param_n( $e, $member_prefix, $idx++ );
+      }
+    }
+  }
+  else {
+    return @param_n
+      if !defined $message || $message eq $EMPTY;
+    return "$prefix=$message";
+  }
+
+  return @param_n;
+}
 
 ########################################################################
 sub create_shape_name {

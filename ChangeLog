@@ -1,3 +1,43 @@
+Fri Mar 27 06:20:24 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.1.10]:
+	* release-notes-2.1.10.md: new
+	* Makefile.am: added release-notes.mk
+	* README.md: generated
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API.pm.in
+	(new): pass log_level
+	(decode_response)
+	- special case for query protocol
+	(init_botocore_request)
+	- pass protocol to finalize in case shapes need special cases
+	- query_param_n for query protocol
+	(query_param_n): new
+	(_set_default_logger): removed addivity(0)
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	- add $PROTOCOL package variable to avoid modifying subs to pass down the chain
+	(_init_map)
+	- precendenc issue when detecting $elem type
+	- fix potential bug that incorrectly instantiates shape classes
+	(finalize)
+	- accept $protocol and set local copy to scope $PROTOCOL through recursive calls
+	(finalize_list)
+	- handle ec2 and query protocols as bare lists
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(_serialize_structure)
+	- properly detect 'empty' member dat
+	- return an empty array if list is essentially empty
+	(serialize)
+	- properly format timestamps with nanoseconds
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Utils.pm.in
+	- export new query_param_n
+	(query_param_n): new
+	(check_pattern): actually accept arguments - check_pattern neber worked properly
+	(check_type): check type, not just truthiness
+	(param_n): use undef as first invocation indicator, but 0 for subsequent calls
+	* src/main/perl/lib/README.md: generated
+        * release-notes.mk: new
+
 Sun Dec  7 10:52:11 2025  Rob Lauer  <rlauer6@comcast.net>
 
 	[2.1.9]:

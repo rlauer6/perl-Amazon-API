@@ -11,6 +11,8 @@ src/main/perl/lib/README.md:
 README.md: src/main/perl/lib/README.md
 	cp $< $@
 
+include release-notes.mk
+
 dist_noinst_DATA = \
     NEWS.md \
     README.md \

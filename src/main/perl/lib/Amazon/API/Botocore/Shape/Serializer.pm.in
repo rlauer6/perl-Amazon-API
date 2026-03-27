@@ -18,7 +18,7 @@ use POSIX qw(strftime);
 
 use URL::Encode qw(url_decode_utf8);
 
-our $VERSION = '@PACKAGE_VERSION@';  ## no critic (RequireInterpolationOfMetachars)
+our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
 
 __PACKAGE__->follow_best_practice;
 
@@ -129,10 +129,11 @@ sub _serialize_structure {
 
     # if member data does not exist, then entire data structure is
     # passed to the serializer
-    if ( !$has_location || $member_data || exists $data->{$location_name} ) {
+
+    if ( !$has_location || exists $data->{$location_name} ) {
       $serialized_data = $self->serialize(
         shape   => $shape,
-        data    => $member_data || $data,
+        data    => exists $data->{$location_name} ? $member_data : $data,
         service => $service,
         exists  => exists $data->{$location_name},
       );
@@ -204,6 +205,7 @@ sub _serialize_list {
   }
 
   my $list = $location_name ? $data->{$location_name} : $data;
+  return [] if defined $list && !ref $list && $list eq $EMPTY;
 
   my $member_shape = $member->{shape};
 
@@ -580,7 +582,7 @@ sub serialize {
 
         if ( defined $nanoseconds ) {
           $data = strftime( '%Y-%m-%dT%H:%M:%S.%%d%z', localtime $epoch );
-          $data = sprintf $data, ".$nanoseconds" * 1_000_000;
+          $data .= sprintf '.%03d', $nanoseconds if defined $nanoseconds;
         }
         else {
           $data = strftime( '%Y-%m-%dT%H:%M:%S%z', localtime $epoch );

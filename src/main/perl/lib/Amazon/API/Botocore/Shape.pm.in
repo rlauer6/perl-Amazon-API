@@ -16,7 +16,7 @@ use Data::Dumper;
 use English qw(-no_match_vars);
 use Readonly;
 use Scalar::Util qw( reftype blessed );
-use List::Util qw( any pairs );
+use List::Util qw( any pairs none );
 use Log::Log4perl;
 
 __PACKAGE__->follow_best_practice;
@@ -43,6 +43,8 @@ __PACKAGE__->mk_accessors(
     _value
   )
 );
+
+our $PROTOCOL;
 
 ########################################################################
 sub new {
@@ -156,17 +158,17 @@ sub _init_map {
 
   foreach my $elem ( @{$value} ) {
     croak 'elements of a map must be of type HASH'
-      if !ref $elem eq 'HASH';
+      if ref($elem) ne 'HASH';
   }
 
   my @list;
 
-  my $class = require_shape( $self->get_member->{shape}, $self->get_service );
+  my $key_class   = require_shape( $self->get_key->{shape},   $self->get_service );
+  my $value_class = require_shape( $self->get_value->{shape}, $self->get_service );
 
   foreach my $elem ( @{$value} ) {
     my @kv = %{$elem};
-
-    push @list, { $kv[0] => $class->new( $kv[1] ) };
+    push @list, { $key_class->new( $kv[0] ) => $value_class->new( $kv[1] ) };
   }
 
   $value = \@list;
@@ -304,7 +306,10 @@ sub get_shape_type {
 ########################################################################
 sub finalize {
 ########################################################################
-  my ($self) = @_;
+  my ( $self, $protocol ) = @_;
+
+  local $PROTOCOL = $protocol
+    if defined $protocol;
 
   return $self
     if !blessed $self;
@@ -315,6 +320,7 @@ sub finalize {
         [ type       => $self->get_type,
           shape_type => $self->get_shape_type,
           shape      => $self,
+          protocol   => $PROTOCOL,
         ]
       );
     }
@@ -402,7 +408,9 @@ sub finalize_list {
 
   my $output;
 
-  if ( $location_name && ref($self) !~ /ec2/ixsm ) {
+  my @bare_list_protocols = qw( ec2 query );
+
+  if ( $location_name && none { $PROTOCOL eq $_ } @bare_list_protocols ) {
     $output = {};
     $output->{$location_name} = $list;
   }

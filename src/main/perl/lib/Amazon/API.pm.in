@@ -92,7 +92,7 @@ __PACKAGE__->mk_accessors(
   )
 );
 
-our $VERSION = '@PACKAGE_VERSION@';  ## no critic (RequireInterpolationOfMetachars)
+our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
 
 our @EXPORT_OK = qw(
   create_urlencoded_content
@@ -593,7 +593,7 @@ sub new {
 
   $self->_set_default_logger($log_level);
 
-  $self->_set_defaults(%options);
+  $self->_set_defaults( %options, log_level => $log_level );
 
   $self->init_log_level( log_level => $log_level, debug => $options{debug} );
 
@@ -757,6 +757,11 @@ sub decode_response {
     if !$output;
 
   my $orig_content = $content;
+
+  if ( $protocol && $protocol eq 'query' && ref $content eq 'HASH' ) {
+    my ($root_key) = grep {/Response$/xsm} keys %{$content};
+    $content = $content->{$root_key} if $root_key;
+  }
 
   if ( $output->{resultWrapper} ) {
     $content = $content->{ $output->{resultWrapper} };
@@ -1005,7 +1010,7 @@ sub init_botocore_request {
     %parameters = %{$request};
   }
   else {
-    my $finalized_request = $request->finalize;
+    my $finalized_request = $request->finalize($protocol);
 
     $self->get_logger->debug(
       sub {
@@ -1021,10 +1026,13 @@ sub init_botocore_request {
       $finalized_request = { $request_shape_name => $finalized_request };
     }
     elsif ( $protocol eq 'ec2' ) {
-      $finalized_request = [ param_n($finalized_request) ];
-
+      $finalized_request = ref $finalized_request ? [ param_n($finalized_request) ] : [];
       $self->set_http_method($method);
-
+      return $finalized_request;
+    }
+    elsif ( $protocol eq 'query' ) {
+      $finalized_request = ref $finalized_request ? [ query_param_n($finalized_request) ] : [];
+      $self->set_http_method($method);
       return $finalized_request;
     }
 
@@ -1752,6 +1760,14 @@ sub generate_xml {
 }
 
 ########################################################################
+sub query_param_n {
+########################################################################
+  my (@args) = @_;
+
+  return Amazon::API::Botocore::Shape::Utils::query_param_n(@args);
+}
+
+########################################################################
 sub param_n {
 ########################################################################
   my (@args) = @_;
@@ -1807,13 +1823,13 @@ sub create_urlencoded_content {
       @args = map { split /=/xsm } @{$parameters};  # formatted list
     }
     else {
-      @args = @{$parameters};                       # simple list
+      @args = @{$parameters};  # simple list
     }
   }
 
   my $content;
 
-  if ( $action && !any {/Action/xsm} @args ) {
+  if ( $action && !any { $_ eq 'Action' } @args ) {
     push @args, 'Action', $action;
   }
 
@@ -1870,8 +1886,8 @@ sub _create_methods {
   my $class = ref $self || $self;
 
   if ( $self->get_api_methods ) {
-    no strict 'refs';        ## no critic (TestingAndDebugging::ProhibitNoStrict)
-    no warnings 'redefine';  ## no critic (TestingAndDebugging::ProhibitNoWarnings)
+    no strict 'refs'; ## no critic (TestingAndDebugging::ProhibitNoStrict)
+    no warnings 'redefine'; ## no critic (TestingAndDebugging::ProhibitNoWarnings)
 
     my $stash = \%{ __PACKAGE__ . $DOUBLE_COLON };
 
@@ -1911,7 +1927,7 @@ sub _create_methods {
 }
 
 ########################################################################
-sub choose(&) { return $_[0]->(); }  ## no critic
+sub choose(&) { return $_[0]->(); } ## no critic
 ########################################################################
 
 ########################################################################
@@ -1963,7 +1979,6 @@ sub _set_default_logger {
 
   my $logger = Log::Log4perl->get_logger( ref $self );
   $logger->level($log_level_numeric);
-  $logger->additivity(0);
 
   $self->set_logger($logger);
 
