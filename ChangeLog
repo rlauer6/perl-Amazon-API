@@ -1,3 +1,13 @@
+Thu Apr  2 06:20:26 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.1.12]:
+	* VERSION: bump
+	* release-notes-2.1.12.md: new
+	* src/main/perl/lib/README.md: generated
+	* src/main/perl/lib/Amazon/API/HTTP/Response.pm.in
+	- remove use of Class::Accessor::Fast, unneeded
+	(content_type): make 5.10 compatible
+
 Fri Mar 27 07:37:19 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.1.11]:
