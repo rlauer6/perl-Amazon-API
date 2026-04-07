@@ -1,3 +1,44 @@
+Tue Apr  7 07:16:47 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.1.13]:
+	* README.md: generated
+	* release-notes-2.1.13.md: new
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API.pm.in
+	- pod updates
+	(create_botocore_request)
+	- localize $LOGGER_SOURCE
+	(invoke_api)
+	- major refactoring:
+	- replaced goto PAGINATOR with while() loop
+	- moved several functional operations into their own subroutines
+	(_unpack_args): new
+	(_check_response): new
+	(_init_paginator): new
+	(_set_default_logger): use Amazon::API::NullLogger if no_logger set
+	(_set_defaults)
+	- minor refactoring
+	- unify region setting
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	- + $LOGGER_SOURCE, used to localize logger
+	(new): set the logger to the NullLogger if no_logger
+	(_init_structure)
+	- do not create shapes for bless scalars
+	(_init_value)
+	- check actual type by making ref(scalar) = SCALAR
+	(finalize_structure)
+	- only finalize if the object can 'finalize' - patch for JSON::PP::true
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(serialize)
+	- set logger after initialization
+	- set the localized $LOGGER_SOURCE to sub { $self->get_logger }
+	* src/main/perl/lib/Amazon/API/HTTP/Response.pm.in
+	(new): just bless object, no (actual) parent class except UNIVERSAL
+        * src/main/perl/lib/Amazon/API/NullLogger.pm.in: new
+	* src/main/perl/lib/Makefile.am: add above to build
+	* cpan/buildspec.yml: likewise
+	* src/main/perl/lib/README.md: generated
+
 Thu Apr  2 06:20:26 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.1.12]:

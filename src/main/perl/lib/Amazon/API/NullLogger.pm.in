@@ -1,0 +1,15 @@
+########################################################################
+package Amazon::API::NullLogger;
+########################################################################
+use strict;
+use warnings;
+
+sub new   { return bless {}, shift }
+sub trace { }
+sub debug { }
+sub info  { }
+sub warn  { }
+sub error { }
+sub fatal { }
+sub level { }
+1;

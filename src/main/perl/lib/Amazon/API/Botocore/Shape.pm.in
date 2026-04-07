@@ -9,6 +9,7 @@ use parent qw(Exporter Class::Accessor::Fast);
 
 use Amazon::API::Constants qw(:chars :booleans);
 use Amazon::API::Botocore::Shape::Utils qw(flatten require_shape check_type check_pattern );
+use Amazon::API::NullLogger;
 
 use Carp qw(croak confess);
 use Cwd;
@@ -45,17 +46,20 @@ __PACKAGE__->mk_accessors(
 );
 
 our $PROTOCOL;
+our $LOGGER_SOURCE;
 
 ########################################################################
 sub new {
 ########################################################################
   my ( $class, $args, $is_response ) = @_;
 
-  if ( !$args->{logger} ) {
-    $args->{logger} = Log::Log4perl->get_logger($class);
-  }
-
   my $self = $class->SUPER::new($args);
+
+  $self->set_logger(
+      $LOGGER_SOURCE             ? $LOGGER_SOURCE->($class)
+    : Log::Log4perl->initialized ? Log::Log4perl->get_logger($class)
+    :                              Amazon::API::NullLogger->new
+  );
 
   if ($is_response) {
     $self->set__value(undef);
@@ -122,24 +126,26 @@ sub _init_structure {
 
   my $value = $self->get__value;
 
-  $self->get_logger->debug( sub { return Dumper( [ value => $value ] ) } );
-
   foreach my $member ( @{ $self->get_required } ) {
     croak "$member is a required parameter"
       if !any { $_ eq $member } keys %{$value};
   }
 
+  my %result = %{$value};  # do not alter input!
+
   foreach my $member ( keys %{ $self->get_members } ) {
 
-    if ( exists $value->{$member} ) {
+    if ( exists $result{$member} ) {
+      my $val = $result{$member};
+      next if blessed $val && reftype($val) eq 'SCALAR';  # JSON::PP::true
 
       my $class = require_shape( $self->get_members->{$member}->{shape}, $self->get_service );
 
-      $value->{$member} = $class->new( $value->{$member} );
+      $result{$member} = $class->new($val);
     }
   }
 
-  return $value;
+  return \%result;
 }
 
 ########################################################################
@@ -248,7 +254,7 @@ sub _init_value {
     if !$value;
 
   croak 'ref type of value should be one of SCALAR, ARRAY or HASH'
-    if blessed $value;
+    if blessed $value && reftype($value) ne 'SCALAR';
 
   my %types = (
     structure => 'HASH',
@@ -265,7 +271,9 @@ sub _init_value {
 
   my $required_type = $types{ $self->get_type };
 
-  check_type( $required_type, ref $value )
+  my $actual_type = ref($value) || 'SCALAR';
+
+  check_type( $required_type, $actual_type )
     or croak sprintf '%s requires a value of type %s', ref $self,
     $required_type;
 
@@ -446,7 +454,6 @@ sub finalize_structure {
     }
   );
 
-  #
   my $output = {};
 
   foreach my $member ( keys %{$members} ) {
@@ -465,7 +472,7 @@ sub finalize_structure {
 
     my $value = $self->get__value->{$member};
 
-    $output->{$member_name} = $value->finalize;
+    $output->{$member_name} = blessed $value && $value->can('finalize') ? $value->finalize : $value;
   }
 
   return $output;

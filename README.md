@@ -25,7 +25,9 @@ the included tool (`amazon-api`). The tool leverages the Botocore
 project's metadata to build classes that are specific to each API (and
 are documented in the perlish way). Using `Amazon::API` directly may
 not work in all circumstances unless you are very familiar with the
-API you are calling. If you decide to take the [Luddite approaches](#take-the-luddite-approach), read the documentation carefully before using `Amazon::API`._
+API you are calling. If you decide to take the [Luddite
+approaches](#take-the-luddite-approach), read the documentation
+carefully before using `Amazon::API`._
 
 - See ["IMPLEMENTATION NOTES"](#implementation-notes) for using `Amazon::API`
 directly to call AWS services.
@@ -77,25 +79,25 @@ You can use [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) in 3 differe
 ## Build your own API classes with just what you need
 
     package Amazon::API::SQS;
-    
+
     use strict;
     use warnings;
-    
+
     use parent qw( Amazon::API );
-    
+
     our @API_METHODS = qw(
       ListQueues
       PurgeQueue
       ReceiveMessage
       SendMessage
     );
-    
+
     sub new {
       my ( $class, @options ) = @_;
       $class = ref($class) || $class;
-    
+
       my %options = ref( $options[0] ) ? %{ $options[0] } : @options;
-    
+
       return $class->SUPER::new(
         { service       => 'sqs',
           http_method   => 'GET',
@@ -105,7 +107,7 @@ You can use [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) in 3 differe
         }
       );
     }
-    
+
     1;
 
     use Amazon::API::SQS;
@@ -381,20 +383,18 @@ key/values or hash reference.
 
     Set debug to a true value to enable debug messages. Debug mode will
     dump the request and response from all API calls. You can also set the
-    environment variable DEBUG to enable debugging output. Set the debug
-    value to '2' to increase the logging level.
+    environment variable DEBUG to enable debugging output.
 
     default: false
 
 - decode\_always
 
     Set `decode_always` to a true value to return Perl objects from API
-    method calls. The default is to return the raw output from the call.
-    Typically, API calls will return either XML or JSON encoded objects.
-    Setting `decode_always` will attempt to decode the content based on
-    the returned content type.
+    method calls. Typically, API calls return either XML or JSON encoded
+    responses which will be automatically deserialized. Setting
+    `decode_always` to false returns the raw content instead.
 
-    default: false
+    default: true
 
 - error
 
@@ -414,6 +414,15 @@ key/values or hash reference.
 - last\_action
 
     The last method call invoked.
+
+- no\_logger
+
+    Set `no_logger` to a true value to disable the internal logger.
+    This is useful when `Amazon::API` is used inside a logging appender
+    such as `Log::Log4perl::Appender::CloudWatch` where internal logging
+    would cause re-entrant behavior.
+
+    default: false
 
 - no\_passkey\_warning
 
@@ -480,16 +489,27 @@ key/values or hash reference.
     Typically this will be constructed for you based on the region and the
     service being invoked. However, you may want to set this manually if
     for example you are using a service like
-    <LocalStack|https://localstack.cloud/> that mocks AWS API calls.
+    [LocalStack](https://localstack.cloud/) that mocks AWS API calls.
 
         my $api = Amazon::API->new(service => 's3', url => 'http://localhost:4566/');
 
 - user\_agent
 
-    Your own user agent object.  Using
-    `Furl`, if you have it avaiable may result in faster response.
+    Set `user_agent` if you want to use a different user agent. The user
+    agent must implement a single `request` method that accepts an
+    [HTTP::Request](https://metacpan.org/pod/HTTP%3A%3ARequest) object and returns a response object providing the
+    following methods:
 
-    default: `LWP::UserAgent`
+    - `is_success` - returns true if the request succeeded
+    - `code` - returns the HTTP status code
+    - `content` - returns the response body
+    - `content_type` - returns the content type of the response
+
+    By default, `Amazon::API` uses `Amazon::API::HTTP::UserAgent`, a
+    lightweight wrapper around [HTTP::Tiny](https://metacpan.org/pod/HTTP%3A%3ATiny) that satisfies this
+    interface.
+
+    default: `Amazon::API::HTTP::UserAgent`
 
 - version
 
@@ -562,6 +582,9 @@ Invokes the API with the provided parameters.
     Array reference of key/value pairs representing additional headers to
     send with the request.
 
+_Note: This method consults the `raise_error` and `print_error`
+options to determine how errors are handled._
+
 ## decode\_response
 
 Boolean that indicates whether or not to deserialize the most recent
@@ -575,14 +598,12 @@ the `decode_always` attribute when you call the `new` constructor.
 
 default: true
 
-By default, \`Amazon::API\` will retrieve all results for Botocore based
+By default, `Amazon::API` will retrieve all results for Botocore based
 API calls that require pagination. To turn this behavior off, set
 `use_paginator` to a false value when you instantiate the API
 service.
 
     my $ec2 = Amazon::API->new(use_paginator => 0);
-
-You can also use the ["paginator"](#paginator) method to retrieve all results from Botocore requests that implement pagination.
 
 ## print\_error
 
@@ -964,7 +985,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.1.12  of `Amazon::API`.
+This documentation refers to version 2.1.13  of `Amazon::API`.
 
 # DIAGNOSTICS
 
@@ -974,17 +995,18 @@ true value to enable diagnostics.
 
 ## Logging
 
-By default [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) uses [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl)'s stealth loggers to
+By default [Amazon::API](https://metacpan.org/pod/Amazon%3A%3AAPI) creates a [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl) logger to
 log at the DEBUG and TRACE levels. Setting the environment variable
 DEBUG to some value or passing a true value for `debug` in the
 constructor will trigger extremely verbose logging. This is to help
-debug edge cases especially around serialiazation which is
+debug edge cases especially around serialization which is
 particularly prone to exceptions and API specific scenarios.
 
 If you pass a logger to the constructor, `Amazon::API` will attempt
 to use that if it has the appropriate logging level methods (error,
-warn, info, debug, trace). If [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl) is unavailable and you
-do not pass a logger, logging is essentially disabled at any level.
+warn, info, debug, trace, level). If [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl) is unavailable
+and you do not pass a logger, logging is essentially disabled at any
+level.
 
 If, for some reason you set the enviroment variable DEBUG to a true
 value or have your own Log4perl logger set at the debug level but do
@@ -1283,6 +1305,37 @@ your call may have failed include:
     If you find this project's serializer deficient, please log an issue
     and I will attempt to address it.
 
+# BETTER TOGETHER
+
+The motivation behind `Amazon::API` has been to provide a lightweight
+implementation of Amazon APIs for Perl. Several companion projects have
+been developed with the same philosophy.
+
+- [Amazon::Credentials](https://metacpan.org/pod/Amazon%3A%3ACredentials)
+
+    A lightweight, robust credential provider used transparently by
+    `Amazon::API` to locate and refresh AWS credentials from a variety of
+    sources including environment variables, instance metadata, container
+    credentials, and web identity tokens.
+
+- [Amazon::S3::Lite](https://metacpan.org/pod/Amazon%3A%3AS3%3A%3ALite)
+
+    A lightweight S3 client providing the most commonly used S3 operations
+    without the overhead of a full SDK.
+
+- [Amazon::Lambda::Runtime](https://metacpan.org/pod/Amazon%3A%3ALambda%3A%3ARuntime)
+
+    A complete implementation of the AWS Lambda Runtime API that allows
+    Perl developers to write and deploy Lambda functions.
+
+- [Log::Log4perl::Appender::CloudWatch](https://metacpan.org/pod/Log%3A%3ALog4perl%3A%3AAppender%3A%3ACloudWatch)
+
+    A [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl) appender that sends log events directly to AWS
+    CloudWatch Logs. Supports buffered writes, automatic stream creation,
+    and both flat and dot-notation [Log::Log4perl](https://metacpan.org/pod/Log%3A%3ALog4perl) configuration. Safe
+    to use with `Amazon::API` services in the same process without
+    re-entrant logging conflicts.
+
 # LICENSE AND COPYRIGHT
 
 This module is free software. It may be used, redistributed and/or
@@ -1290,20 +1343,10 @@ modified under the same terms as Perl itself.
 
 # TBD
 
-Over the last few years as the classes in this project have evolved,
-the number of dependencies has increased to the point where it is no
-longer a "lightweight" distribution. In fact, the start up time for
-`Amazon::API` is to be honest, now a bit disappointing.  Accordingly,
-the biggest "to do" on the list is to see if the load time can be
-reduced. Having said that, the cost of invoking some Amazon APIs and
-the fact that you may be using these classes in a manner where initial
-load time is not important, may not make this a high priority for
-some.
-
-- decrease load time of `Amazon::API`
-- reduce dependencies
-- reduce generated class modules sizes by separating out pod
-- investigate a different way to load Botocore metadata rather than embedding it in each module
+- Decrease load time of `Amazon::API`
+- Reduce generated class modules sizes by separating out pod
+- Investigate a different way to load Botocore metadata rather
+than embedding it in each module
 
 # SEE OTHER
 
@@ -1311,16 +1354,4 @@ some.
 
 # AUTHOR
 
-Rob Lauer - <rlauer6@comcast.net>
-
-# POD ERRORS
-
-Hey! **The above document had some coding errors, which are explained below:**
-
-- Around line 2901:
-
-    You forgot a '=back' before '=head2'
-
-- Around line 2911:
-
-    &#x3d;back without =over
+Rob Lauer - <rlauer@tresurersbriefcase.com>

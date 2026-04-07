@@ -8,7 +8,7 @@ sub new {
 ########################################################################
   my ( $class, $response ) = @_;
 
-  return $class->SUPER::new( { response => $response } );
+  return bless { response => $response }, $class;
 }
 
 ########################################################################

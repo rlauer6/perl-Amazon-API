@@ -7,6 +7,7 @@ use parent qw(Class::Accessor::Fast);
 
 use Amazon::API::Constants qw(:chars :booleans);
 use Amazon::API::Botocore::Shape::Utils qw(require_shape is_hash is_array);
+use Amazon::API::Botocore::Shape;
 
 use Carp;
 use Data::Dumper;
@@ -399,7 +400,10 @@ sub serialize {
   croak "unable to require class for $shape: $EVAL_ERROR\n"
     if !$class;
 
-  my $this = $class->new;  # ( { logger => $self->get_logger } );
+  local $Amazon::API::Botocore::Shape::LOGGER_SOURCE = sub { $self->get_logger };
+
+  my $this = $class->new();
+  $this->set_logger( $self->get_logger );
 
   my $type = $this->get_type;
 

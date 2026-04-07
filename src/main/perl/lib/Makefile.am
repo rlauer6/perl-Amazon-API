@@ -47,6 +47,7 @@ include perl-build.inc
 $(GAMAZON_PERLMODULES): % : %.in \
     Amazon/API/Constants.pm \
     Amazon/API/Error.pm \
+    Amazon/API/NullLogger.pm \
     Amazon/API/Signature4.pm \
     Amazon/API/Template.pm \
     Amazon/API/Botocore.pm \
@@ -84,6 +85,7 @@ amazon_api_DATA = \
     $(GAMAZON_API_PERLMODULES) \
     Amazon/API/Constants.pm \
     Amazon/API/Error.pm \
+    Amazon/API/NullLogger.pm \
     Amazon/API/Signature4.pm \
     Amazon/API/Template.pm
 
@@ -106,6 +108,7 @@ amazon_api_pod_simple_DATA = \
 dist_noinst_DATA = \
     Amazon/API/Constants.pm.in \
     Amazon/API/Error.pm.in \
+    Amazon/API/NullLogger.pm.in \
     Amazon/API/Signature4.pm.in \
     Amazon/API/Template.pm.in \
     Amazon/API/Botocore/Shape.pm.in \
@@ -171,6 +174,7 @@ uninstall-local:
 CLEANFILES = \
     Amazon/API/Constants.pm \
     Amazon/API/Error.pm \
+    Amazon/API/NullLogger.pm \
     Amazon/API/Signature4.pm \
     Amazon/API/Template.pm \
     Amazon/API/Botocore/Shape.pm \

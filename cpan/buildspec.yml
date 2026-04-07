@@ -27,6 +27,7 @@ provides:
   - Amazon::API::Botocore::Shape::Utils
   - Amazon::API::Constants
   - Amazon::API::Error
+  - Amazon::API::NullLogger
   - Amazon::API::Pod::Parser
   - Amazon::API::Pod::Simple::Text
   - Amazon::API::Signature4
