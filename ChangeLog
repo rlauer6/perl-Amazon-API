@@ -1,3 +1,80 @@
+Wed Apr  8 14:52:15 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.2.0]:
+	* release-notes-2.2.0.md: new
+	* README.md: generated
+	* VERSION: bump
+	* .gitignore: +src/main/perl/bin/**/*.pl
+	* Makefile.am
+	- remove cpan for SUBDIRS to avoid recursive make
+	* README-BUILD.md: remove section on examples for now
+	* autotools/ax_requirements_check.m4: add missing required modules
+	* configure.ac
+	(AC_CONFIG_FILES): add src/main/perl/bin/Makefile
+	* cpan-dist/.gitignore: add built artificats
+	* cpan-dist/Makefile
+	- major refactor to extract pod, extract botocore services
+	* cpan-dist/buildspec.yml.in: add @service@.api metatdata file to distribution
+	* cpan/Makefile.am
+	- check for updates in the Botocore repo
+	- builds services.api
+	* cpan/buildspec.yml: add services.api to distribution
+	* cpan/requires: +Class::Accessor::Fast, Pod::Extract, update some versions
+	* src/main/perl/Makefile.am: modified
+	* src/main/perl/lib/Amazon/API.pm.in
+	- remove dead code, unused dependencies
+	- lazy load heavyweight modules
+	(paginator): new
+	(new)
+	- cleanup loglevel initialization
+	(set_log_level)
+	- avoid Log4perl if we have no logger
+	(decode_response): lazy load XML::Simple
+	(find_content_type): use metadata, set protocol
+	(generate_xml): lazy load XML::LibXML
+	(_set_default_logger): lazy load Log::Log4perl
+	(init_log_level): removed
+	(_set_defaults): set no_logger true if not debug or trace
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	- use nstore to store service metadata
+	(create_service_shapes)
+	- write as .pod file
+	(render_stub)
+	- no need to stringify parameters anymore
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	- remove Log::Log4perl dependency
+	(_init_structure)
+	- default to [] if no required parameters
+	(new): don't initialize Log::Log4perl it will have already been done
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(serialize): lazy load strftime
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Utils.pm.in
+	(to_template_var): shim to lazy load Amazon::API::Template
+	(fetch_template): likewise
+	(render_template): likewise
+	(html2pod): likewise
+	(register_service_shapes): load shape definition once
+	(require_shape): create shape class
+	(_create_shape_class): fabricate shape class from shape definition
+	(create_shape): shape no longer a json object inside class
+	(__DATA__): removed shape class template
+	* src/main/perl/lib/Amazon/API/Error.pm.in
+	(_set_message): lazy load XML::Simple
+	* src/main/perl/lib/README.md: generated
+	* src/main/perl/bin/Makefile.am: new
+	* src/main/perl/bin/build-boto-services.pl.in: new
+	* src/examples/APIExample.pm: deleted
+	* src/examples/README.md: deleted
+	* src/examples/cloudwatch-events.pm: deleted
+	* src/examples/docker-compose.yml: deleted
+	* src/examples/ec2.pm: deleted
+	* src/examples/ecr.pm: deleted
+	* src/examples/rt53.pm: deleted
+	* src/examples/secrets-manager.pm: deleted
+	* src/examples/sqs.pm: deleted
+	* src/examples/ssm.pm: deleted
+	* src/examples/sts.pm: deleted
+
 Tue Apr  7 07:16:47 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.1.13]:

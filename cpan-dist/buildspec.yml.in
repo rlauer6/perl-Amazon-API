@@ -11,6 +11,9 @@ dependencies:
   requires: requires
 path:
   pm_module: lib
+extra-files:
+  - share:
+      - lib/@service@.api
 resources:
   homepage: 'http://github.com/rlauer6/perl-Amazon-API'
   bugtracker:

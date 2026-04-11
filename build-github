@@ -1,0 +1,29 @@
+#!/bin/bash
+# -*- mode: sh; -*-
+#  build script for GitHub actions
+#!/usr/bin/env bash
+#-*- mode: sh; -*-
+
+REPO="$1"
+
+set -euo pipefail
+set -x
+
+apt-get update && apt-get install -y \
+  git gcc make automake autoconf perl curl ca-certificates \
+  libssl-dev libexpat-dev libzip-dev autopoint
+
+curl -L https://cpanmin.us | perl - App::cpanminus 
+
+mkdir /workdir
+git clone $REPO /workdir
+cd /workdir
+
+for a in $(cat /workdir/build-requires); do
+    cpanm -n -v $a;
+done
+
+./bootstrap && ./configure
+
+git clone https://github.com/boto/botocore.git  cpan-dist/botocore
+make && cd cpan && make cpan

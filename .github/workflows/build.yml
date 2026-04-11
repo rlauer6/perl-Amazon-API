@@ -1,39 +1,14 @@
-name: amazon-api
-on: 
+name: Amazon-API
+on:
   push:
-    branches: "*"
+    branches: [ master ]
 jobs:
   test-module:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/rlauer6/bedrock-test:latest
-      credentials:
-        username: rlauer6
-        password: ${{ secrets.DOCKER_TOKEN }}
+      image: debian:trixie
     steps:
       - uses: actions/checkout@v4
- 
+
       - name: build
-        run: |
-            set -x
-            cpanm -n -v \
-            JSON::PP \
-            YAML::Tiny \
-            Log::Log4perl \
-            Markdown::Render \
-            Pod::Markdown \
-            Module::ScanDeps::Static
-            git clone https://github.com/rlauer6/make-cpan-dist.git
-            cd make-cpan-dist
-            ./bootstrap
-            ./configure --with-perl5libdir
-            make && make install
-            cd ..
-            ./bootstrap
-            for a in $(cat cpan/requires cpan/test-requires| perl -ne 'chomp; s/\^+//; my ($m,$v) = split / /; $v = ( $v && $v > 0) ? "\@$v" : "";  printf "%s%s ", $m, $v;'); do \
-              cpanm -n -v $a; \
-            done
-            ./configure --with-perl5libdir
-            make dist
-            cd cpan
-            make cpan
+        run: ./build-github https://github.com/rlauer6/perl-Amazon-API.git

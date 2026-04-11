@@ -15,7 +15,6 @@ use Amazon::API::Constants qw( :all );
 use Amazon::API::NullLogger;
 use Amazon::API::HTTP::UserAgent;
 use Amazon::Credentials;
-use Amazon::API::Botocore qw(paginator);
 use Amazon::API::Botocore::Shape;
 use Amazon::API::Botocore::Shape::Serializer;
 use Amazon::API::Botocore::Shape::Utils qw(
@@ -27,20 +26,14 @@ use Amazon::API::Botocore::Shape::Utils qw(
 
 use Carp;
 use Data::Dumper;
-use Date::Format;
 use English qw( -no_match_vars);
 use HTTP::Request;
 use JSON qw( encode_json decode_json );
-use LWP::UserAgent;
 use List::Util qw(any all pairs none);
-use Log::Log4perl;
+use Module::Load;
 use Readonly;
 use Scalar::Util qw( reftype blessed );
-use Time::Local;
-use Time::HiRes qw( gettimeofday tv_interval );
 use URL::Encode qw(url_encode);
-use XML::LibXML;
-use XML::Simple;
 
 Readonly::Scalar my $DEFAULT_REGION   => 'us-east-1';
 Readonly::Scalar my $REGIONAL_URL_FMT => '%s://%s.%s.amazonaws.com';
@@ -105,9 +98,6 @@ our @EXPORT_OK = qw(
   paginator
   service
 );
-
-our $START_TIME    = [gettimeofday];
-our $LAST_LOG_TIME = [gettimeofday];
 
 =begin 'ignore'
 
@@ -579,6 +569,14 @@ sub choose(&) { return $_[0]->(); } ## no critic
 ########################################################################
 
 ########################################################################
+sub paginator {
+########################################################################
+  load 'Amazon::API::Botocore';
+
+  return Amazon::API::Botocore::paginator(@_);
+}
+
+########################################################################
 sub new {
 ########################################################################
   my ( $class, @options ) = @_;
@@ -588,7 +586,7 @@ sub new {
   my %options = ref $options[0] ? %{ $options[0] } : @options;
 
   my $log_level = delete $options{log_level};
-  $log_level //= 'error';
+  $log_level //= $options{debug} || $ENV{DEBUG} ? 'debug' : 'error';
 
   my $self = $class->SUPER::new( \%options );
 
@@ -599,11 +597,11 @@ sub new {
   croak 'service is required'
     if !$self->get_service;
 
-  $self->_set_default_logger($log_level);
-
   $self->_set_defaults( %options, log_level => $log_level );
 
-  $self->init_log_level( log_level => $log_level, debug => $options{debug} );
+  $self->_set_default_logger($log_level);
+
+  $self->set_log_level( log_level => $log_level );
 
   $self->_create_methods;
 
@@ -627,10 +625,16 @@ sub set_log_level {
 
   my $logger = $self->get_logger;
 
+  return
+    if !$logger;
+
   my $log4perl_level = $LOG4PERL_LOG_LEVELS{$log_level};
 
   $logger->level($log4perl_level);
-  Log::Log4perl->get_logger('Amazon::API::Botocore')->level($log4perl_level);
+
+  if ( ref($logger) =~ /Log4perl/xsm ) {
+    Log::Log4perl->get_logger('Amazon::API::Botocore')->level($log4perl_level);
+  }
 
   return $self;
 }
@@ -702,6 +706,8 @@ sub decode_response {
         decode_json($content);
       }
       elsif ( $content_type =~ /xml/xmsi ) {
+        load 'XML::Simple';
+
         ################################################################
         # Maddening interpretation of XML output from these ass hats (-:|3
         #
@@ -717,7 +723,7 @@ sub decode_response {
         # some cases making it difficult to fix legacy mistakes in
         # these APIs.
         ################################################################
-        XMLin(
+        XML::Simple::XMLin(
           $content,
           KeepRoot      => $TRUE,
           SuppressEmpty => $FALSE,
@@ -738,8 +744,9 @@ sub decode_response {
       $decoded_content = eval { return decode_json($content); };
 
       if ( !$decoded_content || $EVAL_ERROR ) {
+        load 'XML::Simple';
         $decoded_content = eval {
-          return XMLin(
+          return XML::Simple::XMLin(
             $content,
             SuppressEmpty => 0,  # $protocol eq 'ec2' ? $FALSE : $TRUE,
             $self->get_force_array ? ( ForceArray => ['item'] ) : ()
@@ -918,6 +925,31 @@ sub create_botocore_request {
 }
 
 ########################################################################
+sub find_content_type {
+########################################################################
+  my ($self) = @_;
+
+  my $metadata  = $self->get_botocore_metadata;
+  my $protocols = $metadata->{protocols} // [ $metadata->{protocol} ];
+
+  foreach my $protocol ( @{$protocols} ) {
+    next if !exists $SERVICE_CONTENT_TYPES{$protocol};
+
+    my $content_type = $SERVICE_CONTENT_TYPES{$protocol};
+
+    if ( $protocol eq 'json' ) {
+      $content_type = sprintf '%s-%s', $content_type, $metadata->{jsonVersion};
+    }
+
+    $self->set_protocol($protocol);
+
+    return $content_type;
+  }
+
+  return $EMPTY;
+}
+
+########################################################################
 # init_botocore_request( $self, $request)
 ########################################################################
 
@@ -930,20 +962,6 @@ sub create_botocore_request {
 # the API type (rest-json, rest-xml).
 
 ########################################################################
-sub find_content_type {
-########################################################################
-  my ($self) = @_;
-  my $protocol = $self->get_botocore_metadata->{protocol};
-
-  my $content_type = $SERVICE_CONTENT_TYPES{$protocol};
-
-  if ( $protocol eq 'json' ) {
-    $content_type = sprintf '%s-%s', $content_type, $self->get_botocore_metadata->{jsonVersion};
-  }
-  return $content_type;
-}
-
-########################################################################
 sub init_botocore_request {
 ########################################################################
   my ( $self, $request ) = @_;
@@ -952,7 +970,7 @@ sub init_botocore_request {
 
   my $protocol = $metadata->{protocol};
 
-  my $content_type = $self->find_content_type() // $EMPTY;
+  my $content_type = $self->find_content_type // $EMPTY;
   $self->set_content_type($content_type);
 
   $request //= {};
@@ -1630,6 +1648,8 @@ sub generate_xml {
 ########################################################################
   my ( $self, $data ) = @_;
 
+  load 'XML::LibXML';
+
   my $doc = XML::LibXML::Document->new( '1.0', 'UTF-8' );
 
   my $fragment = XML::LibXML::DocumentFragment->new();
@@ -1894,6 +1914,8 @@ sub _set_default_logger {
     return $self;
   }
 
+  load 'Log::Log4perl';
+
   my $log_level_numeric = $LOG4PERL_LOG_LEVELS{ lc $log_level_string } // $LOG4PERL_LOG_LEVELS{info};
   my $log_level_name    = uc $log_level_string;
 
@@ -1945,18 +1967,6 @@ sub _set_default_logger {
 }
 
 ########################################################################
-sub init_log_level {
-########################################################################
-  my ( $self, %options ) = @_;
-
-  my $debug //= ( $options{debug} || $ENV{DEBUG} );
-
-  $options{log_level} = $debug ? 'debug' : $options{log_level} // 'info';
-
-  return $self->set_log_level( $options{log_level} );
-}
-
-########################################################################
 sub _set_defaults {
 ########################################################################
   my ( $self, %options ) = @_;
@@ -1977,11 +1987,15 @@ sub _set_defaults {
     $self->set_region($region);
   }
 
-  my $debug = $options{debug} || $ENV{DEBUG};
+  my $log_level = $options{log_level};
 
-  my $log_level = $debug ? 'debug' : $options{log_level};
+  if ( !$log_level || $log_level !~ /\A(?:debug|trace)\z/xsm ) {
+    $self->set_no_logger($TRUE);
+  }
 
-  $self->set_log_level( $log_level // 'info' );
+  else {
+    $self->set_log_level($log_level);
+  }
 
   if ( !$self->get_credentials ) {
     if ( $self->has_keys(%options) ) {

@@ -107,12 +107,6 @@ make cpan
 ```
 You'll find the distribution in the `cpan` directory.
 
-# Examples
-
-You can find some examples of how to use this API in the
-`src/examples` directory.  See the [README.md](src/examples/README.md)
-in that directory.
-
 # Author
 
 Rob Lauer  <rlauer6@comcast.net>

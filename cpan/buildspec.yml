@@ -15,7 +15,8 @@ path:
   recurse: yes
 extra-files:
   - ChangeLog
-  - src/examples
+  - share:
+      - cpan/services.api
 provides:
   - Amazon::API
   - Amazon::API::HTTP::Response

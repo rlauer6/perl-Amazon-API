@@ -6,8 +6,8 @@ use warnings;
 use Data::Dumper;
 use English qw( -no_match_vars );
 use JSON qw( decode_json );
+use Module::Load;
 use Scalar::Util qw( reftype );
-use XML::Simple qw( XMLin );
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(
@@ -64,7 +64,8 @@ sub _set_message {
   if ($raw_message) {
 
     if ( $self->get_content_type =~ /xml/xmsi ) {
-      $message = eval { return XMLin($raw_message); };
+      load 'XML::Simple';
+      $message = eval { return XML::Simple::XMLin($raw_message); };
     }
     elsif ( $self->get_content_type =~ /json/xmsi ) {
       $message = eval { return decode_json($raw_message); };
@@ -76,7 +77,8 @@ sub _set_message {
 
       if ( !$message || $EVAL_ERROR ) {
         if ( $raw_message =~ /^\s*\</xsm ) {
-          $message = eval { return XMLin($raw_message); };
+          load 'XML::Simple';
+          $message = eval { return XML::Simple::XMLin($raw_message); };
         }
       }
     } ## end if ( !$message || $EVAL_ERROR)

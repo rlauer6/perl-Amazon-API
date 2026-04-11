@@ -57,7 +57,9 @@ $(GAMAZON_PERLMODULES): % : %.in \
 
 Amazon/API/Botocore/Shape.pm: % : %.in \
     Amazon/API/Template.pm \
-    Amazon/API/Botocore/Shape/Utils.pm
+    Amazon/API/Botocore/Shape/Utils.pm  \
+    Amazon/API/NullLogger.pm
+
 
 Amazon/API/Botocore.pm: % : %.in \
     Amazon/API/Botocore/Shape.pm \

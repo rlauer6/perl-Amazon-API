@@ -1,15 +1,30 @@
 SUBDIRS = .
 
+SHELL := /bin/bash
+
+.SHELLFLAGS := -ec
+
+VERSION = $(shell cat $(top_srcdir)/VERSION)
+
+MODULE_NAME = Amazon::API
+
+PROJECT_NAME ?= $(shell echo $(MODULE_NAME) | sed -e 's/::/-/g;')
+
+TARBALL = $(PROJECT_NAME)-$(VERSION).tar.gz
+
 CPAN_DIST_MAKER=@MAKE_CPAN_DIST@
 
 package_version=@PACKAGE_VERSION@
 package=@PACKAGE@
 
-# builds the distribution tarball and renames based on package version
-cpan: buildspec.yml
+all: $(TARBALL)
+
+.PHONY: cpan
+cpan: $(TARBALL)
+
+$(TARBALL): buildspec.yml services.api
 	cd $(top_srcdir); \
 	$(MAKE)
-
 	test -n "$$DEBUG" && set -x; \
 	test -n "$$DEBUG" && DEBUG="--debug"; \
 	test -e requires && REQUIRES="-r requires"; \
@@ -20,15 +35,42 @@ cpan: buildspec.yml
 	PROJECT_ROOT="--project-root $$(readlink -f ..)"; \
 	$(CPAN_DIST_MAKER) $$PROJECT_ROOT $$REQUIRES $$DRYRUN $$SCANDEPS $$NOVERSION $$NOCLEANUP $$DEBUG -b $< || echo "$$?"
 
-# handle n.m.r-b version format (but don't use this anymore!)
-	if test -n "$$(echo $(package_version) | grep '\-')"; then \
-		echo $$package_version; \
-		package_version=$(package_version); package=$(package); \
-		tarball=$${package##perl-}-$${package_version%%-*}.tar.gz; \
-		test -e "$$tarball" && mv $$tarball $${package##perl-}-$$package_version.tar.gz; \
+BOTOCORE_PATH  = $(top_builddir)/cpan-dist/botocore
+BOTOCORE_STATE = $(top_builddir)/.botocore.state
+BOTOCORE_REPO  = https://github.com/boto/botocore.git
+
+BUILD_BOTO_SERVICES = $(top_builddir)/src/main/perl/bin/build-boto-services.pl
+
+$(BUILD_BOTO_SERVICES): $(BUILD_BOTO_SERVICES).in
+	cd $(top_builddir); \
+	$(MAKE)
+
+PERL5LIBDIR = $(top_builddir)/src/main/perl/lib
+
+$(BOTOCORE_STATE): FORCE
+	remote_hash=$$(git ls-remote $(BOTOCORE_REPO) HEAD | awk '{print $$1}'); \
+	if [ ! -f $(BOTOCORE_STATE) ] || [ "$$remote_hash" != "$$(cat $(BOTOCORE_STATE))" ]; then \
+	  echo "$$remote_hash" > $(BOTOCORE_STATE); \
+	  cd $(BOTOCORE_PATH) && git pull; \
 	fi
 
-.PHONY: cpan
+FORCE:
+
+# The directory target handles the initial clone
+$(BOTOCORE_PATH):
+	mkdir -p $(top_builddir)/cpan-dist
+	git clone https://github.com/boto/botocore.git $@
+	cd $(top_builddir)/cpan-dist; \
+	git checkout master
+
+# services.api only runs if missing or if the botocore dir is newer
+services.api: $(BOTOCORE_STATE) $(BOTOCORE_PATH) $(BUILD_BOTO_SERVICES)
+	perl -I $(PERL5LIBDIR) $(BUILD_BOTO_SERVICES) $$LIMIT -p $(BOTOCORE_PATH) -o $@
+
+# update-botocore now ensures the directory exists first
+.PHONY: update-botocore
+update-botocore: $(BOTOCORE_PATH)
+	cd $(BOTOCORE_PATH) && git pull
 
 CLEANFILES = \
     extra-files \

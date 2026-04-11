@@ -1,4 +1,4 @@
-SUBDIRS = lib .
+SUBDIRS = lib bin .
 
 UNIT_TESTS = \
     t/00-load.t \

@@ -15,7 +15,13 @@ cpan: buildspec.yml api
 	test -n "$(NOVERSION)" && NOVERSION="-n"; \
 	REAL_PATH=$$(realpath .); \
 	PROJECT_ROOT="--project-root $$REAL_PATH"; \
-	$(CPAN_DIST_MAKER) $$PROJECT_ROOT $$REQUIRES $$DRYRUN $$SCANDEPS $$NOVERSION $$NOCLEANUP $$DEBUG -b $< || echo "$$?"; \
+	$(CPAN_DIST_MAKER) $$PROJECT_ROOT \
+	  $$REQUIRES \
+	  $$DRYRUN \
+	  $$SCANDEPS \
+	  $$NOVERSION \
+	  $$NOCLEANUP \
+	  $$DEBUG -b $< || echo "$$?"; \
 	$(MAKE) clean
 
 api: $(BOTOCORE)
@@ -33,6 +39,36 @@ api: $(BOTOCORE)
 	  echo "creating...$$a"; \
 	  amazon-api $$TIDY -b $$(pwd) -s $$boto_service -m $$module_name -o lib create-$$a; \
 	done
+	for a in $$(find lib -name '*.pm'); do \
+	  temp="$${a%.pm}"; \
+	  podextract -i $$a -o $$a.tmp -p "$${temp}.pod"; \
+	  mv $$a.tmp $$a; \
+	done
+
+BOTOCORE_BASE := botocore/botocore/data
+
+.PHONY: all-services
+all-services: xml.services json.services rest-json.services query.services
+
+.PHONY: xml.services
+xml.services: 
+	grep -ri '"protocol":' $(BOTOCORE_BASE) | grep 'xml' | \
+	  cut -f 4 -d '/' | sort -u > $@
+
+.PHONY: json.services
+json.services:
+	grep -ri '"protocol":' $(BOTOCORE_BASE) | grep '"json"' | \
+	  cut -f 4 -d '/' | sort -u > $@
+
+.PHONY: rest-json.services
+rest-json.services:
+	grep -ri '"protocol":' $(BOTOCORE_BASE) | grep '"rest-json"' | \
+	  cut -f 4 -d '/' | sort -u > $@
+
+.PHONY: query.services
+query.services:
+	grep -ri '"protocol":' $(BOTOCORE_BASE) | grep 'query' | \
+	  cut -f 4 -d '/' | sort -u > $@
 
 service: service-listing.json
 	@if test -n "$(SERVICE)"; then \
@@ -132,6 +168,7 @@ botocore:
 CLEANFILES = \
     buildspec.yml \
     provides \
+    *.tmp \
     resources \
     service \
     module

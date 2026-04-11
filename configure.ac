@@ -164,6 +164,7 @@ AC_CONFIG_FILES([
     src/main/bash/bin/Makefile
     src/main/perl/Makefile
     src/main/perl/lib/Makefile
+    src/main/perl/bin/Makefile
     cpan/Makefile
     ${PACKAGE_NAME}.spec
 ])

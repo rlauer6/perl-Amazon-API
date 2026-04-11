@@ -15,8 +15,7 @@ use English qw(-no_match_vars);
 use JSON qw(decode_json encode_json);
 use Scalar::Util qw(reftype blessed);
 use List::Util qw(any none);
-use POSIX qw(strftime);
-
+use Module::Load;
 use URL::Encode qw(url_decode_utf8);
 
 our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
@@ -583,6 +582,9 @@ sub serialize {
         my $nanoseconds;
 
         ( $epoch, $nanoseconds ) = split /[.]/xsm, $epoch;
+
+        load 'POSIX::strftime';
+        POSIX::strftime->import('strftime');
 
         if ( defined $nanoseconds ) {
           $data = strftime( '%Y-%m-%dT%H:%M:%S.%%d%z', localtime $epoch );

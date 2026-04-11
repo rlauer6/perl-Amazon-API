@@ -1,6 +1,13 @@
 **/*.tag
 **/*.log
+**/*.tmp
 **/perltidy.err
+**/*.api
+**/*.services
+*.diffs
+*.lst
+src/examples
+.botocore.state
 src/main/perl/lib/botocore
 src/main/perl/prove.*
 src/main/perl/test-suite.log
@@ -11,6 +18,7 @@ cpan-dist/services
 cpan-dist/service-listing.json
 **/Makefile
 **/Makefile.in
+src/main/perl/bin/**/*.pl
 src/main/perl/lib/**/*.pm
 src/main/perl/lib/**/*.pc
 src/main/perl/lib/test/*
