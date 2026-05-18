@@ -1080,7 +1080,7 @@ sub init_botocore_request {
   my $uri;
 
   if ( $protocol =~ /^rest\-(json|xml)/xsm ) {
-    my @args = @{ $http->{parsed_request_uri}->{parameters} };
+    my @args = @{ $http->{parsed_request_uri}->{parameters} // [] };
 
     my $request_uri_tpl = $http->{parsed_request_uri}->{request_uri_tpl};
 

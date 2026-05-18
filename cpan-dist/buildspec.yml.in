@@ -6,11 +6,11 @@ project:
   author:
     name: @name@
     mailto: @email@
-pm_module: Amazon::API::@service@
+pm-module: Amazon::API::@service@
 dependencies:
   requires: requires
 path:
-  pm_module: lib
+  pm-module: lib
 extra-files:
   - share:
       - lib/@service@.api

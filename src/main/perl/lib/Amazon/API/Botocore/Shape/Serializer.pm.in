@@ -583,8 +583,8 @@ sub serialize {
 
         ( $epoch, $nanoseconds ) = split /[.]/xsm, $epoch;
 
-        load 'POSIX::strftime';
-        POSIX::strftime->import('strftime');
+        require POSIX;
+        POSIX->import('strftime');
 
         if ( defined $nanoseconds ) {
           $data = strftime( '%Y-%m-%dT%H:%M:%S.%%d%z', localtime $epoch );

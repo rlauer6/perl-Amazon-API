@@ -1,3 +1,21 @@
+Thu May 14 14:40:37 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.2.1]:
+	* release-notes/release-notes-2.2.1.md: new
+	* release-notes.md: new
+	* recommended: CPAN::Maker
+	* VERSION: bump
+	* README.md: generated
+	* cpan/recommends: new
+	* cpan-dist/buildspec.yml.in: '_' => '-'
+	* cpan/buildspec.yml: likewise, +release-notes.md
+	* src/main/perl/lib/README.md: likewise
+	* src/main/perl/lib/Amazon/API.pm.in
+	(init_botocore_request): ensure {parsed_request_uri}{parameters} is []
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(serialize)
+	- incorrect load and import of strftime
+
 Wed Apr  8 14:52:15 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.2.0]:
