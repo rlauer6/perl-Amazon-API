@@ -1,3 +1,13 @@
+Thu May 21 16:43:20 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.2.2]:
+	* release-notes/release-notes-2.2.2.md: new
+	* README.md: generated
+	* src/main/perl/lib/README.md: generated
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(serialize): fixed formatting of timesamps with nanoseconds
+
 Thu May 14 14:40:37 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.2.1]:

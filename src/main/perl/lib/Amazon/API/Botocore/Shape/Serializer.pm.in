@@ -587,8 +587,9 @@ sub serialize {
         POSIX->import('strftime');
 
         if ( defined $nanoseconds ) {
-          $data = strftime( '%Y-%m-%dT%H:%M:%S.%%d%z', localtime $epoch );
-          $data .= sprintf '.%03d', $nanoseconds if defined $nanoseconds;
+          $data = strftime( '%Y-%m-%dT%H:%M:%S', localtime $epoch );
+          $data .= sprintf '.%03d', $nanoseconds;
+          $data .= strftime( '%z', localtime $epoch );
         }
         else {
           $data = strftime( '%Y-%m-%dT%H:%M:%S%z', localtime $epoch );
