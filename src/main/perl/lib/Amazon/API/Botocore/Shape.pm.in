@@ -18,6 +18,7 @@ use English qw(-no_match_vars);
 use Readonly;
 use Scalar::Util qw( reftype blessed );
 use List::Util qw( any pairs none );
+use JSON::PP;
 
 __PACKAGE__->follow_best_practice;
 __PACKAGE__->mk_accessors(
@@ -318,6 +319,9 @@ sub finalize {
   local $PROTOCOL = $protocol
     if defined $protocol;
 
+  $self->get_logger->debug( 'returning because ' . ref($self) . ' is not blessed?' )
+    if !blessed $self;
+
   return $self
     if !blessed $self;
 
@@ -334,7 +338,31 @@ sub finalize {
   );
 
   my %dispatch = (
-    SCALAR    => sub { return $self->get__value },
+    SCALAR => sub {
+      my $type = $self->get_type;
+
+      my $val = $self->get__value;
+
+      $self->get_logger->debug(
+        Dumper(
+          [ type => $type,
+            val  => $val
+          ]
+        )
+      );
+
+      if ( $type eq 'integer' || $type eq 'long' ) {
+        return defined $val ? $val + 0 : $val;
+      }
+      elsif ( $type eq 'float' || $type eq 'double' ) {
+        return defined $val ? $val * 1.0 : $val;
+      }
+      elsif ( $type eq 'boolean' ) {
+        return $val ? JSON::PP::true : JSON::PP::false;
+      }
+
+      return $val;
+    },
     MAP       => sub { return $self->finalize_map },
     LIST      => sub { return $self->finalize_list },
     STRUCTURE => sub { return $self->finalize_structure },

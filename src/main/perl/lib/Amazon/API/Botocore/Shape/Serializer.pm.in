@@ -22,7 +22,7 @@ our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachar
 
 __PACKAGE__->follow_best_practice;
 
-__PACKAGE__->mk_accessors(qw( service delete_empty_members debug logger ));
+__PACKAGE__->mk_accessors(qw( service delete_empty_members protocol debug logger ));
 
 ########################################################################
 sub new {
@@ -371,7 +371,7 @@ sub serialize {
       $data = $data->{$shape};
     }
     # else this may be ec2 with a response wrapper
-    elsif ( ref $data && reftype($data) eq 'HASH' ) {
+    elsif ( ref $data && reftype($data) eq 'HASH' && $self->get_protocol =~ /^(?:query|ec2)$/xsm ) {
       my ($response_wrapper) = grep {/response$/ixsm}
         keys %{$data};
 

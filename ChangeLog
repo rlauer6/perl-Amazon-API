@@ -1,3 +1,23 @@
+Thu Jun 11 13:40:26 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.2.3]:
+	* release-notes/release-notes-2.2.3.md: new
+	* README.md: generated
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API.pm.in
+	(new): add --localstack option
+	(decode_response)
+	- pass protocol to serializer
+	- unwrap rest-xml/json responses
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	(finalize)
+	- add debug messages
+	- coerce int, float, double, boolean types
+	* src/main/perl/lib/Amazon/API/Botocore/Shape/Serializer.pm.in
+	(serialize)
+	- only find wrapper if query or ec2 protocol
+	* src/main/perl/lib/README.md: modified
+
 Thu May 21 16:43:20 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.2.2]:

@@ -63,6 +63,7 @@ __PACKAGE__->mk_accessors(
     http_method
     last_action
     _log_level
+    localstack
     logger
     log_file
     log4perl_layout
@@ -590,6 +591,10 @@ sub new {
 
   my $self = $class->SUPER::new( \%options );
 
+  if ( $self->get_localstack ) {
+    $self->set_url('http://localhost:4566');
+  }
+
   if ( $self->get_service_url_base ) {
     $self->set_service( $self->get_service_url_base );
   }
@@ -762,6 +767,7 @@ sub decode_response {
 
   # we'll only have a "serializer" if this is a Botocore generated API
   my $serializer = $self->get_serializer;
+  $serializer->set_protocol($protocol);
 
   return $content
     if !ref $content || !$serializer || !$serialize;
@@ -1194,7 +1200,20 @@ sub init_botocore_request {
 
   }
 
-  my $content = \%parameters;
+  my $content;
+
+  if ( $request_shape_name && $protocol =~ /rest\-(json|xml)/ ) {
+    # unwrap — the shape name wrapper was only needed to route URI/query params;
+    # the body is just the remaining members of the inner hash
+    my $inner = $parameters{$request_shape_name};
+    $content = ( $inner && keys %{$inner} ) ? $inner : undef;
+  }
+  else {
+    $content = \%parameters;
+    if ( $method ne 'POST' && !keys %parameters ) {
+      $content = undef;
+    }
+  }
 
   if ( $method ne 'POST' && !keys %parameters ) {
     $content = undef;
