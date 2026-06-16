@@ -1,3 +1,16 @@
+Tue Jun 16 08:33:04 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.2.4]:
+	* README.md: generated
+	* VERSION: bump
+	* ChangeLog: modified
+	* release-notes.md: new
+	* release-notes/release-notes-2.2.4.md: new
+	* src/main/perl/lib/Amazon/API.pm.in
+	(create_urlencode_content)
+	- only top level Version key
+	* src/main/perl/lib/README.md: modified
+
 Thu Jun 11 13:40:26 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.2.3]:

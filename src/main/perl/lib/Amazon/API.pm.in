@@ -1766,7 +1766,9 @@ sub create_urlencoded_content {
     push @args, 'Action', $action;
   }
 
-  if ( $version && !any {/Version/xsm} @args ) {
+  my %arg_hash = @args;
+
+  if ( $version && !exists $arg_hash{Version} ) {
     push @args, 'Version', $version;
   }
 
