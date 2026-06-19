@@ -440,7 +440,6 @@ sub serialize {
 
       return $exists ? $EMPTY : $data;
     },
-
     boolean => sub {
 
       if ( ref $data ) {
@@ -455,12 +454,16 @@ sub serialize {
       $data //= 0;
 
       if ( any { $data eq $_ } qw( 0 1 true false) ) {
-        return {
-          0     => JSON::false,
-          1     => JSON::true,
-          true  => JSON::true,
-          false => JSON::false,
+        my $bool_value = {
+          '0'     => 0,
+          '1'     => 1,
+          'true'  => 1,
+          'false' => 0,
         }->{$data};
+
+        return $self->get_protocol =~ /^(?:query|ec2)$/xsm
+          ? $bool_value
+          : ( $bool_value ? JSON::true : JSON::false );
       }
 
       return $data;

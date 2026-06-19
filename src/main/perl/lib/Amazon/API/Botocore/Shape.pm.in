@@ -358,7 +358,19 @@ sub finalize {
         return defined $val ? $val * 1.0 : $val;
       }
       elsif ( $type eq 'boolean' ) {
-        return $val ? JSON::PP::true : JSON::PP::false;
+        my $bool_value = $val ? 1 : 0;
+
+        # query/ec2 protocols serialize via param_n()/query_param_n()
+        # (Botocore::Shape::Utils), which flatten the request into
+        # key=value query-string pairs and have no JSON encoder
+        # downstream - they can't handle a JSON::PP::true/false blessed
+        # scalar ref and die trying to dereference it as an array.
+        # JSON-style protocols need the blessed sentinel so the eventual
+        # encode_json call emits true/false rather than "1"/"0".
+        return $bool_value
+          if $PROTOCOL && $PROTOCOL =~ /^(?:query|ec2)$/xsm;
+
+        return $bool_value ? JSON::PP::true : JSON::PP::false;
       }
 
       return $val;
