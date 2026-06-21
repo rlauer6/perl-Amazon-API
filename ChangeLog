@@ -1,3 +1,15 @@
+Sun Jun 21 14:08:07 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.2.8]:
+	* VERSION: bump
+	* release-notes.md: new
+	* release-notes/release-notes-2.2.8.md: new
+	* README.md: generated
+	* src/main/perl/lib/Amazon/API.pm.in
+	(init_botocore_request)
+	- fix uninitialized error, get payload member from shape object
+	* src/main/perl/lib/README.md: generated
+
 Sun Jun 21 10:20:50 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.2.7]:

@@ -1196,16 +1196,17 @@ sub init_botocore_request {
     # body for every REST-XML/JSON operation with a declared payload member.
     # We only need to mutate the payload member in place to attach the
     # namespace attribute, if any.
-    if ( $input->{payload} && $parameters{$request_shape_name}->{ $input->{payload} } ) {
+    my $request_shape_def = $self->get_botocore_shapes->{$request_shape_name} // {};
+    my $payload_member    = $request_shape_def->{payload};
+
+    if ( $payload_member && $parameters{$request_shape_name}->{$payload_member} ) {
       if ( $self->get_namespace ) {
-        $parameters{$request_shape_name}->{ $input->{payload} }->{_attr} = { xmlns => $self->get_namespace };
+        $parameters{$request_shape_name}->{$payload_member}->{_attr} = { xmlns => $self->get_namespace };
       }
     }
     elsif ( $self->get_namespace ) {
-      my $locationName = $input->{locationName};
-      $parameters{$locationName}->{_attr} = { xmlns => $self->get_namespace };
+      $parameters{$request_shape_name}->{_attr} = { xmlns => $self->get_namespace };
     }
-
   }
 
   my $content;
