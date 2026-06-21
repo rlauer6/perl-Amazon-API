@@ -1,7 +1,20 @@
+Sun Jun 21 04:57:52 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.2.6]:
+	* VERSION: bump
+	* release-notes.md: new
+	* release-notes/release-notes-2.2.6.md: new
+	* README.md: generated
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	(_init_map)
+	- fix serialization of list maps
+	(finalize_map): likewise
+	* src/main/perl/lib/README.md: generated
+	* src/main/perl/lib/t/03-query-map-shape.t: new
+
 Fri Jun 19 17:04:33 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.2.5]:
-	* ChangeLog: modified
 	* VERSION: bump
 	* release-notes.md: new
 	* release-notes/release-notes-2.2.5.md: new

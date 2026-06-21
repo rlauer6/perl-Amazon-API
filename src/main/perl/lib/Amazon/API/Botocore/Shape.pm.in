@@ -169,12 +169,20 @@ sub _init_map {
 
   my @list;
 
-  my $key_class   = require_shape( $self->get_key->{shape},   $self->get_service );
   my $value_class = require_shape( $self->get_value->{shape}, $self->get_service );
 
   foreach my $elem ( @{$value} ) {
     my @kv = %{$elem};
-    push @list, { $key_class->new( $kv[0] ) => $value_class->new( $kv[1] ) };
+
+    # Use the plain key string ($kv[0]) as the hash key - NOT
+    # $key_class->new($kv[0]), which Perl would stringify into a
+    # blessed-object ref ("...::String=HASH(0x...)"), destroying the
+    # real key value. For query/ec2 protocols this corrupted key then
+    # desyncs the entire flattened query string. The key's botocore
+    # shape (key.locationName, e.g. 'Name') is applied later in
+    # finalize_map/_create_key_value_list; the key value itself is just
+    # a string and needs no shape object here.
+    push @list, { $kv[0] => $value_class->new( $kv[1] ) };
   }
 
   $value = \@list;
@@ -416,6 +424,22 @@ sub finalize_map {
 
   return flatten( $location_name, $list )
     if $self->is_flattened;
+
+  # Non-flattened maps in the query/ec2 protocols use an 'entry.N'
+  # wrapper (e.g. MessageAttributes.entry.1.Name=Foo), NOT the 'member.N'
+  # wrapper that query_param_n applies to generic lists. Pre-index the
+  # entries into an entry.N-keyed hash here - the only stage that knows
+  # this is a map - so the generic walker emits the correct keys. For
+  # other protocols / unkeyed maps, fall through to the previous shape.
+  if ( $key && $PROTOCOL && ( any { $PROTOCOL eq $_ } qw( query ec2 ) ) ) {
+    my %indexed;
+    my $idx = 1;
+    foreach my $entry ( @{$list} ) {
+      $indexed{ 'entry.' . $idx++ } = $entry;
+    }
+
+    return $location_name ? { $location_name => \%indexed } : \%indexed;
+  }
 
   return $location_name ? { $location_name => $list } : $list;
 }
