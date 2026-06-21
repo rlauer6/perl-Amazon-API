@@ -1,3 +1,16 @@
+Sun Jun 21 10:20:50 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.2.7]:
+	* VERSION: bump
+	* release-notes.md: new
+	* release-notes/release-notes-2.2.7.md: new
+	* README.md: generated
+	* src/main/perl/lib/Amazon/API.pm.in
+	(init_botocore_request)
+	- fix serialization of rest-xml payloads
+	* src/main/perl/lib/README.md: generated
+	* src/main/perl/lib/t/04-rest-xml-payload.t: new
+
 Sun Jun 21 04:57:52 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.2.6]:

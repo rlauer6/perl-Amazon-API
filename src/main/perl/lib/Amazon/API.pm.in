@@ -1187,10 +1187,18 @@ sub init_botocore_request {
     # be found in the request object. Since we may be formatting an
     # XML request we need to insert the namespace so our formatter can
     # properly serialize the request
-    if ( $request->{payload} && $parameters{$request_shape_name}->{ $request->{payload} } ) {
-      %parameters = %{ $parameters{$request_shape_name} };
+    #
+    # NOTE: %parameters keeps its $request_shape_name-keyed shape here -
+    # it is NOT reassigned to the unwrapped payload contents. The generic
+    # content-resolution below still looks up $parameters{$request_shape_name},
+    # so reassigning %parameters here (as this block previously did) made
+    # that later lookup find nothing, silently producing an empty request
+    # body for every REST-XML/JSON operation with a declared payload member.
+    # We only need to mutate the payload member in place to attach the
+    # namespace attribute, if any.
+    if ( $input->{payload} && $parameters{$request_shape_name}->{ $input->{payload} } ) {
       if ( $self->get_namespace ) {
-        $parameters{ $request->{payload} }->{_attr} = { xmlns => $self->get_namespace };
+        $parameters{$request_shape_name}->{ $input->{payload} }->{_attr} = { xmlns => $self->get_namespace };
       }
     }
     elsif ( $self->get_namespace ) {
