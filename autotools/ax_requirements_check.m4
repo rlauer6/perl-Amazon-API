@@ -1,5 +1,5 @@
 AC_DEFUN([AX_REQUIREMENTS_CHECK],[
-  ads_PERL_MODULE([AWS::Signature4], [], [1.02])
+  ads_PERL_MODULE([Amazon::Signature4::Lite], [], [])
   ads_PERL_MODULE([Amazon::Credentials], [], [1.1.16])
   ads_PERL_MODULE([Carp::Always], [], [0.16])
   ads_PERL_MODULE([Class::Accessor::Fast], [], [0.51])

@@ -1,3 +1,18 @@
+Mon Jun 22 08:48:57 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.3.0]:
+	* VERSION: bump
+	* release-notes.md: new
+	* release-notes/release-notes-2.3.0.md: new
+	* README.md: generated
+	* src/main/perl/lib/t/06-signature4-adapter.t: new
+	* cpan/requires: remove AWS::Signature4, add Amazon::Signature4::Lite
+	* src/main/perl/lib/Amazon/API/Signature4.pm.in
+	- refactored to use Amazon::Signature::Lite
+	* src/main/perl/lib/README.md: modified
+	* src/main/perl/lib/t/04-rest-xml-payload.t
+	- set service to avoid uninitialized warnings
+
 Mon Jun 22 07:53:24 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.2.9]:

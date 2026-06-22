@@ -1,4 +1,4 @@
-AWS::Signature4 1.02
+Amazon::Signature4::Lite 1.0.1 
 Amazon::Credentials 1.2.1
 Carp::Always 0
 Class::Accessor::Fast 0.51

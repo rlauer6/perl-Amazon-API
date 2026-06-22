@@ -3,42 +3,77 @@ package Amazon::API::Signature4;
 use strict;
 use warnings;
 
-use parent qw( Exporter AWS::Signature4 );
+use parent qw( Exporter Amazon::Signature4::Lite );
 
-our $VERSION = '@PACKAGE_VERSION@';
+our $VERSION = '@PACKAGE_VERSION@'; ## no critic (RequireInterpolationOfMetachars)
 
 our @EXPORT_OK = qw( parse_service_url );
-
-our @SERVICE_URL_REGEXP = (
-  qr/(s3)[.]amazonaws[.]com\z/xsm,                   qr/(s3)[.]([^.]+)[.]amazonaws[.]com\z/xsm,
-  qr/(s3)[.][^.]+[.]([^.]+)[.]amazonaws[.]com\z/xsm, qr/(s3)[-][^.]+.+[.]([^.]+)[.]amazonaws[.]com\z/xsm,
-  qr/^([[:alpha:]-]+)[.]amazonaws[.]com\z/xsm,       qr/^([[:alpha:]-]+)[.]([^.]*)[.]amazonaws[.]com/xsm,
-);
 
 ########################################################################
 sub new {
 ########################################################################
   my ( $class, @options ) = @_;
+
   $class = ref $class || $class;
 
-  my %args = ref $options[0] ? $options[0] : @options;
+  my %args = ref $options[0] ? %{ $options[0] } : @options;
 
-  my $self = $class->SUPER::new(%args);
-
-  my @extra = grep { !/access_key|secret_key|security_token/xsm } keys %args;
-
-  @{$self}{@extra} = @args{@extra};
-
-  return $self;
+  # Amazon::API.pm constructs us with AWS::Signature4's dash-prefix
+  # convention (-access_key, -secret_key, -security_token). Translate
+  # to Amazon::Signature4::Lite's plain-key convention.
+  return $class->SUPER::new(
+    access_key    => $args{-access_key}     // $args{access_key},
+    secret_key    => $args{-secret_key}     // $args{secret_key},
+    session_token => $args{-security_token} // $args{session_token},
+    region        => $args{region}          // 'us-east-1',
+    service       => $args{service}         // 'execute-api',
+  );
 }
+
+########################################################################
+# parse_service_url must be an explicit sub (not just inherited) so it
+# can be exported via @EXPORT_OK and called as a plain function:
+#   use Amazon::API::Signature4 qw(parse_service_url);
+#   my ($h,$s,$r) = parse_service_url(host => ..., default_region => ...);
+#
+# Carries a full S3 endpoint regex set covering FIPS, dual-stack, S3
+# control plane, and account-id-prefixed endpoints that Amazon::API
+# encounters — independent of Amazon::Signature4::Lite's patterns.
+########################################################################
+
+our @SERVICE_URL_REGEXP = (
+  # account-id.s3-control[-fips][.dualstack].region.amazonaws.com
+  qr/^[^.]+[.](s3)-control(?:-fips)?(?:[.]dualstack)?[.]([^.]+)[.]amazonaws[.]com\z/xsm,
+
+  # s3[-fips][.dualstack].region.amazonaws.com
+  qr/(s3)(?:-fips)?(?:[.]dualstack)?[.]([^.]+)[.]amazonaws[.]com\z/xsm,
+
+  # standard: service.region.amazonaws.com
+  qr/^([[:alnum:]-]+)[.]([^.]+)[.]amazonaws[.]com\z/xsm,
+
+  # global: service.amazonaws.com (no region)
+  qr/^([[:alnum:]-]+)[.]amazonaws[.]com\z/xsm,
+);
 
 ########################################################################
 sub parse_service_url {
 ########################################################################
-  my (%args) = @_;
+  my $first = shift;
 
-  my ( $host,   $service )        = @args{qw{host service}};
-  my ( $region, $default_region ) = @args{qw{region default_region}};
+  # handles three calling conventions:
+  #   plain function:   parse_service_url(host => ...)
+  #   class method:     Amazon::API::Signature4->parse_service_url(host => ...)
+  #   instance method:  $signer->parse_service_url(host => ...)
+  my %args;
+  if ( ref $first || ( defined $first && $first =~ /^Amazon::/xsm ) ) {
+    %args = @_;
+  }
+  else {
+    %args = ( $first, @_ );
+  }
+
+  my ( $host,   $service )        = @args{qw(host service)};
+  my ( $region, $default_region ) = @args{qw(region default_region)};
 
   if ( !$service || !$region ) {
     foreach my $regexp (@SERVICE_URL_REGEXP) {
@@ -55,33 +90,87 @@ sub parse_service_url {
   return ( $host, $service, $region );
 }
 
-###############################################################
-sub scope {
-###############################################################
-  goto &_scope;
-}
-
-###############################################################
-sub _scope {
-###############################################################
+########################################################################
+sub sign {
+########################################################################
   my ( $self, $request, $region ) = @_;
 
-  my $host     = $request->uri->host;
-  my $datetime = $self->_datetime($request);
-  my ($date)   = $datetime =~ /^(\d+)T/xsm;
+  # Amazon::API.pm calls ->sign($http_request_object, $region), matching
+  # the AWS::Signature4 interface. Extract into plain scalars for
+  # Amazon::Signature4::Lite->sign, which works with HTTP::Tiny-style
+  # hashrefs rather than HTTP::Request objects.
 
-  my $service = $self->{service};
+  my $method  = $request->method;
+  my $url     = $request->uri->as_string;
+  my $payload = $request->content // q{};
 
-  ( $host, $service, $region ) = parse_service_url(
-    host           => $host,
-    service        => $service,
-    region         => $region,
-    default_region => 'us-east-1'
+  # collect existing headers - Lite will add/overwrite signing headers
+  my %headers;
+
+  $request->headers->scan( sub { $headers{ lc $_[0] } = $_[1] if defined $_[0] && defined $_[1] } );
+
+  # region may be passed per-call (mirrors AWS::Signature4->sign API)
+  local $self->{region} = $region
+    if $region;
+
+  my $signed = $self->SUPER::sign(
+    method            => $method,
+    url               => $url,
+    headers           => \%headers,
+    payload           => \$payload,
+    add_sha256_header => $self->{service} eq 's3' ? 1 : 0,
   );
 
-  return "$date/$region/$service/aws4_request";
+  # apply signed headers back onto the HTTP::Request object
+  for my $h ( keys %{$signed} ) {
+    $request->header( $h => $signed->{$h} );
+  }
+
+  return $request;
 }
 
 1;
 
 __END__
+
+=pod
+
+=head1 NAME
+
+Amazon::API::Signature4 - AWS Signature Version 4 adapter for Amazon::API
+
+=head1 SYNOPSIS
+
+  # Used internally by Amazon::API - not normally called directly.
+  Amazon::API::Signature4->new(
+    -access_key     => $key,
+    -secret_key     => $secret,
+    -security_token => $token,    # optional
+    service         => 'sns',
+    region          => 'us-east-1',
+  )->sign( $http_request, $region );
+
+=head1 DESCRIPTION
+
+Adapter between L<Amazon::API>'s existing signing interface
+(L<AWS::Signature4>-compatible: takes an L<HTTP::Request> object,
+signs in place, returns it) and L<Amazon::Signature4::Lite> (which
+works with plain scalars and hashrefs, no LWP dependency).
+
+Translates C<-access_key>/C<-secret_key>/C<-security_token>
+(dash-prefix, L<AWS::Signature4> convention) to
+C<access_key>/C<secret_key>/C<session_token>
+(plain, L<Amazon::Signature4::Lite> convention) in C<new()>.
+
+C<sign($request, $region)> extracts the method, URL, headers, and body
+from the L<HTTP::Request> object, calls L<Amazon::Signature4::Lite/sign>,
+and applies the returned signed headers back onto the request object -
+preserving the in-place mutation behaviour that L<Amazon::API> expects.
+
+C<parse_service_url> is inherited from L<Amazon::Signature4::Lite>.
+
+=head1 SEE ALSO
+
+L<Amazon::API>, L<Amazon::Signature4::Lite>, L<AWS::Signature4>
+
+=cut

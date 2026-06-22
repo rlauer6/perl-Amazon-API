@@ -80,29 +80,29 @@ package Amazon::API::TestCF {
 }
 
 my $api = bless {
-  botocore_metadata => {
-    protocol => 'rest-xml',
-  },
+  botocore_metadata   => { protocol => 'rest-xml', },
   botocore_operations => {
     CreateInvalidation => {
       input => {
-        shape => 'CreateInvalidationRequest',
+        shape   => 'CreateInvalidationRequest',
         payload => 'InvalidationBatch',
       },
       http => {
-        method => 'POST',
+        method     => 'POST',
         requestUri => '/2020-05-31/distribution/{DistributionId}/invalidation',
       },
     },
   },
+  service         => 'cloudfront',
   botocore_shapes => \%shapes,
   logger          => Amazon::API::NullLogger->new,
-}, 'Amazon::API::TestCF';
+  },
+  'Amazon::API::TestCF';
 
 $api->set_action('CreateInvalidation');
 
 my $input_params = {
-  DistributionId  => 'E22W2XA4ZD492W',
+  DistributionId    => 'E22W2XA4ZD492W',
   InvalidationBatch => {
     Paths => {
       Quantity => 1,
@@ -119,27 +119,15 @@ ok( !$EVAL_ERROR, 'init_botocore_request did not die' )
 
 ok( $parameters && ref $parameters eq 'HASH', 'returned a hashref' );
 
-ok(
-  exists $parameters->{InvalidationBatch},
-  'parameters contain the payload member (InvalidationBatch)'
-) or diag( explain($parameters) );
+ok( exists $parameters->{InvalidationBatch}, 'parameters contain the payload member (InvalidationBatch)' )
+  or diag( explain($parameters) );
 
-ok(
-  !exists $parameters->{DistributionId},
-  'uri-located member (DistributionId) was extracted, not left in the body'
-);
+ok( !exists $parameters->{DistributionId}, 'uri-located member (DistributionId) was extracted, not left in the body' );
 
-is(
-  $parameters->{InvalidationBatch}{CallerReference},
-  'test-reference-1234',
-  'CallerReference survived into the payload content'
-);
+is( $parameters->{InvalidationBatch}{CallerReference},
+  'test-reference-1234', 'CallerReference survived into the payload content' );
 
-is(
-  $parameters->{InvalidationBatch}{Paths}{Quantity},
-  1,
-  'Paths.Quantity survived into the payload content'
-);
+is( $parameters->{InvalidationBatch}{Paths}{Quantity}, 1, 'Paths.Quantity survived into the payload content' );
 
 ## the actual fix under test: serialize_content/generate_xml must
 ## receive a non-empty structure to produce a non-empty XML body
@@ -151,6 +139,6 @@ ok( $content, 'serialize_content produced non-empty content' )
 like( $content, qr/InvalidationBatch/, 'serialized XML contains the InvalidationBatch root element' );
 like( $content, qr/CallerReference/,   'serialized XML contains CallerReference' );
 like( $content, qr/Quantity/,          'serialized XML contains Quantity' );
-unlike( $content, qr/DistributionId/,  'serialized XML body does not contain the uri-located DistributionId' );
+unlike( $content, qr/DistributionId/, 'serialized XML body does not contain the uri-located DistributionId' );
 
 done_testing;

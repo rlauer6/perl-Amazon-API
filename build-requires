@@ -1,4 +1,4 @@
-AWS::Signature4
+Amazon::Signature4::Lite
 Amazon::Credentials
 Carp::Always
 Class::Accessor::Fast
@@ -23,4 +23,4 @@ Test::More
 URL::Encode
 URI
 XML::Simple
-XML::LibXML
+XML::Twig
