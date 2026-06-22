@@ -1,3 +1,20 @@
+Mon Jun 22 07:53:24 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.2.9]:
+	* VERSION: bump
+	* release-notes.md: new
+	* release-notes/release-notes-2.2.9.md: new
+	* README.md: generated
+	* autotools/ax_requirements_check.m4
+	- remove XML::LibXML as a requirement, add XML::Twig
+	* cpan/requires: likewise
+	* src/main/perl/lib/Amazon/API.pm.in
+	(init_botocore_request)
+	- croak if a required parameter is undef
+	(generate_xml): new implementation using XML::Twig
+	(to_xml): likewise
+	* src/main/perl/lib/README.md: generated
+
 Sun Jun 21 14:08:07 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.2.8]:

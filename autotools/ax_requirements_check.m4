@@ -24,5 +24,6 @@ AC_DEFUN([AX_REQUIREMENTS_CHECK],[
   ads_PERL_MODULE([URL::Encode], [], [0.03])
   ads_PERL_MODULE([URI], [], [])
   ads_PERL_MODULE([XML::Simple], [], [2.25])
-  ads_PERL_MODULE([XML::LibXML], [], [])
+  ads_PERL_MODULE([XML::SAX], [], [])
+  ads_PERL_MODULE([XML::Twig], [], [])
 ])

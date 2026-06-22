@@ -643,11 +643,7 @@ not be called by your applications._
 
     generate_xml(object)
 
-Generates XML from a Perl object (uses [XML::LibXML](https://metacpan.org/pod/XML%3A%3ALibXML)). This seems to
-do a much better job than XMLout() in allowing a mix of attributes and
-nested objects. With `XMLout()` you need to choose between allowing
-attributes (which we need to add the namespace for certain requests)
-and nested elements (NoAttr => 1).
+Generates XML from a Perl object (uses [XML::Twig](https://metacpan.org/pod/XML%3A%3ATwig)).
 
 # EXPORTED METHODS
 
@@ -985,7 +981,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.2.8  of `Amazon::API`.
+This documentation refers to version 2.2.9  of `Amazon::API`.
 
 # DIAGNOSTICS
 

@@ -1147,6 +1147,17 @@ sub init_botocore_request {
             )
           );
 
+          # A uri-located parameter substitutes directly into the request
+          # path (e.g. .../distribution/{DistributionId}/invalidation) - an
+          # undef value here means $uri's substitution silently leaves the
+          # literal '{...}' placeholder in place (or, with some patterns,
+          # an empty path segment), producing a malformed request that AWS
+          # rejects with an opaque error (e.g. InvalidAction) far removed
+          # from the actual cause. Fail here, naming the parameter, instead
+          # of sending a request we already know is broken.
+          croak "$action: required uri parameter '$p' is undef\n"
+            if !defined $val;
+
           $uri =~ s/[{]$var[}]/$val/xsm;
 
           delete $shape_parameters->{$p};
@@ -1676,17 +1687,16 @@ sub generate_xml {
 ########################################################################
   my ( $self, $data ) = @_;
 
-  load 'XML::LibXML';
+  load 'XML::Twig';
 
-  my $doc = XML::LibXML::Document->new( '1.0', 'UTF-8' );
-
-  my $fragment = XML::LibXML::DocumentFragment->new();
+  my @elements;
 
   for my $key ( keys %{$data} ) {
-    _to_xml( $doc, $fragment, $key, $data->{$key} );
+    push @elements, _to_xml( $key, $data->{$key} );
   }
 
-  my $xml = $doc->toString(1) . $fragment->toString(1);
+  my $xml = qq{<?xml version="1.0" encoding="UTF-8"?>\n};
+  $xml .= $_->sprint . "\n" for @elements;
 
   $self->get_logger->trace(
     sub {
@@ -2172,45 +2182,39 @@ sub _set_request_content {
 }
 
 ########################################################################
-# Convert a Perl data object to XML
-########################################################################
+# Convert a Perl data object to XML using XML::Twig
 sub _to_xml {
 ########################################################################
-  my ( $doc, $parent, $key, $value ) = @_;
+  my ( $key, $value ) = @_;
 
-  # Handle array references (multiple child elements)
+  # Handle array references (multiple sibling elements with same tag)
   if ( ref $value eq 'ARRAY' ) {
-    for my $item ( @{$value} ) {
-      _to_xml( $doc, $parent, $key, $item );
-    }
+    return map { _to_xml( $key, $_ ) } @{$value};
   }
+
   # Handle hash references (nested structures)
   elsif ( ref $value eq 'HASH' ) {
-    my $element = $doc->createElement($key);
+    my %attrs;
 
     # Handle attributes (if _attr key exists)
     if ( exists $value->{_attr} ) {
-      my $attrs = delete $value->{_attr};
-      for ( keys %{$attrs} ) {
-        $element->setAttribute( $_, $attrs->{$_} );
-      }
+      %attrs = %{ delete $value->{_attr} };
     }
 
-    # Process nested elements
+    my $element = XML::Twig::Elt->new( $key, \%attrs );
+
     for my $subkey ( keys %{$value} ) {
-      _to_xml( $doc, $element, $subkey, $value->{$subkey} );
+      $_->paste( last_child => $element )
+        for _to_xml( $subkey, $value->{$subkey} );
     }
 
-    $parent->appendChild($element);
+    return $element;
   }
+
   # Handle scalar values (text nodes)
   else {
-    my $element = $doc->createElement($key);
-    $element->appendTextNode($value);
-    $parent->appendChild($element);
+    return XML::Twig::Elt->new( $key, defined $value ? $value : $EMPTY );
   }
-
-  return;
 }
 
 1;
@@ -2920,11 +2924,7 @@ to send with the request.
 
  generate_xml(object)
 
-Generates XML from a Perl object (uses L<XML::LibXML>). This seems to
-do a much better job than XMLout() in allowing a mix of attributes and
-nested objects. With C<XMLout()> you need to choose between allowing
-attributes (which we need to add the namespace for certain requests)
-and nested elements (NoAttr => 1).
+Generates XML from a Perl object (uses L<XML::Twig>).
 
 =head1 EXPORTED METHODS
 

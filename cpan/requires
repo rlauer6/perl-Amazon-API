@@ -25,5 +25,6 @@ Readonly 2.05
 Term::ReadKey
 URI 0
 URL::Encode 0.03
-XML::LibXML 0
 XML::Simple 0
+XML::Twig 0
+XML::SAX 0
