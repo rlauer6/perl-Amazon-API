@@ -1,15 +1,18 @@
-Amazon::Signature4::Lite
+Amazon::Signature4::Lite 1.0.1
 Amazon::Credentials
 Carp::Always
 Class::Accessor::Fast
+CLI::Simple 2.0.4
 CPAN::Maker
 Date::Format
+File::ShareDir
+File::ShareDir::Install
 HTTP::Request
 HTTP::Headers
 HTTP::Tiny
 IO::Scalar
 IO::Socket::SSL
-JSON
+JSON::XS
 List::MoreUtils
 List::Util
 Net::SSLeay

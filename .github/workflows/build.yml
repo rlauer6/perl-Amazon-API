@@ -1,9 +1,9 @@
 name: Amazon-API
 on:
   push:
-    branches: [ master ]
+    branches: [ master, dev ]
 jobs:
-  test-module:
+  perl-Amazon-API:
     runs-on: ubuntu-latest
     container:
       image: debian:trixie

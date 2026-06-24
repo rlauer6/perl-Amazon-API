@@ -9,7 +9,7 @@ use Cwd qw(abs_path);
 use Data::Dumper;
 use English qw(-no_match_vars);
 use Getopt::Long qw(:config no_ignore_case);
-use JSON;
+use JSON qw(decode_json encode_json);
 use Pod::Usage;
 use Storable qw(nstore);
 
@@ -146,7 +146,7 @@ __END__
 =head2 Notes
 
 This script is used to produce a binary version of the Botocore
-service metadata. It is used by Amazon::API to determin the content
+service metadata. It is used by Amazon::API to determine the content
 type of the various Botocore services.
 
 You must have the Botocore project checkout out in some directory.

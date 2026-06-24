@@ -1,8 +1,36 @@
+Wed Jun 24 06:18:08 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.3.1]:
+	* release-notes.md: updated
+	* release-notes/release-notes-2.3.1.md: new
+	* .github/workflows/build.yml: renamed runner perl-Amazon-API
+	* Makefile.am
+	(cpanfile): new
+	* README.md: generated
+	* VERSION: bump
+	* build-github
+	- refactored to make it easier to test without pushing to GitHub
+	* build-requires
+	- Amazon::Signature4::Lite 1.0.1
+	- +JSON::XS - much faster for build-boto-services.pl
+	- +CLI::Simple 2.0.4
+	- File::ShareDir, File::ShareDir::Install
+	* cpan/requires: +JSON::XS
+	* cpanfile: new
+	* docker/Dockerfile: new
+	* docker/Dockerfile.create-service: removed, replaced with above
+	* src/main/perl/bin/build-boto-services.pl.in
+	- fix typo in pod
+	- import JSON methods explicitly
+	* src/main/perl/lib/Amazon/API.pm.in
+	- likewise
+	* src/main/perl/lib/README.md: generated
+
 Mon Jun 22 08:48:57 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.3.0]:
 	* VERSION: bump
-	* release-notes.md: new
+	* release-notes.md: updated
 	* release-notes/release-notes-2.3.0.md: new
 	* README.md: generated
 	* src/main/perl/lib/t/06-signature4-adapter.t: new

@@ -1,29 +1,51 @@
 #!/bin/bash
 # -*- mode: sh; -*-
 #  build script for GitHub actions
-#!/usr/bin/env bash
-#-*- mode: sh; -*-
-
-REPO="$1"
+########################################################################
+#  usage:
+#     build-github https://github.com/{user}/{repo-name}.git branch
+#     BRANCH=branch REPO=build-github https://github.com/{user}/{repo-name}.git build-github
+########################################################################
 
 set -euo pipefail
 set -x
+
+if [[ -z "${1:-}" ]]; then
+  if [[ -z "$REPO" ]]; then
+     echo >&2 "ERROR: usage build-github repo [branch]";
+     exit 1;
+  fi
+else
+  REPO="$1"
+  BRANCH="${2:-}"
+fi
+
+GITHUB_REF_NAME="${GITHUB_REF_NAME:-}"
+BRANCH="${BRANCH:-$GITHUB_REF_NAME}"
+BRANCH="${BRANCH:-main}"
 
 apt-get update && apt-get install -y \
   git gcc make automake autoconf perl curl ca-certificates \
   libssl-dev libexpat-dev libzip-dev autopoint
 
-curl -L https://cpanmin.us | perl - App::cpanminus 
-
-mkdir /workdir
-git clone $REPO /workdir
+mkdir -p /workdir
+git clone --depth=1 --branch $BRANCH $REPO /workdir
 cd /workdir
+git checkout $BRANCH
 
-for a in $(cat /workdir/build-requires); do
-    cpanm -n -v $a;
-done
+git clone --depth=1 https://github.com/boto/botocore.git /workdir/cpan-dist/botocore
 
-./bootstrap && ./configure
+curl -fsSL https://raw.githubusercontent.com/skaji/cpm/main/cpm | perl - install -g App::cpm
+cpm install -g --use-install-command --show-build-log-on-failure
 
-git clone https://github.com/boto/botocore.git  cpan-dist/botocore
-make && cd cpan && make cpan
+if [[ -e bootstrap ]]; then
+  ./bootstrap && ./configure
+fi
+
+TARGET="${TARGET:-}"
+
+if [[ -z "$TARGET" ]]; then
+  grep '^cpan:' Makefile && TARGET="cpan"
+fi
+
+make $TARGET

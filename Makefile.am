@@ -21,6 +21,12 @@ dist_noinst_DATA = \
     ${PACKAGE_NAME}.spec \
     ${PACKAGE_NAME}.spec.in
 
+cpanfile: build-requires
+	tmp=$$(mktemp); \
+	perl -ne 'chomp; my ($$m, $$v) = split /\s+/, $$_, 2; $$v //= "0"; print sprintf qq{requires "%s", "%s";\n}, $$m, $$v;' $< >$$tmp; \
+	cp $$tmp $@; \
+	rm -f $$tmp
+
 .PHONY: cpan
 cpan:
 	cd . && $(MAKE)

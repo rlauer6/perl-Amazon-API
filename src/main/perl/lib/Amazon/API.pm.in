@@ -28,7 +28,7 @@ use Carp;
 use Data::Dumper;
 use English qw( -no_match_vars);
 use HTTP::Request;
-use JSON qw( encode_json decode_json );
+use JSON qw(decode_json encode_json);
 use List::Util qw(any all pairs none);
 use Module::Load;
 use Readonly;
