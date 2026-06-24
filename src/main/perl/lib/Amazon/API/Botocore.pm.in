@@ -1162,7 +1162,7 @@ use Storable qw(retrieve);
 
 use parent qw( Amazon::API );
 
-our $VERSION = '@PACKAGE_VERSION@';
+our $VERSION = '@SERVICE_VERSION@';
 
 ########################################################################
 sub _retrieve_botocore_descriptions {

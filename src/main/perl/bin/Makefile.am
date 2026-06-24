@@ -8,8 +8,7 @@ PACKAGE_VERSION = $(shell cat $(top_srcdir)/VERSION)
 
 PERL5LIBDIR = $(top_builddir)/src/main/perl/lib
 
-PERLSCRIPTS = \
-    build-boto-services.pl.in
+PERLSCRIPTS = 
 
 GPERLSCRIPTS = $(PERLSCRIPTS:.pl.in=.pl)
 

@@ -1,3 +1,50 @@
+Wed Jun 24 15:36:43 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.3.2]:
+	* release-notes.md: updated
+	* release-notes/release-notes-2.3.1.md: new
+	* .gitignore: +build-boto-services
+	* build-requires: CLI::Simple 2.0.6
+	* cpan-dist/Makefile
+	- use bash, set SHELLFLAGS
+	- + $NO_ECHO
+	(api)
+	- +$NO_ECHO
+	- set version in stub to boto service version
+	(service):
+	- +$NO_ECHO
+	- refactoring
+	(script): use JSON
+	(list-services)
+	- +$NO_ECHO
+	- no -M of modules needed
+	(service-listing-json)
+	- +$NO_ECHO
+	- refactored a bit
+	(module): +$NO_ECHO
+	(buildspec.yml)
+	- +$NO_ECHO
+	- check if we have git or use defaults
+	(botocore): +$NO_ECHO
+	* cpan/Makefile.am
+	- build-boto-services is now a modulino
+	* cpan/buildspec.yml
+	- + Amazon::API::Botocore::Services
+	* cpan/requires: CLI::Simple 2.0.6
+	* cpanfile: likewise
+	* docker/Dockerfile
+	- move clone of perl-Amazon-API into different layer
+	- aws-api-autobuilder, not autobuild
+	* src/main/bash/bin/Makefile.am
+	- use create-modulino.pl to create modulino link
+	* src/main/perl/bin/Makefile.am
+	- removed build-boto-services.pl to
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	- @PACKAGE_VERSION@ => @SERVICE_VERSION@
+	* src/main/perl/lib/Amazon/API/Botocore/Services.pm.in
+	* src/main/perl/lib/Makefile.am
+	- add above to build
+
 Wed Jun 24 06:18:08 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.3.1]:

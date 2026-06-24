@@ -2,7 +2,7 @@ Amazon::Signature4::Lite 1.0.1
 Amazon::Credentials
 Carp::Always
 Class::Accessor::Fast
-CLI::Simple 2.0.4
+CLI::Simple 2.0.6
 CPAN::Maker
 Date::Format
 File::ShareDir

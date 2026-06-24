@@ -4,6 +4,8 @@ FROM debian:trixie-slim AS builder
 
 ARG RESOLVER="--resolver 02packages,https://cpan.openbedrock.net/orepan2"
 ARG EXTRA_BUILD_PACKAGES=""
+ARG BRANCH="master"
+ARG REPO="https://github.com/rlauer6/perl-Amazon-API.git"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -16,24 +18,28 @@ RUN apt-get update && \
 
 # clone only what we need - no full history
 RUN mkdir -p /root/git && cd /root/git && \
-    git clone --depth=1 https://github.com/boto/botocore.git && \
-    git clone --depth=1 --branch master https://github.com/rlauer6/perl-Amazon-API.git && \
-    ln -sf /root/git/botocore /root/git/perl-Amazon-API/cpan-dist/botocore
+    git clone --depth=1 https://github.com/boto/botocore.git
 
 # install Perl dependencies into /usr/src/app/local
 WORKDIR /usr/src/app
+ARG CACHE_BUST=1
+RUN echo "$CACHE_BUST" && \
+    cd /root/git && \
+    git clone --depth=1 --branch ${BRANCH} ${REPO} && \
+    ln -sf /root/git/botocore /root/git/perl-Amazon-API/cpan-dist/botocore
 RUN --mount=type=cache,target=/cache/local-debian \
-    cp /root/git/perl-Amazon-API/cpanfile . && \
+    cp /root/git/$(basename ${REPO} .git)/cpanfile . && \
     PERL5LIB=/cache/local-debian/lib/perl5 \
-    cpm install --show-build-log-on-failure --use-install-command \
-        -L /cache/local-debian ${RESOLVER} && \
+    cpm install --show-build-log-on-failure \
+      --use-install-command \
+      -L /cache/local-debian ${RESOLVER} && \
     rsync -a /cache/local-debian/ /usr/src/app/local/
 
 ENV PERL5LIB=/usr/src/app/local/lib/perl5
 ENV PATH=$PATH:/usr/src/app/local/bin
 
 # build Amazon::API core and install it
-RUN cd /root/git/perl-Amazon-API && \
+RUN cd /root/git/$(basename ${REPO} .git) && \
     ./bootstrap && \
     ./configure --with-perl5libdir=$PERL5LIB && \
     make && \
@@ -57,7 +63,8 @@ COPY --from=builder /root/git/botocore /usr/src/app/botocore
 
 ENV PERL5LIB=/usr/src/app/local/lib/perl5
 ENV PATH=$PATH:/usr/src/app/local/bin
-ENV FULLNAME="aws-api-autobuild"
+ENV FULLNAME="aws-api-autobuilder"
+ENV EMAIL="rclauer@gmail.com"
 
 WORKDIR /usr/src/app/cpan-dist
 
@@ -65,7 +72,7 @@ WORKDIR /usr/src/app/cpan-dist
 RUN ln -sf /usr/src/app/botocore botocore
 
 # entrypoint: SERVICE and MODULE_NAME passed at runtime
-# e.g. docker run --rm -v $(pwd):/output image sqs SQS
+# e.g. docker run --rm -e SERVICE=sqs -e MODULE_NAME=SQS -v $(pwd):/output image sqs SQS
 ENTRYPOINT ["/bin/bash", "-c", \
     "make SERVICE=${SERVICE} MODULE_NAME=${MODULE_NAME} && \
      cp *.tar.gz /output/"]

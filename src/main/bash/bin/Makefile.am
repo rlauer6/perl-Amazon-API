@@ -1,5 +1,7 @@
 SUBDIRS = . 
 
+NO_ECHO ?= @
+
 perlrun        = @PERL@
 bashrun        = @BASHRUN@
 scandeps       = @SCANDEPS@
@@ -10,22 +12,29 @@ BASHSCRIPTS = \
     create-service.sh.in
 
 GBASHSCRIPTS = $(BASHSCRIPTS:.sh.in=.sh)
-bin_SCRIPTS = $(GBASHSCRIPTS:.sh=)
+
+bin_SCRIPTS = $(GBASHSCRIPTS:.sh=) build-boto-services
 
 libexec_SCRIPTS = $(GBASHSCRIPTS)
+
+all: $(bin_SCRIPTS)
+
+build-boto-services:
+	create-modulino.pl -i $(builddir) -m Amazon::API::Botocore::Services -a $@
+
 dist_noinst_DATA = $(BASHSCRIPTS)
 
 @do_subst_command@
 
 $(GBASHSCRIPTS): % : %.in
-	$(do_subst) $< > $@
+	$(NO_ECHO)$(do_subst) $< > $@
 
 amazon-api: amazon-api.sh
-	cp $< $@
+	$(NO_ECHO)cp $< $@; \
 	chmod +x $@
 
 create-service: create-service.sh
-	cp $< $@
+	$(NO_ECHO)cp $< $@; \
 	chmod +x $@
 
 CLEANFILES = $(GBASHSCRIPTS) $(bin_SCRIPTS)

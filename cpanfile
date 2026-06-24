@@ -2,7 +2,7 @@ requires "Amazon::Signature4::Lite", "1.0.1";
 requires "Amazon::Credentials", "0";
 requires "Carp::Always", "0";
 requires "Class::Accessor::Fast", "0";
-requires "CLI::Simple", "2.0.4";
+requires "CLI::Simple", "2.0.6";
 requires "CPAN::Maker", "0";
 requires "Date::Format", "0";
 requires "File::ShareDir", "0";

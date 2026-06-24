@@ -28,6 +28,7 @@ src/main/perl/t/*.trs
 src/main/bash/bin/amazon-api
 src/main/bash/bin/amazon-api.sh
 src/main/bash/bin/create-service
+src/main/bash/bin/build-boto-services
 src/main/bash/bin/create-service.in
 src/main/bash/bin/create-service.sh
 src/examples/README

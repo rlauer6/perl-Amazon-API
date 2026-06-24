@@ -39,10 +39,10 @@ BOTOCORE_PATH  = $(top_builddir)/cpan-dist/botocore
 BOTOCORE_STATE = $(top_builddir)/.botocore.state
 BOTOCORE_REPO  = https://github.com/boto/botocore.git
 
-BUILD_BOTO_SERVICES = $(top_builddir)/src/main/perl/bin/build-boto-services.pl
+BUILD_BOTO_SERVICES = $(top_builddir)/src/main/bash/bin/build-boto-services
 
-$(BUILD_BOTO_SERVICES): $(BUILD_BOTO_SERVICES).in
-	cd $(top_builddir); \
+$(BUILD_BOTO_SERVICES):
+	cd $(top_builddir)/src/main/bash/bin; \
 	$(MAKE)
 
 PERL5LIBDIR = $(top_builddir)/src/main/perl/lib
@@ -65,7 +65,7 @@ $(BOTOCORE_PATH):
 
 # services.api only runs if missing or if the botocore dir is newer
 services.api: $(BOTOCORE_STATE) $(BOTOCORE_PATH) $(BUILD_BOTO_SERVICES)
-	perl -I $(PERL5LIBDIR) $(BUILD_BOTO_SERVICES) $$LIMIT -p $(BOTOCORE_PATH) -o $@
+	PERL5LIB=$(PERL5LIB):$(PERL5LIBDIR) $(BUILD_BOTO_SERVICES) $$LIMIT -p $(BOTOCORE_PATH) -o $@
 
 # update-botocore now ensures the directory exists first
 .PHONY: update-botocore

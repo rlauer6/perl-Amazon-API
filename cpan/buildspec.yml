@@ -26,6 +26,7 @@ provides:
   - Amazon::API::Botocore
   - Amazon::API::Botocore::Pod
   - Amazon::API::Botocore::Shape
+  - Amazon::API::Botocore::Services
   - Amazon::API::Botocore::Shape::Serializer
   - Amazon::API::Botocore::Shape::Utils
   - Amazon::API::Constants
