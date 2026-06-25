@@ -1,8 +1,20 @@
+Thu Jun 25 06:59:00 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.3.3]:
+	* VERSION: bump
+	* release-notes.md: updated
+	* release-notes/release-notes-2.3.3.md: new
+	* README.md: generated
+	* configure.ac
+	- add CREATE_MODULINO automake variable
+	* src/main/bash/bin/Makefile.am: likewise
+	* src/main/perl/lib/README.md: generated
+
 Wed Jun 24 15:36:43 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.3.2]:
 	* release-notes.md: updated
-	* release-notes/release-notes-2.3.1.md: new
+	* release-notes/release-notes-2.3.2.md: new
 	* .gitignore: +build-boto-services
 	* build-requires: CLI::Simple 2.0.6
 	* cpan-dist/Makefile

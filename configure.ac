@@ -109,6 +109,13 @@ if test -z "$POD2MARKDOWN" ; then
   AC_MSG_ERROR([pod2markdown  not found?])
 fi
 
+AC_PATH_PROG([CREATE_MODULINO],
+	[create-modulino])
+
+if test -z "$CREATE_MODULINO" ; then 
+  AC_MSG_ERROR([create-modulino not found?])
+fi
+
 AC_PATH_PROG([SCANDEPS],
 	[scandeps-static.pl])
 

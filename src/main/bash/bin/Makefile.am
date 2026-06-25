@@ -2,10 +2,12 @@ SUBDIRS = .
 
 NO_ECHO ?= @
 
-perlrun        = @PERL@
-bashrun        = @BASHRUN@
-scandeps       = @SCANDEPS@
-make_cpan_dist = @MAKE_CPAN_DIST@
+perlrun         = @PERL@
+bashrun         = @BASHRUN@
+scandeps        = @SCANDEPS@
+make_cpan_dist  = @MAKE_CPAN_DIST@
+
+CREATE_MODULINO = @CREATE_MODULINO@
 
 BASHSCRIPTS = \
     amazon-api.sh.in \
@@ -20,7 +22,7 @@ libexec_SCRIPTS = $(GBASHSCRIPTS)
 all: $(bin_SCRIPTS)
 
 build-boto-services:
-	create-modulino.pl -i $(builddir) -m Amazon::API::Botocore::Services -a $@
+	$(CREATE_MODULINO) -i $(builddir) -m Amazon::API::Botocore::Services -a $@
 
 dist_noinst_DATA = $(BASHSCRIPTS)
 
