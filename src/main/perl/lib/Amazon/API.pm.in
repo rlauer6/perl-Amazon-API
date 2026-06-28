@@ -1303,8 +1303,10 @@ sub serialize_content {
     }
   );
 
+  my $protocol = eval { $self->get_botocore_metadata->{protocol} } // $EMPTY;
+
   # if the API is a query API, url encode parameters
-  if ( any { $_ eq lc $self->get_service } @{ $API_TYPES{query} } ) {
+  if ( $protocol eq 'query' || any { $_ eq lc $self->get_service } @{ $API_TYPES{query} } ) {
     $parameters //= [];
     $content = create_urlencoded_content( $parameters, $action, $version );
   }

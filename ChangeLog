@@ -1,3 +1,22 @@
+Sun Jun 28 16:19:00 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.3.4]:
+	* release-notes.md: updated
+	* release-notes/release-notes-2.3.4.md: new
+	* README.md: generated
+	* VERSION: bump
+	* src/main/perl/lib/Amazon/API.pm.in
+	(serialize_content)
+	- get protocol from botocore metadata
+	* src/main/perl/lib/Amazon/API/Botocore.pm.in
+	- export create_stub, create_module_name, paginator
+	* src/main/perl/lib/Amazon/API/Botocore/Services.pm.in
+	(cmd_list_services): error message when botocore path missing
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in
+	(finalize_map)
+	- fix bug for non-flattened maps with no k/v location names
+	* src/main/perl/lib/README.md: modified
+
 Thu Jun 25 06:59:00 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.3.3]:

@@ -49,6 +49,7 @@ our $TEMPLATE_START = tell DATA;
 
 our @EXPORT_OK = qw(
   %BOTO_SERVICES
+  create_stub
   create_module_name
   create_service_shapes
   fetch_boto_services
@@ -59,9 +60,12 @@ our @EXPORT_OK = qw(
 our %EXPORT_TAGS = (
   all => [
     qw(
+      create_stub
+      create_module_name
       create_service_shapes
       fetch_boto_services
       get_service_descriptions
+      paginator
       %BOTO_SERVICES)
   ],
 );

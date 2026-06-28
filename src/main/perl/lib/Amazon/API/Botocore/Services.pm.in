@@ -64,7 +64,12 @@ sub cmd_list_services {
 
   my ($service) = $self->get_args;
 
-  my $boto_path = _check_path( $self->get_boto_path );
+  my $boto_path = $self->get_boto_path;
+
+  die "ERROR: usage: build-boto-services -p botocore-path list-services [service]\n"
+    if !$boto_path;
+
+  $boto_path = _check_path($boto_path);
 
   fetch_boto_services($boto_path);
 

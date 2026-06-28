@@ -429,18 +429,34 @@ sub finalize_map {
   # wrapper (e.g. MessageAttributes.entry.1.Name=Foo), NOT the 'member.N'
   # wrapper that query_param_n applies to generic lists. Pre-index the
   # entries into an entry.N-keyed hash here - the only stage that knows
-  # this is a map - so the generic walker emits the correct keys. For
-  # other protocols / unkeyed maps, fall through to the previous shape.
+  # this is a map - so the generic walker emits the correct keys.
   if ( $key && $PROTOCOL && ( any { $PROTOCOL eq $_ } qw( query ec2 ) ) ) {
     my %indexed;
     my $idx = 1;
     foreach my $entry ( @{$list} ) {
       $indexed{ 'entry.' . $idx++ } = $entry;
     }
-
     return $location_name ? { $location_name => \%indexed } : \%indexed;
   }
 
+  # Non-flattened maps with no key/value location names (e.g. Lambda
+  # EnvironmentMap) should be returned as a plain hashref with shape
+  # values finalized. Without this, blessed shape objects survive into
+  # JSON encoding and cause serialization errors.
+  if ( !$key && $PROTOCOL && !( any { $PROTOCOL eq $_ } qw( query ec2 ) ) ) {
+    my %plain;
+    for my $item (@elem_list) {
+      for my $pair ( pairs %{$item} ) {
+        my ( $k, $v ) = @{$pair};
+        $plain{$k} = blessed $v ? $v->finalize : $v;
+      }
+    }
+
+    return $location_name ? { $location_name => \%plain } : \%plain;
+  }
+
+  # Keyed non-query maps (REST-JSON maps with explicit key/value
+  # location names) — return the pre-built list as-is.
   return $location_name ? { $location_name => $list } : $list;
 }
 
