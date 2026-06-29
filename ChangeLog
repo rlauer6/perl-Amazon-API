@@ -1,3 +1,18 @@
+Mon Jun 29 12:57:00 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.3.5]:
+	* VERSION: modified
+	* release-notes.md: updated
+	* release-notes/release-notes-2.3.5.md: new
+	* src/main/perl/lib/Amazon/API/Botocore/Shape.pm.in: modified
+	(_init_map)
+	- use pairs to process all of the key/value pairs
+	* src/main/perl/lib/README.md: generated
+	* Makefile.am
+	(clean-local): rm *.diffs, *.lst, *.tar.gz
+	* cpan/Makefile.am
+	- remove -s (--scandeps) option
+
 Sun Jun 28 16:19:00 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.3.4]:

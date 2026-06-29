@@ -35,3 +35,7 @@ cpan:
 DISTCHECK_CONFIGURE_FLAGS = --enable-distcheck-hack --enable-rpmbuild
 
 CLEANFILES = README.md
+
+clean-local:
+	rm -rf *.diffs *.lst *.tar.gz
+

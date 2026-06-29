@@ -173,16 +173,15 @@ sub _init_map {
 
   foreach my $elem ( @{$value} ) {
     my @kv = %{$elem};
-
-    # Use the plain key string ($kv[0]) as the hash key - NOT
-    # $key_class->new($kv[0]), which Perl would stringify into a
-    # blessed-object ref ("...::String=HASH(0x...)"), destroying the
-    # real key value. For query/ec2 protocols this corrupted key then
-    # desyncs the entire flattened query string. The key's botocore
-    # shape (key.locationName, e.g. 'Name') is applied later in
-    # finalize_map/_create_key_value_list; the key value itself is just
-    # a string and needs no shape object here.
-    push @list, { $kv[0] => $value_class->new( $kv[1] ) };
+    # Use the plain key string as the hash key - NOT $key_class->new($kv[0]),
+    # which Perl would stringify into a blessed-object ref, destroying the
+    # real key value. Use pairs to process ALL key-value pairs in the element,
+    # not just the first ($kv[0]/$kv[1]) which would drop all but one entry
+    # from multi-key maps like Lambda EnvironmentMap.
+    for my $pair ( pairs @kv ) {
+      my ( $k, $v ) = @{$pair};
+      push @list, { $k => $value_class->new($v) };
+    }
   }
 
   $value = \@list;
