@@ -1,6 +1,7 @@
 .PHONY: release-notes
+
 release-notes: ## creates release-{version}.diffs, release-{version}.lst and release-{version}.tar.gz used for automatic release note generation
-	@curr_ver=$$(cat VERSION); \
+	@curr_ver=$(VERSION); \
 	if [[ -n "$$LAST_TAG" ]]; then \
 	  last_tag=$$LAST_TAG; \
 	else \

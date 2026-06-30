@@ -1,3 +1,56 @@
+# Table of Contents
+
+* [NAME](#name)
+* [SYNOPSIS](#synopsis)
+* [DESCRIPTION](#description)
+* [BACKGROUND AND MOTIVATION](#background-and-motivation)
+  * [Take the Luddite approach](#take-the-luddite-approach)
+  * [Build your own API classes with just what you need](#build-your-own-api-classes-with-just-what-you-need)
+  * [Use the Botocore metadata to build classes for you](#use-the-botocore-metadata-to-build-classes-for-you)
+* [THE APPROACH](#the-approach)
+* [BOTOCORE SUPPORT](#botocore-support)
+  * [Response Serialization](#response-serialization)
+* [ERRORS](#errors)
+* [METHODS AND SUBROUTINES](#methods-and-subroutines)
+  * [new](#new)
+  * [invoke\_api](#invoke\api)
+  * [decode\_response](#decode\response)
+  * [print\_error](#print\error)
+  * [submit](#submit)
+  * [generate\_xml](#generate\xml)
+* [EXPORTED METHODS](#exported-methods)
+  * [get\_api\_service](#get\api\service)
+  * [create\_url\_encoded\_content](#create\url\encoded\content)
+  * [paginator](#paginator)
+  * [param\_n](#param\n)
+* [CAVEATS](#caveats)
+* [IMPLEMENTATION NOTES](#implementation-notes)
+  * [Headers](#headers)
+    * [X-Amz-Target](#x-amz-target)
+    * [Rolling a New API](#rolling-a-new-api)
+    * [Overriding Methods](#overriding-methods)
+  * [Content-Type](#content-type)
+  * [ADDITIONAL HINTS](#additional-hints)
+* [VERSION](#version)
+* [DIAGNOSTICS](#diagnostics)
+  * [Logging](#logging)
+* [BUGS AND LIMITATIONS](#bugs-and-limitations)
+* [FAQs](#faqs)
+  * [Why should I use this module instead of Paws?](#why-should-i-use-this-module-instead-of-paws)
+  * [Does it perform better than Paws?](#does-it-perform-better-than-paws)
+  * [Does this work for all APIs?](#does-this-work-for-all-apis)
+  * [Do I have to create the shape classes when I generate stubs for a service?](#do-i-have-to-create-the-shape-classes-when-i-generate-stubs-for-a-service)
+  * [This code does not use "Modern Perl". Why?](#this-code-does-not-use-"modern-perl"-why)
+  * [How do I pass AWS credentials to the API?](#how-do-i-pass-aws-credentials-to-the-api)
+  * [Can I use more than one set of credentials to invoke different APIs?](#can-i-use-more-than-one-set-of-credentials-to-invoke-different-apis)
+  * [How stable is the interface?](#how-stable-is-the-interface)
+  * [Why are you using XML::Simple when it clearly says "DO NOT"?](#why-are-you-using-xmlsimple-when-it-clearly-says-"do-not")
+  * [I tried to use this with XYZ service and it didn't work. What should do I do?](#i-tried-to-use-this-with-xyz-service-and-it-didnt-work-what-should-do-i-do)
+* [BETTER TOGETHER](#better-together)
+* [LICENSE AND COPYRIGHT](#license-and-copyright)
+* [TBD](#tbd)
+* [SEE OTHER](#see-other)
+* [AUTHOR](#author)
 # NAME
 
 Amazon::API - A generic base class for AWS Services
@@ -981,7 +1034,7 @@ by passing the `content_type` option to the constructor.
 
 # VERSION
 
-This documentation refers to version 2.3.5  of `Amazon::API`.
+This documentation refers to version 2.4.0  of `Amazon::API`.
 
 # DIAGNOSTICS
 

@@ -1,15 +1,53 @@
-# -*- mode: makefile-gmake; -*-
-# make SERVICE=service-name
-SHELL := /bin/bash
+#-*- mode: makefile; -*-
 
-.SHELLFLAGS := -ec
+BUILD_DIR ?= $(shell pwd)
+
+BOTOCORE_PATH  = $(BUILD_DIR)/botocore
+BOTOCORE_STATE = $(BUILD_DIR)/.botocore.state
+BOTOCORE_REPO  = https://github.com/boto/botocore.git
+
+BUILD_BOTO_SERVICES = $(BUILD_DIR)/bin/build-boto-services
 
 CPAN_DIST_MAKER=make-cpan-dist.pl
+DEPS += services.api
 
-NO_ECHO ?= @
+$(BUILD_BOTO_SERVICES):
+	cd $(BUILD_DIR); \
+	$(MAKE)
 
-cpan: buildspec.yml api
-	$(NO_ECHO)service=$$(cat service); \
+PERL5LIBDIR = $(BUILD_DIR)/lib
+
+$(BOTOCORE_STATE): | $(BOTO_CORE_PATH)
+	remote_hash=$$(git ls-remote $(BOTOCORE_REPO) HEAD | awk '{print $$1}'); \
+	if [ ! -f $(BOTOCORE_STATE) ] || [ "$$remote_hash" != "$$(cat $(BOTOCORE_STATE))" ]; then \
+	  echo "$$remote_hash" > $(BOTOCORE_STATE); \
+	  cd $(BOTOCORE_PATH) && git pull; \
+	fi
+
+# The directory target handles the initial clone
+$(BOTOCORE_PATH):
+	mkdir -p $@; \
+	git clone --depth=1 $(BOTOCORE_REPO) $@
+	cd $@
+
+# services.api only runs if missing or if the botocore dir is newer
+services.api: \
+    $(BOTOCORE_STATE) \
+    $(BUILD_BOTO_SERVICES) | $(BOTOCORE_PATH)
+	PERL5LIB=$(PERL5LIB):$(PERL5LIBDIR) $(BUILD_BOTO_SERVICES) -p $(BOTOCORE_PATH) -o $@
+
+# update-botocore now ensures the directory exists first
+.PHONY: update-botocore
+update-botocore: $(BOTOCORE_PATH)
+	cd $(BOTOCORE_PATH) && git pull
+
+workdir/requires: requires.cpan-dist | workdir
+	cp $< $@
+
+.PHONY: cpan
+cpan: workdir/buildspec-api.yml api workdir/requires | workdir
+	$(NO_ECHO)cd workdir; \
+	service=$$(cat service); \
 	module_name=$$(cat module); \
 	test -n "$$DEBUG" && set -x; \
 	test -n "$$DEBUG" && DEBUG="--debug"; \
@@ -26,25 +64,24 @@ cpan: buildspec.yml api
 	  $$SCANDEPS \
 	  $$NOVERSION \
 	  $$NOCLEANUP \
-	  $$DEBUG -b $< || echo "$$?"; \
-	$(MAKE) clean
+	  $$DEBUG -b $$(basename $<) || echo "$$?"
+	rm -rf workdir
 
-api: $(BOTOCORE)
-	$(NO_ECHO)if ! test -d "./lib"; then \
-	  mkdir lib; \
-	fi; \
+api: $(BOTOCORE_PATH) workdir/service workdir/module | workdir
+	$(NO_ECHO)cd workdir; \
 	boto_service=$$(cat service); \
 	module_name=$$(cat module); \
+	mkdir -p lib; \
 	if test -n "$$TIDY"; then \
 	  TIDY="--tidy"; \
 	fi; \
-	set -e; \
 	for a in stub shapes; do \
 	  echo "creating...$$a"; \
-	  amazon-api $$TIDY -b $$(pwd) -s $$boto_service -m $$module_name -o lib create-$$a; \
+	  amazon-api $$TIDY -b $(BOTOCORE_PATH) -s $$boto_service -m $$module_name -o lib create-$$a; \
 	done; \
 	module_path=$$(echo "lib/Amazon/API/$${module_name}.pm" | sed -e 's/::/\//g;'); \
-	service_date=$$(build-boto-services -p botocore list $$boto_service | jq -r .date); \
+	echo $$module_path; \
+	service_date=$$(build-boto-services -p $(BOTOCORE_PATH) list $$boto_service | jq -r .date); \
         service_date="$${service_date//-/.}"; \
 	echo $$service_date; \
 	sed -e 's/[@]SERVICE_VERSION[@]/'$$service_date'/' $$module_path > $${module_path}.tmp; \
@@ -55,7 +92,7 @@ api: $(BOTOCORE)
 	  mv $$a.tmp $$a; \
 	done
 
-BOTOCORE_BASE := botocore/botocore/data
+BOTOCORE_BASE := $(BOTOCORE_PATH)/botocore/data
 
 .PHONY: all-services
 all-services: xml.services json.services rest-json.services query.services
@@ -80,13 +117,16 @@ query.services:
 	grep -ri '"protocol":' $(BOTOCORE_BASE) | grep 'query' | \
 	  cut -f 4 -d '/' | sort -u > $@
 
-service:
+workdir:
+	mkdir -p workdir
+
+workdir/service: | workdir
 	$(NO_ECHO)if [[ -n "$(SERVICE)" ]]; then \
 	  echo "$(SERVICE)" | tr [A-Z] [a-z] > $@; \
-	elif [[ -n "$(MODULE_NAME)" ]]; then \
-	  echo "$(MODULE_NAME)" | tr [A-Z] [a-z] > $@; \
+	elif [[ -n "$(MODULE_ALIAS)" ]]; then \
+	  echo "$(MODULE_ALIAS)" | tr [A-Z] [a-z] > $@; \
 	else \
-	  echo "ERROR: usage: make MODULE_NAME=module or SERVICE=service"; \
+	  echo "ERROR: usage: make MODULE_ALIAS=module or SERVICE=service"; \
 	  false; \
 	fi
 	service=$$(cat $@); \
@@ -137,19 +177,20 @@ service-listing.json: botocore
 	perl -MJSON::XS -e 'while(<>) { chomp; ($$k,$$v) = split /,/,$$_; $$listing{$$k} = $$v; }; print JSON::XS->new->pretty->encode(\%listing);' $$listing >$@; \
 	rm $$listing;
 
-module: service
-	$(NO_ECHO)if test -z "$(MODULE_NAME)"; then \
+workdir/module: workdir/service | workdir
+	$(NO_ECHO)if test -z "$(MODULE_ALIAS)"; then \
 	  echo "$(SERVICE)" | tr [a-z] [A-Z] > $@; \
 	else \
-	  echo "$(MODULE_NAME)" > $@; \
+	  echo "$(MODULE_ALIAS)" > $@; \
 	fi
 
-buildspec.yml: buildspec.yml.in service module
-	$(NO_ECHO)service=$$(cat service); \
+workdir/buildspec-api.yml: buildspec-api.yml.in | workdir
+	$(NO_ECHO)test -d workdir || mkdir -p workdir; \
+	service=$$(cat service); \
 	GIT=$$(command -v git || true); \
 	module_name=$$(cat module); \
 	if [[ -z "$$service" ]] && [[ -z "$$module_name" ]]; then \
-	  echo "no SERVICE or MODULE_NAME specified - make SERVICE=ecr"; \
+	  echo "no SERVICE or MODULE_ALIAS specified - make SERVICE=ecr"; \
 	  false; \
 	fi; \
 	if [[ -z "$$EMAIL" ]]; then \
@@ -171,26 +212,5 @@ buildspec.yml: buildspec.yml.in service module
 	-e "s/@date@/$$DATE/g" \
 	-e "s/@service@/$$module_name/g" \
 	-e "s/@email@/$$EMAIL/g" \
-	-e "s/@name@/$$FULLNAME/g" $< > $@ || true
-
-botocore:
-	$(NO_ECHO)if test -n "$$BOTOCORE_PATH" && grep -q 'botocore.git' "$$BOTOCORE_PATH/.git/config"; then \
-	  ln -sf $$BOTOCORE_PATH botocore; \
-	else \
-	   git clone https://github.com/boto/botocore.git/; \
-	fi
-
-
-.PHONY: cpan
-
-CLEANFILES = \
-    buildspec.yml \
-    provides \
-    *.tmp \
-    resources \
-    service \
-    module
-
-clean:
-	$(NO_ECHO)rm -rf lib/
-	$(NO_ECHO)rm -f $(CLEANFILES)
+	-e "s/@name@/$$FULLNAME/g" $< > $@
+	tree workdir

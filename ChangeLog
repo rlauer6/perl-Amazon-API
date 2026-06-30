@@ -1,3 +1,109 @@
+Tue Jun 30 04:50:27 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.4.0]:
+	* VERSION: bump
+	* release-notes: modified
+	* release-notes/release-notes-2.4.0.md
+	* buildspec.yml
+	- new project name
+	- services.api is in root now
+	* .gitignore
+	- added CPAN::Maker::Bootstrapper ignore artifacts
+	- removed autoconf ignore artifacts
+	* README.md: generated
+
+	[moved & modified]:
+	* .includes/release-notes.mk: moved & modified
+	* .includes/version.mk: moved & modified
+
+	[new from CPAN::Maker::Bootstrapper]:
+	* .includes/git.mk: new
+	* .includes/help.mk: new
+	* .includes/perl.mk: new
+	* .includes/update.mk: new
+	* .includes/upgrade.mk: new
+	* Makefile: new
+	* project.mk: new
+	* t/00-amazon-api.t: new
+	* docker/docker-compose.yml: new
+
+	[moved]:
+	* .includes/version.mk: renamed
+	* .includes/release-notes.mk: renamed
+	* test-requires: renamed
+	* bin/amazon-api.in: renamed
+	* lib/Amazon/API.pm.in: renamed
+	* lib/Amazon/API/Botocore.pm.in: renamed
+	* lib/Amazon/API/Botocore/Pod.pm.in: renamed
+	* lib/Amazon/API/Botocore/Services.pm.in: renamed
+	* lib/Amazon/API/Botocore/Shape.pm.in: renamed
+	* lib/Amazon/API/Botocore/Shape/Serializer.pm.in: renamed
+	* lib/Amazon/API/Botocore/Shape/Utils.pm.in: renamed
+	* lib/Amazon/API/Constants.pm.in: renamed
+	* lib/Amazon/API/Error.pm.in: renamed
+	* lib/Amazon/API/HTTP/Response.pm.in: renamed
+	* lib/Amazon/API/HTTP/UserAgent.pm.in: renamed
+	* lib/Amazon/API/NullLogger.pm.in: renamed
+	* lib/Amazon/API/Pod/Parser.pm.in: renamed
+	* lib/Amazon/API/Pod/Simple/Text.pm.in: renamed
+	* lib/Amazon/API/Signature4.pm.in: renamed
+	* lib/Amazon/API/Template.pm.in: renamed
+	* buildspec-api.yml.in: renamed
+	* recommends: renamed from cpan/
+	* requirements.json: deleted
+	* requires: renamed from cpan/
+	* requires.cpan-dist: renamed from cpan-dist/
+	* t/00-botocore-template-var.t: renamed
+	* t/00-load.t: renamed from src/main/perl/t
+	* t/01-urlencode.t: renamed from src/main/perl/t
+	* t/02-parse-service-url.t: renamed from src/main/perl/t
+	* t/03-query-map-shape.t: renamed from src/main/perl/t
+	* t/04-rest-xml-payload.t: renamed from src/main/perl/t
+	* t/06-signature4-adapter.t: renamed from src/main/perl/t
+	* t/amazon-api.t: renamed from src/main/perl/t
+	* bin/build-boto-services.pl.in: renamed from src/main/perl/bin
+
+	[deleted]:
+	* Makefile.am: deleted
+	* Makefile.requirements: deleted
+	* autotools/ads_PERL_INCLUDES.m4: deleted
+	* autotools/ads_PERL_LIBDIR.m4: deleted
+	* autotools/ads_PERL_MODULE.m4: deleted
+	* autotools/ads_PROG_PERL.m4: deleted
+	* autotools/am_rpm_build_mode.m4: deleted
+	* autotools/ax_am_conditional_example.m4: deleted
+	* autotools/ax_deps_check.m4: deleted
+	* autotools/ax_distcheck_hack.m4: deleted
+	* autotools/ax_requirements_check.m4: deleted
+	* autotools/ax_rpmbuild_check.m4: deleted
+	* bootstrap: deleted
+	* configure.ac: deleted
+	* cpan-dist/README.md: deleted
+	* cpan/Makefile.am: deleted
+	* cpan/README.md: deleted
+	* cpan/buildspec.yml: deleted
+	* docker-rpm/Dockerfile: deleted
+	* docker-rpm/Makefile: deleted
+	* docker-rpm/README.md: deleted
+	* docker-rpm/package.lst: deleted
+	* docker-rpm/rpm-build: deleted
+	* perl-Amazon-API.spec.in: deleted
+	* src/Makefile.am: deleted
+	* src/main/Makefile.am: deleted
+	* src/main/bash/Makefile.am: deleted
+	* src/main/bash/bin/Makefile.am: deleted
+	* src/main/perl/Makefile.am: deleted
+	* src/main/perl/bin/Makefile.am: deleted
+	* src/main/perl/lib/Makefile.am: deleted
+	* src/main/perl/lib/README.md: deleted
+	* src/main/perl/lib/directories.inc: deleted
+	* src/main/perl/lib/modules.inc: deleted
+	* src/main/perl/lib/perl-build.inc: deleted
+	* src/main/perl/t/Makefile.am: deleted
+	* src/main/bash/bin/create-service.sh.in: deleted
+	* target-repo: deleted
+	* cpan-dist/.gitignore: deleted
+
 Mon Jun 29 12:57:00 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.3.5]:
