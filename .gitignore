@@ -21,7 +21,6 @@ resources
 **/*.tdy
 botocore/
 bin/amazon-api
-bin/
 .botocore.state
 bin/DescribeInstances.pl
 bin/amazon-api

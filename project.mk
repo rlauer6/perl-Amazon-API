@@ -17,7 +17,7 @@ $(BUILD_BOTO_SERVICES):
 
 PERL5LIBDIR = $(BUILD_DIR)/lib
 
-$(BOTOCORE_STATE): | $(BOTO_CORE_PATH)
+$(BOTOCORE_STATE): | $(BOTOCORE_PATH)
 	remote_hash=$$(git ls-remote $(BOTOCORE_REPO) HEAD | awk '{print $$1}'); \
 	if [ ! -f $(BOTOCORE_STATE) ] || [ "$$remote_hash" != "$$(cat $(BOTOCORE_STATE))" ]; then \
 	  echo "$$remote_hash" > $(BOTOCORE_STATE); \
