@@ -50,7 +50,7 @@ function install_deps {
     test -e build-requires && cat build-requires >> $all_requires
     test -e test-requires && cat test-requires >> $all_requires
 
-    perl -ne 'chomp;($m,$v)=split /(?:[@]|\s+)/,$_,2; $v //= q{}; $m=~s/^\+//; $v = $v =~/\s*0\s*/ q{0} ? q{} : $v; print qq{requires "$m", "$v";\n};' \
+    perl -ne 'chomp;($m,$v)=split /(?:[@]|\s+)/,$_,2; $v //= q{}; $m=~s/^\+//; $v = $v =~/\s*0\s*/ ? q{} : $v; print qq{requires "$m", "$v";\n};' \
          $all_requires | sort -u  >cpanfile
 
     if [[ "$INSTALLER" =~ cpanm ]]; then
