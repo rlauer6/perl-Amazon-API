@@ -1,3 +1,15 @@
+Tue Jun 30 08:10:24 2026  Rob Lauer  <rclauer@gmail.com>
+
+	[2.4.1]: fix CI build
+	* VERSION: bump
+	* release-notes: updated
+	* release-notes/release-notes-2.4.1.md
+	* .gitignore: remove bin directory
+	* bin/build-boto-services.in: new
+	* builder: new
+	* project.mk: BOTOCORE_PATH, not BOTO_CORE_PATH
+	* .github/workflows/build.yml: builder not build-github
+
 Tue Jun 30 04:50:27 2026  Rob Lauer  <rclauer@gmail.com>
 
 	[2.4.0]:

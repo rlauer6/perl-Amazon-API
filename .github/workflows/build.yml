@@ -3,7 +3,7 @@ on:
   push:
     branches: [ master, dev ]
 jobs:
-  perl-Amazon-API:
+  Amazon-API:
     runs-on: ubuntu-latest
     container:
       image: debian:trixie
@@ -11,4 +11,4 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: build
-        run: ./build-github https://github.com/rlauer6/perl-Amazon-API.git
+        run: ./builder https://github.com/rlauer6/Amazon-API.git
