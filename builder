@@ -23,7 +23,7 @@ INSTALLER="${INSTALLER:-cpm install -g}"
 function install_deps {
 ########################################################################
     
-    EXTRA_DEPS=(CPAN::Maker@1.9.1)
+    EXTRA_DEPS=(CPAN::Maker@1.9.1 Module::ScanDeps::Static)
     EXTRA_DEPS+=(File::ShareDir File::ShareDir::Install)
     EXTRA_DEPS+=(Pod::Markdown Markdown::Render@2.0.4)
 
@@ -97,8 +97,7 @@ else
 fi
 
 if [[ -n "$REPO" ]]; then
-    git clone $REPO
-
+    test -d $(basename $REPO .git) || git clone $REPO
     cd $(basename $REPO .git)
 else
    git rev-parse --git-dir > /dev/null 2>&1 \
